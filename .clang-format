@@ -1,0 +1,34 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Based on qtbase's _clang-format, 100 columns (ADR 0018).
+Language: Cpp
+BasedOnStyle: WebKit
+Standard: c++20
+ColumnLimit: 100
+PointerAlignment: Right
+AlignAfterOpenBracket: Align
+AlignEscapedNewlines: DontAlign
+AlignTrailingComments: true
+AllowShortFunctionsOnASingleLine: Inline
+AlwaysBreakTemplateDeclarations: Yes
+BreakBeforeBinaryOperators: All
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterClass: true
+  AfterFunction: true
+  AfterStruct: true
+  AfterEnum: false
+  AfterNamespace: false
+  AfterControlStatement: Never
+  BeforeCatch: false
+  BeforeElse: false
+BreakConstructorInitializers: BeforeComma
+ContinuationIndentWidth: 8
+ForEachMacros: [forever, Q_FOREVER]
+IncludeCategories:
+  - Regex: '^<Q.*'
+    Priority: 200
+NamespaceIndentation: None
+SpaceAfterTemplateKeyword: false
+SpaceBeforeCpp11BracedList: false
+SortIncludes: CaseSensitive
+StatementMacros: [Q_UNUSED, Q_OBJECT]
