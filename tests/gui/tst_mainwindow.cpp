@@ -90,15 +90,16 @@ void TestMainWindow::appliesDarkFusionThemeAndEmbeddedFont()
     auto *canvas = window.findChild<QGraphicsView *>(QStringLiteral("canvasView"));
     QVERIFY(canvas->palette().color(QPalette::Base).lightness() < 80);
 
-    // Loading succeeds only from the embedded resource, never from a system copy.
-    QVERIFY(QFontDatabase::addApplicationFont(QStringLiteral(":/fonts/DejaVuSans.ttf")) != -1);
-    QVERIFY(QFontDatabase::addApplicationFont(QStringLiteral(":/fonts/DejaVuSans-Bold.ttf")) != -1);
     QCOMPARE(QApplication::font().family(), QStringLiteral("DejaVu Sans"));
     QCOMPARE(QFontInfo(window.font()).family(), QStringLiteral("DejaVu Sans"));
 
     const QFontMetrics metrics(window.font());
     for (char32_t letter : std::u32string_view(U"әғқңөұүһіЁё"))
         QVERIFY2(metrics.inFontUcs4(letter), qPrintable(QString::number(letter, 16)));
+
+    // Loading succeeds only from the embedded resource, never from a system copy.
+    QVERIFY(QFontDatabase::addApplicationFont(QStringLiteral(":/fonts/DejaVuSans.ttf")) != -1);
+    QVERIFY(QFontDatabase::addApplicationFont(QStringLiteral(":/fonts/DejaVuSans-Bold.ttf")) != -1);
 }
 
 QTEST_MAIN(TestMainWindow)
