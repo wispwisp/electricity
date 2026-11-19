@@ -25,6 +25,15 @@ add_test(NAME qt_version_pin_matches_ci
          COMMAND ${CMAKE_COMMAND} -DQt6_VERSION=${ci_qt_version} -P ${PROJECT_SOURCE_DIR}/cmake/QtVersion.cmake)
 set_tests_properties(qt_version_pin_matches_ci PROPERTIES LABELS cmake)
 
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    # tst_version links libstdc++ dynamically (only the app gets -static-libstdc++),
+    # so the release dependency check must reject it.
+    add_test(NAME linux_deps_check_rejects_dynamic_cxx
+             COMMAND ${PROJECT_SOURCE_DIR}/scripts/check_linux_deps.sh $<TARGET_FILE:tst_version>)
+    set_tests_properties(linux_deps_check_rejects_dynamic_cxx PROPERTIES
+        LABELS scripts PASS_REGULAR_EXPRESSION "not allowed: libstdc\\+\\+\\.so\\.6")
+endif()
+
 function(add_gui_test name)
     qt_add_executable(${name} ${ARGN} gui/screenshot.cpp)
     target_link_libraries(${name} PRIVATE electricity_lib Qt6::Test)
