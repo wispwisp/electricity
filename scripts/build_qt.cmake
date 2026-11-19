@@ -38,7 +38,11 @@ foreach(module qtbase qtsvg qttools)
          ${archive}
          EXPECTED_HASH SHA256=${QT_HASH_${module}}
          SHOW_PROGRESS)
-    file(ARCHIVE_EXTRACT INPUT ${archive} DESTINATION ${QT_WORK_DIR})
+    # qttools has a non-ASCII file name, which libarchive can only extract under a UTF-8 locale.
+    execute_process(
+        COMMAND ${CMAKE_COMMAND} -E env LC_ALL=C.UTF-8 ${CMAKE_COMMAND} -E tar xf ${archive}
+        WORKING_DIRECTORY ${QT_WORK_DIR}
+        COMMAND_ERROR_IS_FATAL ANY)
 
     set(build_dir ${QT_WORK_DIR}/build-${module})
     file(MAKE_DIRECTORY ${build_dir})
