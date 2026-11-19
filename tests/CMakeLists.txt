@@ -16,6 +16,15 @@ set_tests_properties(qt_version_pin_rejects_other PROPERTIES
                      PASS_REGULAR_EXPRESSION "Qt 6.12.0 is required")
 set_tests_properties(qt_version_pin_accepts_pinned qt_version_pin_rejects_other PROPERTIES LABELS cmake)
 
+# The CI Qt build (scripts/build_qt.cmake) must build the version QtVersion.cmake requires.
+set(ci_qt_script ${PROJECT_SOURCE_DIR}/scripts/build_qt.cmake)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${ci_qt_script})
+file(STRINGS ${ci_qt_script} ci_qt_line REGEX "^set\\(QT_VERSION ")
+string(REGEX REPLACE "^set\\(QT_VERSION ([^)]*)\\)$" "\\1" ci_qt_version "${ci_qt_line}")
+add_test(NAME qt_version_pin_matches_ci
+         COMMAND ${CMAKE_COMMAND} -DQt6_VERSION=${ci_qt_version} -P ${PROJECT_SOURCE_DIR}/cmake/QtVersion.cmake)
+set_tests_properties(qt_version_pin_matches_ci PROPERTIES LABELS cmake)
+
 function(add_gui_test name)
     qt_add_executable(${name} ${ARGN} gui/screenshot.cpp)
     target_link_libraries(${name} PRIVATE electricity_lib Qt6::Test)
