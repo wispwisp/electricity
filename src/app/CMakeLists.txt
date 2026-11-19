@@ -11,3 +11,4 @@ target_link_options(electricity PRIVATE
 # plugin they are dead weight that adds libwayland-* runtime dependencies.
 qt_import_plugins(electricity EXCLUDE_BY_TYPE
     wayland-decoration-client wayland-graphics-integration-client wayland-shell-integration)
+set_target_properties(electricity PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
