@@ -45,9 +45,11 @@ Exactly the roadmap's F01 list:
 - Static Qt 6.12.0 at `/opt/qt` in the container.
 - Warnings as errors on project targets.
 - Linux platform plugin: `xcb` only ([0004](../../adr/0004-dependencies.md)).
-  The installed Qt also has a Wayland plugin; it is not linked. The app runs
-  on Wayland desktops through XWayland, and the binary's dynamic
-  dependencies stay those listed in 0004.
+  The installed Qt also has a Wayland plugin; it is not linked. Qt's
+  Wayland helper plugins (decorations, graphics integration), which it
+  links by default, are excluded too, because they add `libwayland-*`
+  runtime dependencies. The app runs on Wayland desktops through XWayland,
+  and the binary's dynamic dependencies stay those listed in 0004.
 
 ## Approaches
 
