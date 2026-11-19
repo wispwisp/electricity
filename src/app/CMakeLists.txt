@@ -13,6 +13,9 @@ target_link_options(electricity PRIVATE
     "$<$<AND:$<CXX_COMPILER_ID:GNU>,$<CONFIG:Release>>:-static-libstdc++;-static-libgcc>")
 # Qt links its Wayland helper plugins by default; without the Wayland platform
 # plugin they are dead weight that adds libwayland-* runtime dependencies.
+# The default image format, icon engine and EglFS plugins are unused in F01 and
+# would add codecs and their license notices; F04 re-includes qsvg/qsvgicon explicitly.
 qt_import_plugins(electricity EXCLUDE_BY_TYPE
-    wayland-decoration-client wayland-graphics-integration-client wayland-shell-integration)
+    wayland-decoration-client wayland-graphics-integration-client wayland-shell-integration
+    imageformats iconengines egldeviceintegrations)
 set_target_properties(electricity PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
