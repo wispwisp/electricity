@@ -20,7 +20,7 @@ if ($dlls.Count -eq 0) {
 $failed = $false
 foreach ($dll in $dlls) {
     # The C/C++ runtime and Qt must be linked statically, even though ucrtbase.dll ships with Windows.
-    $mustBeStatic = $dll -match '^(vcruntime|msvcp|ucrtbase|concrt|api-ms-win-crt-|qt6)'
+    $mustBeStatic = $dll -match '^(vcruntime|msvcp|ucrtbase|concrt|vccorlib|vcomp|vcamp|mfc|api-ms-win-crt-|qt6)'
     $isSystem = $dll -match '^(api|ext)-ms-win-' -or (Test-Path -LiteralPath "$env:SystemRoot\System32\$dll")
     if ($mustBeStatic -or -not $isSystem) {
         "not a system DLL: $dll"

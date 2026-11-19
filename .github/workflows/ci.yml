@@ -14,6 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # Changing this list can change what Qt detects: also change scripts/build_qt.cmake (new cache key).
       - name: Install packages
         run: |
           sudo apt-get update && sudo apt-get install -y \
@@ -33,7 +34,7 @@ jobs:
         uses: actions/cache/restore@v6
         with:
           path: /opt/qt
-          key: qt-static-${{ runner.os }}-${{ hashFiles('scripts/build_qt.cmake') }}
+          key: qt-static-ubuntu-24.04-${{ hashFiles('scripts/build_qt.cmake') }}
 
       - name: Build Qt
         if: steps.qt.outputs.cache-hit != 'true'
@@ -46,7 +47,7 @@ jobs:
         uses: actions/cache/save@v6
         with:
           path: /opt/qt
-          key: qt-static-${{ runner.os }}-${{ hashFiles('scripts/build_qt.cmake') }}
+          key: qt-static-ubuntu-24.04-${{ hashFiles('scripts/build_qt.cmake') }}
 
       - name: Build executable
         run: scripts/build_linux_executable.sh
@@ -96,7 +97,7 @@ jobs:
         uses: actions/cache/restore@v6
         with:
           path: C:\qt-static
-          key: qt-static-${{ runner.os }}-${{ hashFiles('scripts/build_qt.cmake') }}
+          key: qt-static-windows-2022-${{ hashFiles('scripts/build_qt.cmake') }}
 
       # A short work dir keeps Qt's deep build paths under the Windows path length limit.
       - name: Build Qt
@@ -109,7 +110,7 @@ jobs:
         uses: actions/cache/save@v6
         with:
           path: C:\qt-static
-          key: qt-static-${{ runner.os }}-${{ hashFiles('scripts/build_qt.cmake') }}
+          key: qt-static-windows-2022-${{ hashFiles('scripts/build_qt.cmake') }}
 
       - name: Configure
         run: cmake --preset release

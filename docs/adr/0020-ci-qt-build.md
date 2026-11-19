@@ -17,13 +17,26 @@ runner.
 - **Modules:** CI builds only qtbase, qtsvg and qttools, and qttools without
   clang (`-no-feature-clang`). This refines "same submodules" in
   [0004](0004-dependencies.md): the app needs nothing else.
-- **Linux features:** the configure flags switch off wayland, glib, icu, zstd,
-  libudev, cups and gtk3 and switch on xcb, to match the container's Qt, so
-  extra packages on the runner cannot add runtime dependencies.
+- **Linux features:** the configure flags switch on xcb and switch off glib,
+  icu, zstd, libudev, cups and gtk3, and pin dbus (runtime-loaded), xcb-sm and
+  the system doubleconversion, libb2, textmarkdownreader and xcb-xinput
+  libraries, all to the container's values. Wayland is off because the app
+  excludes the Wayland plugins (F01), not to match the container. The explicit
+  flags prevent the known runtime dependencies (for example `libdbus-1.so.3`
+  or `libSM` from `-dev` packages on the runner); the `NEEDED` allowlist is
+  the backstop for the rest.
+- **Disk:** Linux builds with `-no-pch`: the work dir peaked at 17 GB, 16.3 GB
+  of it precompiled headers, and standard runners have 14 GB. Windows keeps
+  precompiled headers for build speed. On both OSes the script deletes each
+  module's build dir after installing it.
 - **One build script:** `scripts/build_qt.cmake` builds Qt on both OSes. It
-  downloads qtbase, qtsvg and qttools 6.12.0 archives from download.qt.io
-  with pinned SHA-256 hashes, extracts them, then configures, builds and
-  installs each module. Windows adds `-static-runtime`. The script is the
+  downloads qtbase, qtsvg and qttools 6.12.0 archives from
+  `download.qt.io/archive` (Qt removes superseded patch releases from
+  `official_releases`) with pinned SHA-256 hashes and extracts all of them
+  first, so a mirror problem fails in minutes, not after the qtbase build.
+  Then it configures, builds and installs each module. Windows adds
+  `-static-runtime`, installs to `C:\qt-static` and builds in the short work
+  dir `C:/qw`. The script is the
   place where CI pins the Qt version ("the CI workflow" in
   [0003](0003-toolchain.md)); the `qt_version_pin_matches_ci` test checks it
   against `cmake/QtVersion.cmake`.
@@ -32,7 +45,9 @@ runner.
   extract under a UTF-8 locale; the script failed in the C-locale container
   without this.
 - **Cache:** `actions/cache/restore` and `actions/cache/save` are separate
-  steps; the key is the OS plus a hash of `scripts/build_qt.cmake`. Save runs
+  steps; the key is the runner image label (`ubuntu-24.04`, `windows-2022`, written
+  literally) plus a hash of `scripts/build_qt.cmake`, so a `runs-on` change
+  cannot restore a Qt built on another image. Save runs
   right after the Qt build, so a later failing step keeps the long build, and
   a failed Qt build is never cached.
 - **Refinement of 0019:** 0019 says the exact patch is "pinned in the

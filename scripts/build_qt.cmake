@@ -24,17 +24,23 @@ if(CMAKE_HOST_WIN32)
 else()
     set(script_ext "")
     set(run_prefix "")
-    list(APPEND common_flags -feature-xcb -no-feature-wayland -no-feature-glib -no-feature-icu
-         -no-feature-zstd -no-feature-libudev -no-feature-cups -no-feature-gtk3)
+    # No precompiled headers: on Linux they take 16 GB of the 17 GB work dir (runners have 14 GB).
+    # The no-feature flags pin what configure would otherwise autodetect from the runner's packages.
+    list(APPEND common_flags -no-pch -feature-xcb -no-feature-wayland -no-feature-glib
+         -no-feature-icu -no-feature-zstd -no-feature-libudev -no-feature-cups -no-feature-gtk3
+         -dbus-runtime -no-feature-xcb-sm -no-feature-system-doubleconversion
+         -no-feature-system-libb2 -no-feature-system-textmarkdownreader
+         -no-feature-system-xcb-xinput)
 endif()
 
 file(MAKE_DIRECTORY "${QT_WORK_DIR}")
 
+# Download and extract everything first, so a mirror or archive problem fails early.
 foreach(module qtbase qtsvg qttools)
     set(name ${module}-everywhere-src-${QT_VERSION})
     set(archive ${QT_WORK_DIR}/${name}.tar.xz)
     file(DOWNLOAD
-         https://download.qt.io/official_releases/qt/6.12/${QT_VERSION}/submodules/${name}.tar.xz
+         https://download.qt.io/archive/qt/6.12/${QT_VERSION}/submodules/${name}.tar.xz
          ${archive}
          EXPECTED_HASH SHA256=${QT_HASH_${module}}
          SHOW_PROGRESS)
@@ -43,7 +49,10 @@ foreach(module qtbase qtsvg qttools)
         COMMAND ${CMAKE_COMMAND} -E env LC_ALL=C.UTF-8 ${CMAKE_COMMAND} -E tar xf ${archive}
         WORKING_DIRECTORY ${QT_WORK_DIR}
         COMMAND_ERROR_IS_FATAL ANY)
+endforeach()
 
+foreach(module qtbase qtsvg qttools)
+    set(name ${module}-everywhere-src-${QT_VERSION})
     set(build_dir ${QT_WORK_DIR}/build-${module})
     file(MAKE_DIRECTORY ${build_dir})
     if(module STREQUAL qtbase)
@@ -62,4 +71,5 @@ foreach(module qtbase qtsvg qttools)
                     WORKING_DIRECTORY ${build_dir} COMMAND_ERROR_IS_FATAL ANY)
     execute_process(COMMAND ${CMAKE_COMMAND} --install .
                     WORKING_DIRECTORY ${build_dir} COMMAND_ERROR_IS_FATAL ANY)
+    file(REMOVE_RECURSE "${build_dir}")
 endforeach()
