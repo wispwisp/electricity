@@ -67,6 +67,8 @@ binaries ([0019](adr/0019-build-ci-distribution.md)).
   offscreen, artifacts, Linux quality gates.
 - Requires the user to push and confirm the run; the session prepares the
   workflow and verifies Linux parts locally.
+- `scripts/build_linux_executable.sh` builds `dist/electricity-linux-x86_64`
+  locally; the CI Linux job uses it.
 
 **Done when:** both jobs are green on the user's push and the Windows
 artifact is a single `.exe` (checked with `dumpbin /dependents` in CI: only
