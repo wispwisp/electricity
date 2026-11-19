@@ -1,0 +1,146 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+name: CI
+
+on: [push, workflow_dispatch]
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    env:
+      CMAKE_PREFIX_PATH: /opt/qt
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install packages
+        run: |
+          sudo apt-get update && sudo apt-get install -y \
+            ninja-build libfontconfig-dev libfreetype-dev libx11-dev libx11-xcb-dev libxext-dev \
+            libxfixes-dev libxi-dev libxrender-dev libxcb1-dev libxcb-cursor-dev libxcb-glx0-dev \
+            libxcb-icccm4-dev libxcb-image0-dev libxcb-keysyms1-dev libxcb-randr0-dev \
+            libxcb-render-util0-dev libxcb-shape0-dev libxcb-shm0-dev libxcb-sync-dev \
+            libxcb-util-dev libxcb-xfixes0-dev libxcb-xkb-dev libxkbcommon-dev \
+            libxkbcommon-x11-dev libgl-dev libegl-dev clang-format-18 clang-tidy-18 cppcheck
+
+      # The cache restore and the Qt install write here as the runner user.
+      - name: Create Qt directory
+        run: sudo mkdir -p /opt/qt && sudo chown "$USER" /opt/qt
+
+      - name: Restore Qt
+        id: qt
+        uses: actions/cache/restore@v6
+        with:
+          path: /opt/qt
+          key: qt-static-${{ runner.os }}-${{ hashFiles('scripts/build_qt.cmake') }}
+
+      - name: Build Qt
+        if: steps.qt.outputs.cache-hit != 'true'
+        run: cmake -DQT_PREFIX=/opt/qt -DQT_WORK_DIR=${{ runner.temp }}/qt-work -P scripts/build_qt.cmake
+
+      # Saved right away, so a later failing step keeps the long build. The condition has no
+      # status function, so it implies success(): a failed Qt build is never cached.
+      - name: Save Qt
+        if: steps.qt.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: /opt/qt
+          key: qt-static-${{ runner.os }}-${{ hashFiles('scripts/build_qt.cmake') }}
+
+      - name: Build executable
+        run: scripts/build_linux_executable.sh
+
+      - name: Test
+        run: ctest --test-dir build-release --output-on-failure
+
+      - name: Upload executable
+        uses: actions/upload-artifact@v7
+        with:
+          name: electricity-linux-x86_64
+          path: dist/electricity-linux-x86_64
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: screenshots-linux
+          path: build-release/screenshots
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Quality gates
+        run: PATH=/usr/lib/llvm-18/bin:$PATH scripts/quality_gates.sh
+
+  windows:
+    runs-on: windows-2022
+    env:
+      CMAKE_PREFIX_PATH: C:\qt-static
+    steps:
+      - uses: actions/checkout@v7
+
+      # Later steps get only the variables vcvars64.bat changed (PATH with cl, link, dumpbin,
+      # INCLUDE, LIB, ...), so runner and pwsh variables are not re-exported.
+      - name: Load MSVC environment
+        run: |
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $vs) { throw "No Visual Studio with the x64 C++ tools found" }
+          cmd /c "`"$vs\VC\Auxiliary\Build\vcvars64.bat`" && set" | ForEach-Object {
+            if ($_ -match '^([^=]+)=(.*)$' -and $Matches[2] -ne [Environment]::GetEnvironmentVariable($Matches[1])) { $_ }
+          } | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Restore Qt
+        id: qt
+        uses: actions/cache/restore@v6
+        with:
+          path: C:\qt-static
+          key: qt-static-${{ runner.os }}-${{ hashFiles('scripts/build_qt.cmake') }}
+
+      # A short work dir keeps Qt's deep build paths under the Windows path length limit.
+      - name: Build Qt
+        if: steps.qt.outputs.cache-hit != 'true'
+        run: cmake "-DQT_PREFIX=C:/qt-static" "-DQT_WORK_DIR=C:/qw" -P scripts/build_qt.cmake
+
+      # Same rule as on Linux: never cache a failed Qt build.
+      - name: Save Qt
+        if: steps.qt.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: C:\qt-static
+          key: qt-static-${{ runner.os }}-${{ hashFiles('scripts/build_qt.cmake') }}
+
+      - name: Configure
+        run: cmake --preset release
+
+      - name: Build
+        run: cmake --build build-release
+
+      - name: Test
+        run: ctest --test-dir build-release --output-on-failure
+
+      - name: Check DLL dependencies
+        run: .\scripts\check_windows_deps.ps1 -Exe build-release\electricity.exe
+
+      - name: Copy executable
+        run: |
+          New-Item -ItemType Directory -Force dist
+          Copy-Item build-release\electricity.exe dist\electricity-windows-x86_64.exe
+
+      - name: Upload executable
+        uses: actions/upload-artifact@v7
+        with:
+          name: electricity-windows-x86_64.exe
+          path: dist/electricity-windows-x86_64.exe
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: screenshots-windows
+          path: build-release/screenshots
+          retention-days: 30
+          if-no-files-found: warn
