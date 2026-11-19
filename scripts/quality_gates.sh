@@ -15,7 +15,8 @@ echo "== 3/6 clang-format"
 git ls-files -co --exclude-standard '*.cpp' '*.h' | xargs clang-format --dry-run --Werror
 
 echo "== 4/6 clang-tidy"
-if git rev-parse --verify --quiet main >/dev/null; then
+# GitHub Actions sets CI=true, and there every file is checked.
+if [ "${CI:-}" != true ] && git rev-parse --verify --quiet main >/dev/null; then
     changed=$( (git diff --name-only --diff-filter=d "$(git merge-base HEAD main)"
                 git ls-files --others --exclude-standard) | sort -u)
 else
