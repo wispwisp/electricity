@@ -1,20 +1,36 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+#include "app/appsetup.h"
 #include "app/mainwindow.h"
+#include "app/theme.h"
 #include "screenshot.h"
 
+#include <QApplication>
 #include <QDockWidget>
+#include <QFontDatabase>
+#include <QFontInfo>
+#include <QFontMetrics>
 #include <QGraphicsView>
 #include <QStatusBar>
+#include <QStyle>
 #include <QTest>
+
+#include <string_view>
 
 class TestMainWindow : public QObject
 {
     Q_OBJECT
 private slots:
+    void initTestCase();
     void startsMaximizedOnlyOnSmallScreens_data();
     void startsMaximizedOnlyOnSmallScreens();
     void launchesMainWindow();
+    void appliesDarkFusionThemeAndEmbeddedFont();
 };
+
+void TestMainWindow::initTestCase()
+{
+    setupApplication(*qApp);
+}
 
 void TestMainWindow::startsMaximizedOnlyOnSmallScreens_data()
 {
@@ -60,6 +76,29 @@ void TestMainWindow::launchesMainWindow()
     QCOMPARE(window.statusBar()->currentMessage(), QStringLiteral("Ready"));
 
     QVERIFY(saveScreenshot(window, QStringLiteral("f01"), QStringLiteral("main-window")));
+}
+
+void TestMainWindow::appliesDarkFusionThemeAndEmbeddedFont()
+{
+    QCOMPARE(QApplication::style()->name(), QStringLiteral("fusion"));
+
+    MainWindow window;
+    const QColor windowColor = window.palette().color(QPalette::Window);
+    QCOMPARE(windowColor, Theme::darkPalette().color(QPalette::Window));
+    QVERIFY(windowColor.lightness() < 80);
+    QVERIFY(window.palette().color(QPalette::WindowText).lightness() > 180);
+    auto *canvas = window.findChild<QGraphicsView *>(QStringLiteral("canvasView"));
+    QVERIFY(canvas->palette().color(QPalette::Base).lightness() < 80);
+
+    // Loading succeeds only from the embedded resource, never from a system copy.
+    QVERIFY(QFontDatabase::addApplicationFont(QStringLiteral(":/fonts/DejaVuSans.ttf")) != -1);
+    QVERIFY(QFontDatabase::addApplicationFont(QStringLiteral(":/fonts/DejaVuSans-Bold.ttf")) != -1);
+    QCOMPARE(QApplication::font().family(), QStringLiteral("DejaVu Sans"));
+    QCOMPARE(QFontInfo(window.font()).family(), QStringLiteral("DejaVu Sans"));
+
+    const QFontMetrics metrics(window.font());
+    for (char32_t letter : std::u32string_view(U"әғқңөұүһіЁё"))
+        QVERIFY2(metrics.inFontUcs4(letter), qPrintable(QString::number(letter, 16)));
 }
 
 QTEST_MAIN(TestMainWindow)

@@ -1,6 +1,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-add_library(electricity_lib STATIC mainwindow.cpp mainwindow.h)
+add_library(electricity_lib STATIC mainwindow.cpp mainwindow.h theme.cpp theme.h appsetup.cpp appsetup.h)
 target_link_libraries(electricity_lib PUBLIC panelcore Qt6::Widgets)
+qt_add_resources(electricity_lib "fonts" PREFIX "/fonts"
+    BASE "${PROJECT_SOURCE_DIR}/resources/fonts"
+    FILES "${PROJECT_SOURCE_DIR}/resources/fonts/DejaVuSans.ttf"
+          "${PROJECT_SOURCE_DIR}/resources/fonts/DejaVuSans-Bold.ttf")
 
 qt_add_executable(electricity WIN32 main.cpp)
 target_link_libraries(electricity PRIVATE electricity_lib)
