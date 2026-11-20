@@ -3,7 +3,10 @@
 # Fails if the binary needs a shared library outside the allowlist (ADR 0004).
 set -euo pipefail
 
-allowed='^(libc|libm|libdl|libpthread|librt)\.so\.|^ld-linux-x86-64\.so\.|^libX11|^libxcb|^libxkbcommon|^lib(GL|EGL|GLX|OpenGL)\.so\.|^libfontconfig\.so\.|^libfreetype\.so\.'
+# Only libxcb itself and its extension libraries (one package family, installed with
+# any X server). The xcb-util libraries (cursor, icccm, image, ...) are often missing
+# and must be linked statically (ADR 0021).
+allowed='^(libc|libm|libdl|libpthread|librt)\.so\.|^ld-linux-x86-64\.so\.|^libX11|^libxcb(-(glx|randr|render|shape|shm|sync|xfixes|xkb))?\.so\.|^libxkbcommon|^lib(GL|EGL|GLX|OpenGL)\.so\.|^libfontconfig\.so\.|^libfreetype\.so\.'
 
 needed=$(readelf -d "$1" | sed -n 's/.*(NEEDED).*\[\(.*\)\]/\1/p')
 if [ -z "$needed" ]; then

@@ -9,6 +9,9 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
 find_package(Qt6 REQUIRED COMPONENTS Core Widgets Test)
 include(cmake/QtVersion.cmake)
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    include(cmake/StaticXcbUtil.cmake)
+endif()
 qt_standard_project_setup()
 
 if(MSVC)
