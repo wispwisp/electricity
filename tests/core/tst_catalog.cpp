@@ -5,10 +5,12 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QUrl>
 #include <QtTest>
 
 #include <array>
 #include <functional>
+#include <map>
 
 using Edit = std::function<void(CatalogSources &)>;
 Q_DECLARE_METATYPE(Edit)
@@ -16,6 +18,16 @@ Q_DECLARE_METATYPE(Edit)
 using namespace Qt::StringLiterals;
 
 namespace {
+
+// Manufacturer domains a product source may live on. Add a regional domain only after
+// confirming that the global site links to it.
+const std::map<QString, QStringList> kBrandDomains{
+    { "IEK", { "iek.ru", "iek.global" } },
+    { "EKF", { "ekfgroup.com" } },
+    { "Schneider Electric", { "se.com", "schneider-electric.com" } },
+    { "ABB", { "abb.com" } },
+    { "Chint", { "chint.com", "chintglobal.com" } },
+};
 
 // moc mis-lexes "//" inside raw strings, hence the escaped slashes in the JSON URL.
 CatalogSources fixture()
@@ -121,6 +133,9 @@ private slots:
     void enclosuresMatchSpec();
     void presetsMatchSpec();
     void catalogStringsAreRegisteredForTranslation();
+    void productsHaveProvenance();
+    void everyPresetHasAProduct();
+    void everyAllowedRatingHasAProduct();
 };
 
 void TestCatalog::loadsValidCatalog()
@@ -471,6 +486,54 @@ void TestCatalog::catalogStringsAreRegisteredForTranslation()
         check(preset.name);
         check(preset.purpose);
     }
+}
+
+void TestCatalog::productsHaveProvenance()
+{
+    for (const Product &product : embeddedCatalog().products) {
+        const QString label = product.brand + u' ' + product.model;
+        const auto brand = kBrandDomains.find(product.brand);
+        QVERIFY2(brand != kBrandDomains.end(), qPrintable(u"unknown brand: "_s + label));
+        const QString host = QUrl(product.sourceUrl).host();
+        const bool official = std::any_of(brand->second.cbegin(), brand->second.cend(),
+                                          [&](const QString &domain) {
+                                              return host == domain || host.endsWith(u'.' + domain);
+                                          });
+        QVERIFY2(official, qPrintable(label + u": source not on the brand's domain: "_s + host));
+    }
+}
+
+void TestCatalog::everyPresetHasAProduct()
+{
+    const Catalog &catalog = embeddedCatalog();
+    for (const Preset &preset : catalog.presets) {
+        const bool found = std::any_of(catalog.products.cbegin(), catalog.products.cend(),
+                                       [&](const Product &p) {
+                                           return p.type == preset.type && p.poles == preset.poles
+                                                   && p.parameters == preset.parameters;
+                                       });
+        QVERIFY2(found, qPrintable(u"no product for preset "_s + preset.id));
+    }
+}
+
+void TestCatalog::everyAllowedRatingHasAProduct()
+{
+    const Catalog &catalog = embeddedCatalog();
+    QStringList missing;
+    for (const DeviceType &type : catalog.deviceTypes) {
+        for (const DeviceVariant &variant : type.variants) {
+            for (const QJsonValue rating : type.allowedValues.value("ratedCurrent").toArray()) {
+                const bool found = std::any_of(
+                        catalog.products.cbegin(), catalog.products.cend(), [&](const Product &p) {
+                            return p.type == type.id && p.poles == variant.poles
+                                    && p.parameters.value("ratedCurrent") == rating;
+                        });
+                if (!found)
+                    missing << u"%1 %2 %3 A"_s.arg(type.id, variant.poles).arg(rating.toInt());
+            }
+        }
+    }
+    QVERIFY2(missing.isEmpty(), qPrintable(u"no product for: "_s + missing.join(u", "_s)));
 }
 
 QTEST_APPLESS_MAIN(TestCatalog)

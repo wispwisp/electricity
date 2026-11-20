@@ -1,1 +1,51 @@
-{"schemaVersion":1,"series":[]}
+{
+  "schemaVersion": 1,
+  "series": [
+    {
+      "brand": "IEK", "series": "ВА47-29", "type": "breaker",
+      "source": {"url": "https://www.iek.ru/products/catalog/modulnoe_oborudovanie/modulnoe_oborudovanie_karat/modulnye_avtomaticheskie_vyklyuchateli_karat/modulnye_avtomaticheskie_vyklyuchateli_va47_29/modulnye_avtomaticheskie_vyklyuchateli_va47_29_khar_ka_c", "accessed": "2026-11-20"},
+      "products": [
+        {"model": "ВА47-29 1P C6", "article": "MVA20-1-006-C", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 6}},
+        {"model": "ВА47-29 1P C10", "article": "MVA20-1-010-C", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 10}},
+        {"model": "ВА47-29 1P C16", "article": "MVA20-1-016-C", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 16}},
+        {"model": "ВА47-29 1P C20", "article": "MVA20-1-020-C", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 20}},
+        {"model": "ВА47-29 1P C25", "article": "MVA20-1-025-C", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 25}},
+        {"model": "ВА47-29 1P C32", "article": "MVA20-1-032-C", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 32}},
+        {"model": "ВА47-29 1P C40", "article": "MVA20-1-040-C", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 40}},
+        {"model": "ВА47-29 1P C50", "article": "MVA20-1-050-C", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 50}},
+        {"model": "ВА47-29 1P C63", "article": "MVA20-1-063-C", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 63}},
+        {"model": "ВА47-29 2P C6", "article": "MVA20-2-006-C", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 6}},
+        {"model": "ВА47-29 2P C10", "article": "MVA20-2-010-C", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 10}},
+        {"model": "ВА47-29 2P C16", "article": "MVA20-2-016-C", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 16}},
+        {"model": "ВА47-29 2P C20", "article": "MVA20-2-020-C", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 20}},
+        {"model": "ВА47-29 2P C25", "article": "MVA20-2-025-C", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 25}},
+        {"model": "ВА47-29 2P C32", "article": "MVA20-2-032-C", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 32}},
+        {"model": "ВА47-29 2P C40", "article": "MVA20-2-040-C", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 40}},
+        {"model": "ВА47-29 2P C50", "article": "MVA20-2-050-C", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 50}},
+        {"model": "ВА47-29 2P C63", "article": "MVA20-2-063-C", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 63}}
+      ]
+    },
+    {
+      "brand": "IEK", "series": "ВД1-63", "type": "rcd",
+      "source": {"url": "https://www.iek.ru/products/catalog/modulnoe_oborudovanie/modulnoe_oborudovanie_karat/ustroystva_differentsialnoy_zashchity_karat/vyklyuchateli_differentsialnye_vd_uzo/vyklyuchateli_differentsialnye_vd1_63_uzo_tip_a", "accessed": "2026-11-20"},
+      "products": [
+        {"model": "ВД1-63 2P 25A 30mA тип A", "article": "MDV11-2-025-030", "poles": "2P", "parameters": {"ratedCurrent": 25, "residualCurrent": 30, "rcdType": "A"}},
+        {"model": "ВД1-63 2P 32A 30mA тип A", "article": "MDV11-2-032-030", "poles": "2P", "parameters": {"ratedCurrent": 32, "residualCurrent": 30, "rcdType": "A"}},
+        {"model": "ВД1-63 2P 40A 30mA тип A", "article": "MDV11-2-040-030", "poles": "2P", "parameters": {"ratedCurrent": 40, "residualCurrent": 30, "rcdType": "A"}},
+        {"model": "ВД1-63 2P 63A 30mA тип A", "article": "MDV11-2-063-030", "poles": "2P", "parameters": {"ratedCurrent": 63, "residualCurrent": 30, "rcdType": "A"}}
+      ]
+    },
+    {
+      "brand": "IEK", "series": "АВДТ32", "type": "rcbo",
+      "source": {"url": "https://www.iek.ru/products/catalog/modulnoe_oborudovanie/modulnoe_oborudovanie_karat/ustroystva_differentsialnoy_zashchity_karat/avtomaticheskie_vyklyuchateli_differentsialnogo_toka_avdt/avtomaticheskie_vyklyuchateli_differentsialnogo_toka_avdt32", "accessed": "2026-11-20"},
+      "products": [
+        {"model": "АВДТ32 C6 30mA тип A", "article": "MAD22-5-006-C-30", "poles": "1P+N", "parameters": {"curve": "C", "ratedCurrent": 6, "residualCurrent": 30, "rcdType": "A"}},
+        {"model": "АВДТ32 C10 30mA тип A", "article": "MAD22-5-010-C-30", "poles": "1P+N", "parameters": {"curve": "C", "ratedCurrent": 10, "residualCurrent": 30, "rcdType": "A"}},
+        {"model": "АВДТ32 C16 30mA тип A", "article": "MAD22-5-016-C-30", "poles": "1P+N", "parameters": {"curve": "C", "ratedCurrent": 16, "residualCurrent": 30, "rcdType": "A"}},
+        {"model": "АВДТ32 C20 30mA тип A", "article": "MAD22-5-020-C-30", "poles": "1P+N", "parameters": {"curve": "C", "ratedCurrent": 20, "residualCurrent": 30, "rcdType": "A"}},
+        {"model": "АВДТ32 C25 30mA тип A", "article": "MAD22-5-025-C-30", "poles": "1P+N", "parameters": {"curve": "C", "ratedCurrent": 25, "residualCurrent": 30, "rcdType": "A"}},
+        {"model": "АВДТ32 C32 30mA тип A", "article": "MAD22-5-032-C-30", "poles": "1P+N", "parameters": {"curve": "C", "ratedCurrent": 32, "residualCurrent": 30, "rcdType": "A"}}
+      ]
+    }
+  ]
+}
