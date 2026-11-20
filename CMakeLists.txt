@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
-find_package(Qt6 REQUIRED COMPONENTS Core Widgets Test LinguistTools)
+find_package(Qt6 REQUIRED COMPONENTS Core Widgets Svg Test LinguistTools)
 include(cmake/QtVersion.cmake)
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     include(cmake/StaticXcbUtil.cmake)

@@ -49,6 +49,7 @@ endfunction()
 
 add_gui_test(tst_mainwindow gui/tst_mainwindow.cpp)
 add_gui_test(tst_preferences gui/tst_preferences.cpp)
+add_gui_test(tst_catalogart gui/tst_catalogart.cpp)
 
 # Strings must be extracted before scanning: the fixture .ts has no unfinished entries,
 # only the fixture source has a new one.

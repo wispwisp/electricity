@@ -1,0 +1,32 @@
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Generic 12-module enclosure: 1 DIN rail of 12 modules, N and PE bar mounts below. -->
+<svg xmlns="http://www.w3.org/2000/svg" version="1.2" baseProfile="tiny"
+     width="280" height="244" viewBox="0 0 280 244">
+  <g id="frame">
+    <rect x="0.75" y="0.75" width="278.5" height="242.5" rx="5"
+          fill="#a2a7ad" stroke="#1c1e21" stroke-width="1.5"/>
+    <rect x="5" y="5" width="270" height="234" rx="3"
+          fill="none" stroke="#c4c8cd" stroke-width="0.8"/>
+  </g>
+  <rect id="interior" x="12" y="12" width="256" height="220" rx="2"
+        fill="#34373c" stroke="#1c1e21" stroke-width="1"/>
+  <!-- Row 1: devices span x 32-248, y 48-138 -->
+  <g id="rail-1">
+    <rect x="24" y="75.5" width="232" height="35" fill="#a9afb6" stroke="#1c1e21" stroke-width="0.8"/>
+    <rect x="24" y="80.5" width="232" height="25" fill="#c3c8ce"/>
+    <line x1="24" y1="80.5" x2="256" y2="80.5" stroke="#6f757c" stroke-width="0.8"/>
+    <line x1="24" y1="105.5" x2="256" y2="105.5" stroke="#6f757c" stroke-width="0.8"/>
+    <rect x="32.5" y="90.25" width="15" height="5.5" rx="2.75" fill="#26292d"/>
+    <rect x="57.5" y="90.25" width="15" height="5.5" rx="2.75" fill="#26292d"/>
+    <rect x="82.5" y="90.25" width="15" height="5.5" rx="2.75" fill="#26292d"/>
+    <rect x="107.5" y="90.25" width="15" height="5.5" rx="2.75" fill="#26292d"/>
+    <rect x="132.5" y="90.25" width="15" height="5.5" rx="2.75" fill="#26292d"/>
+    <rect x="157.5" y="90.25" width="15" height="5.5" rx="2.75" fill="#26292d"/>
+    <rect x="182.5" y="90.25" width="15" height="5.5" rx="2.75" fill="#26292d"/>
+    <rect x="207.5" y="90.25" width="15" height="5.5" rx="2.75" fill="#26292d"/>
+    <rect x="232.5" y="90.25" width="15" height="5.5" rx="2.75" fill="#26292d"/>
+  </g>
+  <!-- Bars are tiled into these mounts, one 9-unit cell per terminal -->
+  <rect id="nbar-mount" x="104" y="168" width="72" height="16" fill="#44484e"/>
+  <rect id="pebar-mount" x="104" y="192" width="72" height="16" fill="#44484e"/>
+</svg>

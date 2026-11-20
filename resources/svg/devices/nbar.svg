@@ -1,0 +1,18 @@
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- One tileable cell of a neutral (N) bar: brass strip with a screw on a blue insulator. -->
+<svg xmlns="http://www.w3.org/2000/svg" version="1.2" baseProfile="tiny"
+     width="9" height="16" viewBox="0 0 9 16">
+  <!-- Insulator; no side edges so that cells join seamlessly -->
+  <rect x="0" y="0.5" width="9" height="15" fill="#2f6fd0"/>
+  <line x1="0" y1="0.5" x2="9" y2="0.5" stroke="#1c1e21" stroke-width="1"/>
+  <line x1="0" y1="15.5" x2="9" y2="15.5" stroke="#1c1e21" stroke-width="1"/>
+  <!-- Brass strip -->
+  <rect x="0" y="3.5" width="9" height="9" fill="#c9a447"/>
+  <line x1="0" y1="3.75" x2="9" y2="3.75" stroke="#5e4a17" stroke-width="0.5"/>
+  <line x1="0" y1="4.6" x2="9" y2="4.6" stroke="#e8cd7f" stroke-width="0.8"/>
+  <line x1="0" y1="12.25" x2="9" y2="12.25" stroke="#5e4a17" stroke-width="0.5"/>
+  <g id="terminal">
+    <circle cx="4.5" cy="8" r="3" fill="#c3c7cc" stroke="#2a2c30" stroke-width="0.6"/>
+    <line x1="2.7" y1="9.8" x2="6.3" y2="6.2" stroke="#2a2c30" stroke-width="0.9"/>
+  </g>
+</svg>
