@@ -7,6 +7,7 @@ function(add_core_test name)
 endfunction()
 
 add_core_test(tst_version core/tst_version.cpp)
+add_core_test(tst_catalog core/tst_catalog.cpp)
 
 add_test(NAME qt_version_pin_accepts_pinned
          COMMAND ${CMAKE_COMMAND} -DQt6_VERSION=6.12.0 -P ${PROJECT_SOURCE_DIR}/cmake/QtVersion.cmake)

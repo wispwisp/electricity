@@ -16,7 +16,7 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
 | F01 | Project skeleton, test infrastructure, dark main window | ☑ |
 | F02 | CI for Linux and Windows | ☑ |
 | F03 | Languages and settings | ☑ |
-| F04 | Component catalog and device pictures | ☐ |
+| F04 | Component catalog and device pictures | ◐ |
 | F05 | Panel editor: enclosure, rails, placing devices | ☐ |
 | F06 | Wiring | ☐ |
 | F07 | Loads | ☐ |
