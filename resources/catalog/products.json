@@ -156,6 +156,30 @@
         {"model": "NL1-63 2P 40A 30mA тип A", "article": "527236", "poles": "2P", "parameters": {"ratedCurrent": 40, "residualCurrent": 30, "rcdType": "A"}},
         {"model": "NL1-63 2P 63A 30mA тип A", "article": "527237", "poles": "2P", "parameters": {"ratedCurrent": 63, "residualCurrent": 30, "rcdType": "A"}}
       ]
+    },
+    {
+      "brand": "Schneider Electric", "series": "Easy9", "type": "breaker",
+      "source": {"url": "https://download.se.com/files?p_enDocType=Catalog&p_File_Name=Easy9_cat_2021_web.pdf&p_Doc_Ref=MKP-CAT-EASY9", "accessed": "2026-11-20"},
+      "products": [
+        {"model": "Easy9 1P C6", "article": "EZ9F34106", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 6}},
+        {"model": "Easy9 1P C10", "article": "EZ9F34110", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 10}},
+        {"model": "Easy9 1P C16", "article": "EZ9F34116", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 16}},
+        {"model": "Easy9 1P C20", "article": "EZ9F34120", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 20}},
+        {"model": "Easy9 1P C25", "article": "EZ9F34125", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 25}},
+        {"model": "Easy9 1P C32", "article": "EZ9F34132", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 32}},
+        {"model": "Easy9 1P C40", "article": "EZ9F34140", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 40}},
+        {"model": "Easy9 1P C50", "article": "EZ9F34150", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 50}},
+        {"model": "Easy9 1P C63", "article": "EZ9F34163", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 63}},
+        {"model": "Easy9 2P C6", "article": "EZ9F34206", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 6}},
+        {"model": "Easy9 2P C10", "article": "EZ9F34210", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 10}},
+        {"model": "Easy9 2P C16", "article": "EZ9F34216", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 16}},
+        {"model": "Easy9 2P C20", "article": "EZ9F34220", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 20}},
+        {"model": "Easy9 2P C25", "article": "EZ9F34225", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 25}},
+        {"model": "Easy9 2P C32", "article": "EZ9F34232", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 32}},
+        {"model": "Easy9 2P C40", "article": "EZ9F34240", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 40}},
+        {"model": "Easy9 2P C50", "article": "EZ9F34250", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 50}},
+        {"model": "Easy9 2P C63", "article": "EZ9F34263", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 63}}
+      ]
     }
   ]
 }
