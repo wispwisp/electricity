@@ -25,6 +25,7 @@ private slots:
     void defaultLanguageFollowsSystemLocale_data();
     void defaultLanguageFollowsSystemLocale();
     void languageCodesAndNames();
+    void installsTranslationForEachLanguage();
     void settingsStartEmpty();
     void settingsRoundTripInIniFile();
     void unknownSavedValuesAreIgnored();
@@ -78,6 +79,20 @@ void TestPreferences::languageCodesAndNames()
     QVERIFY(!languageFromCode(u"de"));
     QVERIFY(!languageFromCode(u"RU"));
     QVERIFY(!languageFromCode(u""));
+}
+
+void TestPreferences::installsTranslationForEachLanguage()
+{
+    installLanguage(Language::Kazakh);
+    QCOMPARE(currentLanguage(), Language::Kazakh);
+    QCOMPARE(QCoreApplication::translate("MainWindow", "Components"),
+             QStringLiteral("Компоненттер"));
+    installLanguage(Language::Russian);
+    QCOMPARE(currentLanguage(), Language::Russian);
+    QCOMPARE(QCoreApplication::translate("MainWindow", "Components"), QStringLiteral("Компоненты"));
+    installLanguage(Language::English);
+    QCOMPARE(currentLanguage(), Language::English);
+    QCOMPARE(QCoreApplication::translate("MainWindow", "Components"), QStringLiteral("Components"));
 }
 
 void TestPreferences::settingsStartEmpty()

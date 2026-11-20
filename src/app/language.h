@@ -21,3 +21,6 @@ std::optional<Language> languageFromCode(QStringView code);
 QString nativeLanguageName(Language language);
 // Kazakh for a Kazakh system locale, Russian for everything else.
 Language defaultLanguage(const QLocale &systemLocale);
+// Replaces the installed translation; English before the first call.
+void installLanguage(Language language);
+Language currentLanguage();

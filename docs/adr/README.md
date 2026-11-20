@@ -27,3 +27,4 @@ table in the same commit ([0001](0001-record-architecture-decisions.md)).
 | 0019 | [Build, CI, distribution](0019-build-ci-distribution.md) | Static Linux build in container, MSVC static build on Windows CI, GitHub Actions with cached Qt, tagged releases. | Accepted |
 | 0020 | [CI pipeline and Qt build in CI](0020-ci-qt-build.md) | Minimal static Qt from pinned archives via one CMake script, cache saved right after the Qt build, dependency allowlists, shared Linux executable script. | Accepted |
 | 0021 | [Static xcb-util libraries on Linux](0021-static-xcb-util.md) | xcb-util libs (cursor, icccm, image, keysyms, render-util, util) linked statically; dependency allowlist names libxcb libraries one by one. | Accepted |
+| 0022 | [Translation check extracts strings first](0022-translation-check.md) | The check runs lupdate on copies of the .ts files and fails on unfinished entries; `update_translations` refreshes the tracked files. | Accepted |

@@ -48,3 +48,22 @@ endfunction()
 
 add_gui_test(tst_mainwindow gui/tst_mainwindow.cpp)
 add_gui_test(tst_preferences gui/tst_preferences.cpp)
+
+# Strings must be extracted before scanning: the fixture .ts has no unfinished entries,
+# only the fixture source has a new one.
+add_test(NAME translations_check_extracts_new_text
+         COMMAND ${CMAKE_COMMAND} -DLUPDATE=$<TARGET_FILE:Qt6::lupdate>
+                 -DSOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}/translations
+                 -DTS_DIR=${CMAKE_CURRENT_SOURCE_DIR}/translations
+                 -DWORK_DIR=${CMAKE_CURRENT_BINARY_DIR}/translations_check_fixture
+                 -P ${PROJECT_SOURCE_DIR}/cmake/CheckTranslations.cmake)
+set_tests_properties(translations_check_extracts_new_text PROPERTIES
+    LABELS translations PASS_REGULAR_EXPRESSION "untranslated_ru\\.ts: 1 unfinished")
+
+add_test(NAME translations_complete
+         COMMAND ${CMAKE_COMMAND} -DLUPDATE=$<TARGET_FILE:Qt6::lupdate>
+                 -DSOURCE_DIR=${PROJECT_SOURCE_DIR}/src
+                 -DTS_DIR=${PROJECT_SOURCE_DIR}/translations
+                 -DWORK_DIR=${CMAKE_CURRENT_BINARY_DIR}/translations_check
+                 -P ${PROJECT_SOURCE_DIR}/cmake/CheckTranslations.cmake)
+set_tests_properties(translations_complete PROPERTIES LABELS translations)
