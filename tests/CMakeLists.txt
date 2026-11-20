@@ -35,7 +35,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 endif()
 
 function(add_gui_test name)
-    qt_add_executable(${name} ${ARGN} gui/screenshot.cpp)
+    qt_add_executable(${name} ${ARGN} gui/screenshot.cpp gui/testsettings.cpp)
     target_link_libraries(${name} PRIVATE electricity_lib Qt6::Test)
     target_compile_definitions(${name} PRIVATE SCREENSHOT_DIR="${CMAKE_BINARY_DIR}/screenshots")
     qt_import_plugins(${name} INCLUDE Qt::QOffscreenIntegrationPlugin)
@@ -47,3 +47,4 @@ function(add_gui_test name)
 endfunction()
 
 add_gui_test(tst_mainwindow gui/tst_mainwindow.cpp)
+add_gui_test(tst_preferences gui/tst_preferences.cpp)

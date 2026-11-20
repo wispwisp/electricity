@@ -20,6 +20,6 @@ void setupApplication(QApplication &app)
     font.setFamily(QStringLiteral("DejaVu Sans"));
     QApplication::setFont(font);
 
-    Theme::apply();
+    Theme::apply(Theme::Mode::Dark);
     app.setApplicationVersion(appVersion());
 }

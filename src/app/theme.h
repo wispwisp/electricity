@@ -3,11 +3,18 @@
 
 #include <QPalette>
 
+#include <cstdint>
+
 namespace Theme {
 
-QPalette darkPalette();
+enum class Mode : std::uint8_t { Dark, Light };
 
-// Sets the Fusion style, then the dark palette (setStyle can reset the palette).
-void apply();
+QPalette darkPalette();
+QPalette lightPalette();
+
+// Sets the Fusion style if needed, then the palette for the mode (setStyle resets the palette).
+void apply(Mode mode);
+// The mode last passed to apply().
+Mode currentMode();
 
 } // namespace Theme
