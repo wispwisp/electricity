@@ -8,18 +8,23 @@
 #include "testsettings.h"
 
 #include <QApplication>
+#include <QDialog>
 #include <QDockWidget>
 #include <QFile>
 #include <QGraphicsView>
+#include <QLabel>
 #include <QLocale>
 #include <QMenu>
 #include <QMenuBar>
+#include <QPushButton>
 #include <QSettings>
 #include <QStatusBar>
 #include <QStyle>
 #include <QTest>
+#include <QTimer>
 
 #include <array>
+#include <functional>
 
 Q_DECLARE_METATYPE(Language)
 
@@ -40,6 +45,27 @@ void clickMenuItem(QMenu *menu, QAction *action)
     // LanguageChange events are posted, not delivered synchronously.
     QCoreApplication::processEvents();
 }
+
+// Runs callback on the visible language dialog once the event loop starts. The dialog is
+// rejected afterwards if the callback left it open, so a failed check cannot hang the test.
+void onLanguageDialog(const std::function<void(QDialog &)> &callback, bool &found)
+{
+    QTimer::singleShot(0, [&found, callback] {
+        for (QWidget *widget : QApplication::topLevelWidgets()) {
+            auto *dialog = qobject_cast<QDialog *>(widget);
+            if (dialog && dialog->objectName() == QLatin1String("languageDialog")
+                && dialog->isVisible()) {
+                found = true;
+                callback(*dialog);
+                if (dialog->isVisible())
+                    dialog->reject();
+                return;
+            }
+        }
+        if (QWidget *modal = QApplication::activeModalWidget())
+            modal->close();
+    });
+}
 } // namespace
 
 class TestPreferences : public QObject
@@ -57,6 +83,10 @@ private slots:
     void unknownSavedValuesAreIgnored();
     void appliesLightAndDarkPalettes();
     void switchesLanguageAndThemeAtRuntimeAndPersists();
+    void firstLaunchAsksForLanguageAndSavesChoice();
+    void dismissingFirstLaunchDialogKeepsPreselectedLanguage_data();
+    void dismissingFirstLaunchDialogKeepsPreselectedLanguage();
+    void firstLaunchDialogNotShownOnceLanguageSaved();
 
 private:
     QString m_iniPath;
@@ -254,6 +284,91 @@ void TestPreferences::switchesLanguageAndThemeAtRuntimeAndPersists()
     QCOMPARE(restarted.palette().color(QPalette::Window),
              Theme::lightPalette().color(QPalette::Window));
     QVERIFY(saveScreenshot(restarted, "f03", "restarted"));
+}
+
+void TestPreferences::firstLaunchAsksForLanguageAndSavesChoice()
+{
+    const Language preselected = defaultLanguage(QLocale::system());
+    bool found = false;
+    bool headingOk = false;
+    bool titleOk = false;
+    bool buttonsOk = true;
+    bool defaultOk = false;
+    bool screenshotOk = false;
+    onLanguageDialog(
+            [&](QDialog &dialog) {
+                auto *heading = dialog.findChild<QLabel *>(QStringLiteral("languageHeading"));
+                headingOk = heading
+                        && heading->text() == u"Выберите язык · Тілді таңдаңыз · Language";
+                titleOk = dialog.windowTitle() == u"Electricity";
+                for (const Language language : kAllLanguages) {
+                    auto *button = dialog.findChild<QPushButton *>(QStringLiteral("languageButton_")
+                                                                   + languageCode(language));
+                    if (!button || button->text() != nativeLanguageName(language)
+                        || button->width() < 140 || button->height() < 48) {
+                        buttonsOk = false;
+                        continue;
+                    }
+                    if (language == preselected)
+                        defaultOk = button->isDefault();
+                }
+                screenshotOk = saveScreenshot(dialog, "f03", "first-launch");
+                if (auto *kk = dialog.findChild<QPushButton *>(QStringLiteral("languageButton_kk")))
+                    QTest::mouseClick(kk, Qt::LeftButton);
+            },
+            found);
+    askLanguageOnFirstLaunch();
+    QVERIFY(found);
+    QVERIFY(headingOk);
+    QVERIFY(titleOk);
+    QVERIFY(buttonsOk);
+    QVERIFY(defaultOk);
+    QVERIFY(screenshotOk);
+    QCOMPARE(Settings::savedLanguage(), Language::Kazakh);
+    QCOMPARE(currentLanguage(), Language::Kazakh);
+}
+
+void TestPreferences::dismissingFirstLaunchDialogKeepsPreselectedLanguage_data()
+{
+    QTest::addColumn<bool>("useEscape");
+    QTest::newRow("Esc") << true;
+    QTest::newRow("close button") << false;
+}
+
+void TestPreferences::dismissingFirstLaunchDialogKeepsPreselectedLanguage()
+{
+    QFETCH(bool, useEscape);
+    bool found = false;
+    onLanguageDialog(
+            [useEscape](QDialog &dialog) {
+                if (useEscape)
+                    QTest::keyClick(&dialog, Qt::Key_Escape);
+                else
+                    dialog.close();
+            },
+            found);
+    askLanguageOnFirstLaunch();
+    QVERIFY(found);
+    QCOMPARE(Settings::savedLanguage(), defaultLanguage(QLocale::system()));
+    QCOMPARE(currentLanguage(), defaultLanguage(QLocale::system()));
+}
+
+void TestPreferences::firstLaunchDialogNotShownOnceLanguageSaved()
+{
+    Settings::saveLanguage(Language::English);
+    bool dialogShown = false;
+    QTimer guard; // fires only if askLanguageOnFirstLaunch() enters an event loop
+    guard.setSingleShot(true);
+    connect(&guard, &QTimer::timeout, [&] {
+        if (QWidget *modal = QApplication::activeModalWidget()) {
+            dialogShown = true;
+            modal->close();
+        }
+    });
+    guard.start(0);
+    askLanguageOnFirstLaunch();
+    guard.stop();
+    QVERIFY(!dialogShown);
 }
 
 QTEST_MAIN(TestPreferences)

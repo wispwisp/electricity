@@ -2,6 +2,7 @@
 #include "app/appsetup.h"
 
 #include "app/language.h"
+#include "app/languagedialog.h"
 #include "app/settings.h"
 #include "app/theme.h"
 #include "core/version.h"
@@ -31,4 +32,14 @@ void setupApplication(QApplication &app)
 
     applySavedPreferences();
     app.setApplicationVersion(appVersion());
+}
+
+void askLanguageOnFirstLaunch()
+{
+    if (Settings::savedLanguage())
+        return;
+    LanguageDialog dialog(defaultLanguage(QLocale::system()));
+    dialog.exec();
+    installLanguage(dialog.chosenLanguage());
+    Settings::saveLanguage(dialog.chosenLanguage());
 }

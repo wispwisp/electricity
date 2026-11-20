@@ -8,6 +8,7 @@ int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
     setupApplication(app);
+    askLanguageOnFirstLaunch();
     MainWindow window;
     window.show();
     return app.exec();
