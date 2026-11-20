@@ -48,9 +48,11 @@ void clickMenuItem(QMenu *menu, QAction *action)
 
 // Runs callback on the visible language dialog once the event loop starts. The dialog is
 // rejected afterwards if the callback left it open, so a failed check cannot hang the test.
-void onLanguageDialog(const std::function<void(QDialog &)> &callback, bool &found)
+// The context object drops the pending callback if the test ends before the dialog opens.
+void onLanguageDialog(const QObject *context, const std::function<void(QDialog &)> &callback,
+                      bool &found)
 {
-    QTimer::singleShot(0, [&found, callback] {
+    QTimer::singleShot(0, context, [&found, callback] {
         for (QWidget *widget : QApplication::topLevelWidgets()) {
             auto *dialog = qobject_cast<QDialog *>(widget);
             if (dialog && dialog->objectName() == QLatin1String("languageDialog")
@@ -101,6 +103,8 @@ void TestPreferences::initTestCase()
 void TestPreferences::init()
 {
     clearSettings();
+    Theme::apply(Theme::Mode::Dark);
+    installLanguage(Language::English);
 }
 
 void TestPreferences::defaultLanguageFollowsSystemLocale_data()
@@ -295,7 +299,12 @@ void TestPreferences::firstLaunchAsksForLanguageAndSavesChoice()
     bool buttonsOk = true;
     bool defaultOk = false;
     bool screenshotOk = false;
+    const Language target = defaultLanguage(QLocale::system()) == Language::Kazakh
+            ? Language::Russian
+            : Language::Kazakh;
+    bool focusOk = false;
     onLanguageDialog(
+            this,
             [&](QDialog &dialog) {
                 auto *heading = dialog.findChild<QLabel *>(QStringLiteral("languageHeading"));
                 headingOk = heading
@@ -309,12 +318,15 @@ void TestPreferences::firstLaunchAsksForLanguageAndSavesChoice()
                         buttonsOk = false;
                         continue;
                     }
-                    if (language == preselected)
+                    if (language == preselected) {
                         defaultOk = button->isDefault();
+                        focusOk = dialog.focusWidget() == button;
+                    }
                 }
                 screenshotOk = saveScreenshot(dialog, "f03", "first-launch");
-                if (auto *kk = dialog.findChild<QPushButton *>(QStringLiteral("languageButton_kk")))
-                    QTest::mouseClick(kk, Qt::LeftButton);
+                if (auto *button = dialog.findChild<QPushButton *>(QStringLiteral("languageButton_")
+                                                                   + languageCode(target)))
+                    QTest::mouseClick(button, Qt::LeftButton);
             },
             found);
     askLanguageOnFirstLaunch();
@@ -323,9 +335,10 @@ void TestPreferences::firstLaunchAsksForLanguageAndSavesChoice()
     QVERIFY(titleOk);
     QVERIFY(buttonsOk);
     QVERIFY(defaultOk);
+    QVERIFY(focusOk);
     QVERIFY(screenshotOk);
-    QCOMPARE(Settings::savedLanguage(), Language::Kazakh);
-    QCOMPARE(currentLanguage(), Language::Kazakh);
+    QCOMPARE(Settings::savedLanguage(), target);
+    QCOMPARE(currentLanguage(), target);
 }
 
 void TestPreferences::dismissingFirstLaunchDialogKeepsPreselectedLanguage_data()
@@ -340,6 +353,7 @@ void TestPreferences::dismissingFirstLaunchDialogKeepsPreselectedLanguage()
     QFETCH(bool, useEscape);
     bool found = false;
     onLanguageDialog(
+            this,
             [useEscape](QDialog &dialog) {
                 if (useEscape)
                     QTest::keyClick(&dialog, Qt::Key_Escape);

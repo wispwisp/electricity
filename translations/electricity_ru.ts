@@ -4,37 +4,37 @@
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="99"/>
+        <location filename="../src/app/mainwindow.cpp" line="109"/>
         <source>Settings</source>
         <translation>Настройки</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="100"/>
+        <location filename="../src/app/mainwindow.cpp" line="110"/>
         <source>Theme</source>
         <translation>Тема</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="101"/>
+        <location filename="../src/app/mainwindow.cpp" line="111"/>
         <source>Dark</source>
         <translation>Тёмная</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="102"/>
+        <location filename="../src/app/mainwindow.cpp" line="112"/>
         <source>Light</source>
         <translation>Светлая</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="103"/>
+        <location filename="../src/app/mainwindow.cpp" line="113"/>
         <source>Language</source>
         <translation>Язык</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="104"/>
+        <location filename="../src/app/mainwindow.cpp" line="114"/>
         <source>Components</source>
         <translation>Компоненты</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="105"/>
+        <location filename="../src/app/mainwindow.cpp" line="115"/>
         <source>Ready</source>
         <translation>Готово</translation>
     </message>

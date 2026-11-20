@@ -32,3 +32,9 @@ kk entries in `translations/`.
 
 Every feature ships its ru and kk text. A string that vanishes from the
 sources stays in the `.ts` file until someone removes it.
+
+Translatable strings must live in source files under `src/` that belong to the
+`SOURCE_TARGETS` of `qt_add_translations` (`electricity_lib`, `electricity`,
+`panelcore`), so the check and `update_translations` extract the same set. A
+generated string file (ADR 0012 allows a generated `catalog_strings.cpp`) must
+therefore be generated into `src/`, or the check's `SOURCE_DIR` changed to match.

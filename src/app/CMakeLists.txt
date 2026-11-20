@@ -23,7 +23,7 @@ qt_import_plugins(electricity EXCLUDE_BY_TYPE
 set_target_properties(electricity PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 qt_add_translations(TARGETS electricity_lib
-    SOURCE_TARGETS electricity_lib electricity
+    SOURCE_TARGETS electricity_lib electricity panelcore
     TS_FILES ${PROJECT_SOURCE_DIR}/translations/electricity_ru.ts
              ${PROJECT_SOURCE_DIR}/translations/electricity_kk.ts
     PLURALS_TS_FILE ${PROJECT_SOURCE_DIR}/translations/electricity_en.ts)

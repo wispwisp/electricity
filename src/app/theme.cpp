@@ -52,7 +52,6 @@ QPalette lightPalette()
     const QColor window(240, 240, 240);
     const QColor text(30, 30, 30);
     const QColor button(225, 225, 225);
-    const QColor accent(42, 130, 218);
     const QColor disabledText(150, 150, 150);
 
     QPalette palette;
@@ -66,8 +65,8 @@ QPalette lightPalette()
     palette.setColor(QPalette::Button, button);
     palette.setColor(QPalette::ButtonText, text);
     palette.setColor(QPalette::BrightText, Qt::white);
-    palette.setColor(QPalette::Link, accent);
-    palette.setColor(QPalette::Highlight, accent);
+    palette.setColor(QPalette::Link, accentColor);
+    palette.setColor(QPalette::Highlight, accentColor);
     palette.setColor(QPalette::HighlightedText, Qt::white);
     palette.setColor(QPalette::PlaceholderText, disabledText);
     palette.setColor(QPalette::Light, Qt::white);

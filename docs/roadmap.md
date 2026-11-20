@@ -187,6 +187,7 @@ overheat ([0008](adr/0008-simulation-engine.md)).
 - App: context menu faults on loads (short, leakage, earth fault, remove);
   tripped handle animation; glow for heating; wire orange/red; status bar
   events; reset by clicking the handle.
+- Status bar: show "Ready" and events in a permanent status-bar label, replacing F03's empty-StatusTip filter in `MainWindow::event` (it would leave real status tips stuck, and `retranslateUi()` resets the message on language change).
 
 **Scenario test:** on the tutorial fixture, overload QF4 by plugging a
 washing machine and stepping time → QF4 trips with cause overload; short a
