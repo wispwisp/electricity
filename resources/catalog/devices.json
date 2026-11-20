@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "deviceTypes": [
+    {
+      "id": "breaker",
+      "name": "Circuit breaker",
+      "description": "Switches a line on and off. Turns it off by itself on overload or short circuit.",
+      "allowedValues": {
+        "curve": ["C"],
+        "ratedCurrent": [6, 10, 16, 20, 25, 32, 40, 50, 63]
+      },
+      "variants": [
+        {
+          "poles": "1P", "modules": 1, "picture": "breaker-1p.svg",
+          "terminals": [
+            {"name": "1", "x": 9, "y": 8},
+            {"name": "2", "x": 9, "y": 82}
+          ]
+        },
+        {
+          "poles": "2P", "modules": 2, "picture": "breaker-2p.svg",
+          "terminals": [
+            {"name": "1", "x": 9, "y": 8},
+            {"name": "3", "x": 27, "y": 8},
+            {"name": "2", "x": 9, "y": 82},
+            {"name": "4", "x": 27, "y": 82}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "rcd",
+      "name": "Residual current device (RCD)",
+      "description": "Turns the power off when current leaks to earth, for example through a person. Does not protect against overload.",
+      "allowedValues": {
+        "ratedCurrent": [25, 32, 40, 63],
+        "residualCurrent": [30],
+        "rcdType": ["A"]
+      },
+      "variants": [
+        {
+          "poles": "2P", "modules": 2, "picture": "rcd-2p.svg",
+          "terminals": [
+            {"name": "1", "x": 9, "y": 8},
+            {"name": "N1", "x": 27, "y": 8},
+            {"name": "2", "x": 9, "y": 82},
+            {"name": "N2", "x": 27, "y": 82}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "rcbo",
+      "name": "Residual current circuit breaker (RCBO)",
+      "description": "Breaker and RCD in one device: turns off on overload, short circuit and current leakage.",
+      "allowedValues": {
+        "curve": ["C"],
+        "ratedCurrent": [6, 10, 16, 20, 25, 32],
+        "residualCurrent": [30],
+        "rcdType": ["A"]
+      },
+      "variants": [
+        {
+          "poles": "1P+N", "modules": 2, "picture": "rcbo-1pn.svg",
+          "terminals": [
+            {"name": "1", "x": 9, "y": 8},
+            {"name": "N1", "x": 27, "y": 8},
+            {"name": "2", "x": 9, "y": 82},
+            {"name": "N2", "x": 27, "y": 82}
+          ]
+        }
+      ]
+    }
+  ],
+  "bars": [
+    {"id": "nbar", "picture": "nbar.svg", "pitch": 9, "terminal": {"x": 4.5, "y": 8}},
+    {"id": "pebar", "picture": "pebar.svg", "pitch": 9, "terminal": {"x": 4.5, "y": 8}}
+  ]
+}

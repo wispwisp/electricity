@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "presets": [
+    {"id": "breaker-2p-c40", "group": "Protection", "name": "Breaker 2P C40", "purpose": "apartment main", "type": "breaker", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 40}, "wireSection": 10},
+    {"id": "rcd-2p-40-30", "group": "Protection", "name": "RCD 40 A 30 mA", "purpose": "leakage protection", "type": "rcd", "poles": "2P", "parameters": {"ratedCurrent": 40, "residualCurrent": 30, "rcdType": "A"}},
+    {"id": "breaker-1p-c10", "group": "Protection", "name": "Breaker 1P C10", "purpose": "lighting", "type": "breaker", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 10}, "wireSection": 1.5},
+    {"id": "breaker-1p-c16", "group": "Protection", "name": "Breaker 1P C16", "purpose": "sockets", "type": "breaker", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 16}, "wireSection": 2.5},
+    {"id": "breaker-1p-c32", "group": "Protection", "name": "Breaker 1P C32", "purpose": "cooktop", "type": "breaker", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 32}, "wireSection": 6},
+    {"id": "rcbo-c16-30", "group": "Protection", "name": "RCBO C16 30 mA", "purpose": "sockets, breaker and RCD in one", "type": "rcbo", "poles": "1P+N", "parameters": {"curve": "C", "ratedCurrent": 16, "residualCurrent": 30, "rcdType": "A"}, "wireSection": 2.5}
+  ]
+}

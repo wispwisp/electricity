@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "core/catalog.h"
+#include "core/catalogstrings.h"
 
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QtTest>
 
+#include <array>
 #include <functional>
 
 using Edit = std::function<void(CatalogSources &)>;
@@ -114,6 +116,11 @@ private slots:
     void loadsValidCatalog();
     void rejectsInvalidCatalog_data();
     void rejectsInvalidCatalog();
+    void embeddedCatalogLoadsWithoutErrors();
+    void deviceTypesMatchSpec();
+    void enclosuresMatchSpec();
+    void presetsMatchSpec();
+    void catalogStringsAreRegisteredForTranslation();
 };
 
 void TestCatalog::loadsValidCatalog()
@@ -298,6 +305,172 @@ void TestCatalog::rejectsInvalidCatalog()
                                    [&](const QString &e) { return e.contains(expected); });
     QVERIFY2(found,
              qPrintable(u"expected \"%1\" in:\n%2"_s.arg(expected, load.errors.join(u'\n'))));
+}
+
+void TestCatalog::embeddedCatalogLoadsWithoutErrors()
+{
+    const CatalogLoad load = loadCatalog(embeddedCatalogSources());
+    QVERIFY2(load.errors.isEmpty(), qPrintable(load.errors.join(u'\n')));
+}
+
+void TestCatalog::deviceTypesMatchSpec()
+{
+    const Catalog &catalog = embeddedCatalog();
+    QStringList ids;
+    for (const DeviceType &type : catalog.deviceTypes)
+        ids << type.id;
+    QCOMPARE(ids, (QStringList{ "breaker", "rcd", "rcbo" }));
+
+    const auto numbers = [](std::initializer_list<int> values) {
+        QJsonArray array;
+        for (int v : values)
+            array.append(v);
+        return array;
+    };
+    const QList<TerminalSpec> twoPole{
+        { "1", { 9, 8 } }, { "3", { 27, 8 } }, { "2", { 9, 82 } }, { "4", { 27, 82 } }
+    };
+    const QList<TerminalSpec> withNeutral{
+        { "1", { 9, 8 } }, { "N1", { 27, 8 } }, { "2", { 9, 82 } }, { "N2", { 27, 82 } }
+    };
+
+    const DeviceType *breaker = catalog.deviceType(u"breaker");
+    QCOMPARE(breaker->name, QStringLiteral("Circuit breaker"));
+    QCOMPARE(breaker->allowedValues,
+             (QJsonObject{ { "curve", QJsonArray{ "C" } },
+                           { "ratedCurrent", numbers({ 6, 10, 16, 20, 25, 32, 40, 50, 63 }) } }));
+    QCOMPARE(breaker->variants.size(), 2);
+    const DeviceVariant *b1 = breaker->variant(u"1P");
+    QCOMPARE(b1->modules, 1);
+    QCOMPARE(b1->picture, QStringLiteral("breaker-1p.svg"));
+    QCOMPARE(b1->terminals, (QList<TerminalSpec>{ { "1", { 9, 8 } }, { "2", { 9, 82 } } }));
+    const DeviceVariant *b2 = breaker->variant(u"2P");
+    QCOMPARE(b2->modules, 2);
+    QCOMPARE(b2->picture, QStringLiteral("breaker-2p.svg"));
+    QCOMPARE(b2->terminals, twoPole);
+
+    const DeviceType *rcd = catalog.deviceType(u"rcd");
+    QCOMPARE(rcd->name, QStringLiteral("Residual current device (RCD)"));
+    QCOMPARE(rcd->allowedValues,
+             (QJsonObject{ { "ratedCurrent", numbers({ 25, 32, 40, 63 }) },
+                           { "residualCurrent", numbers({ 30 }) },
+                           { "rcdType", QJsonArray{ "A" } } }));
+    QCOMPARE(rcd->variants.size(), 1);
+    const DeviceVariant *r2 = rcd->variant(u"2P");
+    QCOMPARE(r2->modules, 2);
+    QCOMPARE(r2->picture, QStringLiteral("rcd-2p.svg"));
+    QCOMPARE(r2->terminals, withNeutral);
+
+    const DeviceType *rcbo = catalog.deviceType(u"rcbo");
+    QCOMPARE(rcbo->name, QStringLiteral("Residual current circuit breaker (RCBO)"));
+    QCOMPARE(rcbo->allowedValues,
+             (QJsonObject{ { "curve", QJsonArray{ "C" } },
+                           { "ratedCurrent", numbers({ 6, 10, 16, 20, 25, 32 }) },
+                           { "residualCurrent", numbers({ 30 }) },
+                           { "rcdType", QJsonArray{ "A" } } }));
+    QCOMPARE(rcbo->variants.size(), 1);
+    const DeviceVariant *c = rcbo->variant(u"1P+N");
+    QCOMPARE(c->modules, 2);
+    QCOMPARE(c->picture, QStringLiteral("rcbo-1pn.svg"));
+    QCOMPARE(c->terminals, withNeutral);
+
+    QCOMPARE(catalog.bars.size(), 2);
+    QCOMPARE(catalog.bars.at(0).id, QStringLiteral("nbar"));
+    QCOMPARE(catalog.bars.at(0).picture, QStringLiteral("nbar.svg"));
+    QCOMPARE(catalog.bars.at(1).id, QStringLiteral("pebar"));
+    QCOMPARE(catalog.bars.at(1).picture, QStringLiteral("pebar.svg"));
+    for (const BarType &bar : catalog.bars) {
+        QCOMPARE(bar.pitch, 9.0);
+        QCOMPARE(bar.terminal, QPointF(4.5, 8));
+    }
+}
+
+void TestCatalog::enclosuresMatchSpec()
+{
+    const Catalog &catalog = embeddedCatalog();
+    QCOMPARE(catalog.enclosures.size(), 3);
+    struct Expected
+    {
+        const char *id;
+        int modules, rows, bars;
+    };
+    const std::array<Expected, 3> expected = { { { "enclosure-12", 12, 1, 8 },
+                                                 { "enclosure-24", 24, 2, 12 },
+                                                 { "enclosure-36", 36, 3, 16 } } };
+    for (int i = 0; i < 3; ++i) {
+        const EnclosureType &e = catalog.enclosures.at(i);
+        QCOMPARE(e.id, QString::fromLatin1(expected[i].id));
+        QCOMPARE(e.modules, expected[i].modules);
+        QCOMPARE(e.rows, expected[i].rows);
+        QCOMPARE(e.nBarTerminals, expected[i].bars);
+        QCOMPARE(e.peBarTerminals, expected[i].bars);
+        QCOMPARE(e.picture, QStringLiteral("enclosure-%1.svg").arg(expected[i].modules));
+    }
+}
+
+void TestCatalog::presetsMatchSpec()
+{
+    const Catalog &catalog = embeddedCatalog();
+    const auto params
+            = [](const QString &curve, int rated, int residual = 0, const QString &rcdType = {}) {
+                  QJsonObject o;
+                  if (!curve.isEmpty())
+                      o.insert("curve", curve);
+                  o.insert("ratedCurrent", rated);
+                  if (residual)
+                      o.insert("residualCurrent", residual);
+                  if (!rcdType.isEmpty())
+                      o.insert("rcdType", rcdType);
+                  return o;
+              };
+    struct Expected
+    {
+        const char *id, *name, *purpose, *type, *poles;
+        QJsonObject parameters;
+        std::optional<double> wireSection;
+    };
+    const std::array<Expected, 6> expected = { {
+            { "breaker-2p-c40", "Breaker 2P C40", "apartment main", "breaker", "2P",
+              params("C", 40), 10 },
+            { "rcd-2p-40-30", "RCD 40 A 30 mA", "leakage protection", "rcd", "2P",
+              params({}, 40, 30, "A"), std::nullopt },
+            { "breaker-1p-c10", "Breaker 1P C10", "lighting", "breaker", "1P", params("C", 10),
+              1.5 },
+            { "breaker-1p-c16", "Breaker 1P C16", "sockets", "breaker", "1P", params("C", 16),
+              2.5 },
+            { "breaker-1p-c32", "Breaker 1P C32", "cooktop", "breaker", "1P", params("C", 32), 6 },
+            { "rcbo-c16-30", "RCBO C16 30 mA", "sockets, breaker and RCD in one", "rcbo", "1P+N",
+              params("C", 16, 30, "A"), 2.5 },
+    } };
+    QCOMPARE(catalog.presets.size(), 6);
+    for (int i = 0; i < 6; ++i) {
+        const Preset &p = catalog.presets.at(i);
+        QCOMPARE(p.id, QString::fromLatin1(expected[i].id));
+        QCOMPARE(p.group, QStringLiteral("Protection"));
+        QCOMPARE(p.name, QString::fromLatin1(expected[i].name));
+        QCOMPARE(p.purpose, QString::fromLatin1(expected[i].purpose));
+        QCOMPARE(p.type, QString::fromLatin1(expected[i].type));
+        QCOMPARE(p.poles, QString::fromLatin1(expected[i].poles));
+        QCOMPARE(p.parameters, expected[i].parameters);
+        QCOMPARE(p.wireSection, expected[i].wireSection);
+    }
+}
+
+void TestCatalog::catalogStringsAreRegisteredForTranslation()
+{
+    const Catalog &catalog = embeddedCatalog();
+    const QStringList registered = catalogTranslationSources();
+    const auto check
+            = [&](const QString &text) { QVERIFY2(registered.contains(text), qPrintable(text)); };
+    for (const DeviceType &type : catalog.deviceTypes) {
+        check(type.name);
+        check(type.description);
+    }
+    for (const Preset &preset : catalog.presets) {
+        check(preset.group);
+        check(preset.name);
+        check(preset.purpose);
+    }
 }
 
 QTEST_APPLESS_MAIN(TestCatalog)

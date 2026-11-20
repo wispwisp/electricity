@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "core/catalog.h"
 
+#include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QSet>
@@ -252,4 +253,33 @@ CatalogLoad loadCatalog(const CatalogSources &sources)
     if (const auto root = parseFile(sources.products, u"products.json"_s, load.errors))
         loadProducts(*root, load.catalog, load.errors);
     return load;
+}
+
+namespace {
+
+QByteArray readResource(const QString &name)
+{
+    QFile file(u":/catalog/%1.json"_s.arg(name));
+    if (!file.open(QIODevice::ReadOnly))
+        qFatal("missing embedded catalog file %s", qPrintable(name));
+    return file.readAll();
+}
+
+} // namespace
+
+CatalogSources embeddedCatalogSources()
+{
+    return { readResource(u"devices"_s), readResource(u"enclosures"_s), readResource(u"presets"_s),
+             readResource(u"products"_s) };
+}
+
+const Catalog &embeddedCatalog()
+{
+    static const Catalog catalog = [] {
+        const CatalogLoad load = loadCatalog(embeddedCatalogSources());
+        if (!load.errors.isEmpty())
+            qFatal("broken embedded catalog:\n%s", qPrintable(load.errors.join(u'\n')));
+        return load.catalog;
+    }();
+    return catalog;
 }

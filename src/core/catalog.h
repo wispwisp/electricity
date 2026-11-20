@@ -89,3 +89,8 @@ struct CatalogLoad
 };
 
 CatalogLoad loadCatalog(const CatalogSources &sources);
+
+// The catalog shipped inside the executable (resources/catalog/*.json).
+CatalogSources embeddedCatalogSources();
+// Loaded on first use; a broken embedded catalog is a build defect and aborts with every error.
+const Catalog &embeddedCatalog();
