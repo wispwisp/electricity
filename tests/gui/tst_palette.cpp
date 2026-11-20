@@ -63,6 +63,7 @@ private slots:
     void showsProtectionPresetsWithTooltips();
     void switchesLanguageAndTheme();
     void textFitsInEveryLanguage();
+    void groupStaysExpandedOnDoubleClick();
 };
 
 void TestPalette::initTestCase()
@@ -177,6 +178,28 @@ void TestPalette::textFitsInEveryLanguage()
                          qPrintable(code + ": " + line));
             }
         }
+    }
+}
+
+void TestPalette::groupStaysExpandedOnDoubleClick()
+{
+    MainWindow window;
+    window.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&window));
+    auto *tree = window.findChild<QTreeWidget *>("paletteTree");
+    QVERIFY(tree);
+    QTreeWidgetItem *group = tree->topLevelItem(0);
+    QVERIFY(group);
+    QTest::mouseDClick(tree->viewport(), Qt::LeftButton, Qt::NoModifier,
+                       tree->visualItemRect(group).center());
+    tree->setCurrentItem(group);
+    QTest::keyClick(tree, Qt::Key_Left);
+    QVERIFY(group->isExpanded());
+    QVERIFY(group->childCount() > 0);
+    for (int i = 0; i < group->childCount(); ++i) {
+        const QRect rect = tree->visualItemRect(group->child(i));
+        QVERIFY(!rect.isEmpty());
+        QVERIFY(tree->viewport()->rect().contains(rect));
     }
 }
 

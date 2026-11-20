@@ -37,6 +37,7 @@ PaletteWidget::PaletteWidget(const Catalog &catalog, QWidget *parent)
     setObjectName(QStringLiteral("paletteTree"));
     setHeaderHidden(true);
     setRootIsDecorated(false);
+    setItemsExpandable(false);
     setIconSize(QSize(24, 48));
     setIndentation(8);
 
