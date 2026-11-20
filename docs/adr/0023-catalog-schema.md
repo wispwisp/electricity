@@ -59,5 +59,12 @@ are sold with 4-16).
 
 Adding a device, preset or enclosure is a data change plus a picture. Every
 shown catalog string must be registered in `src/core/catalogstrings.cpp`
-and translated. Loader validation (Task 1) rejects inconsistent data at
+and translated. Loader validation (the catalog loader) rejects inconsistent data at
 start-up.
+
+ПУЭ РК checked 2026-11-20: the wire ampacity table of
+[0016](0016-electrical-reference-data.md) matches Appendix 5, table 4
+(copper, rubber/PVC, "в одной трубе", "двух одножильных"): 1.5/2.5/4/6/10/16 mm²
+= 19/27/38/46/70/85 A. Source: приказ Министра энергетики РК от 20.03.2015
+№ 230, <https://old.adilet.zan.kz/rus/docs/V1500010851>. The table is numbered 4
+in the annex, not 1.3.4 as in the Russian ПУЭ 7.
