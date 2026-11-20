@@ -36,7 +36,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 endif()
 
 function(add_gui_test name)
-    qt_add_executable(${name} ${ARGN} gui/screenshot.cpp gui/testsettings.cpp)
+    qt_add_executable(${name} ${ARGN} gui/screenshot.cpp gui/testsettings.cpp
+        gui/menuclicks.cpp)
     target_link_libraries(${name} PRIVATE electricity_lib Qt6::Test)
     target_compile_definitions(${name} PRIVATE SCREENSHOT_DIR="${CMAKE_BINARY_DIR}/screenshots")
     qt_import_plugins(${name} INCLUDE Qt::QOffscreenIntegrationPlugin)
@@ -50,6 +51,7 @@ endfunction()
 add_gui_test(tst_mainwindow gui/tst_mainwindow.cpp)
 add_gui_test(tst_preferences gui/tst_preferences.cpp)
 add_gui_test(tst_catalogart gui/tst_catalogart.cpp)
+add_gui_test(tst_palette gui/tst_palette.cpp)
 
 # Strings must be extracted before scanning: the fixture .ts has no unfinished entries,
 # only the fixture source has a new one.

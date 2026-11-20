@@ -4,6 +4,7 @@
 #include "app/mainwindow.h"
 #include "app/settings.h"
 #include "app/theme.h"
+#include "menuclicks.h"
 #include "screenshot.h"
 #include "testsettings.h"
 
@@ -29,23 +30,6 @@
 Q_DECLARE_METATYPE(Language)
 
 namespace {
-void clickMenuBarItem(QMainWindow &window, QMenu *menu)
-{
-    QMenuBar *bar = window.menuBar();
-    QTest::mouseClick(bar, Qt::LeftButton, Qt::NoModifier,
-                      bar->actionGeometry(menu->menuAction()).center());
-    QTRY_VERIFY(menu->isVisible());
-}
-
-void clickMenuItem(QMenu *menu, QAction *action)
-{
-    const QPoint center = menu->actionGeometry(action).center();
-    QTest::mouseMove(menu, center);
-    QTest::mouseClick(menu, Qt::LeftButton, Qt::NoModifier, center);
-    // LanguageChange events are posted, not delivered synchronously.
-    QCoreApplication::processEvents();
-}
-
 // Runs callback on the visible language dialog once the event loop starts. The dialog is
 // rejected afterwards if the callback left it open, so a failed check cannot hang the test.
 // The context object drops the pending callback if the test ends before the dialog opens.
@@ -255,11 +239,7 @@ void TestPreferences::switchesLanguageAndThemeAtRuntimeAndPersists()
         clickMenuBarItem(window, languageMenu);
         clickMenuItem(languageMenu, kk);
         clickMenuBarItem(window, settingsMenu);
-        QTest::mouseMove(settingsMenu,
-                         settingsMenu->actionGeometry(themeMenu->menuAction()).center());
-        QTest::mouseClick(settingsMenu, Qt::LeftButton, Qt::NoModifier,
-                          settingsMenu->actionGeometry(themeMenu->menuAction()).center());
-        QTRY_VERIFY(themeMenu->isVisible());
+        openSubmenu(settingsMenu, themeMenu);
         clickMenuItem(themeMenu, light);
         const QColor lightWindow = Theme::lightPalette().color(QPalette::Window);
         QCOMPARE(window.palette().color(QPalette::Window), lightWindow);

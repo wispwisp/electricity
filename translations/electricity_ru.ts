@@ -102,39 +102,47 @@
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="109"/>
+        <location filename="../src/app/mainwindow.cpp" line="111"/>
         <source>Settings</source>
         <translation>Настройки</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="110"/>
+        <location filename="../src/app/mainwindow.cpp" line="112"/>
         <source>Theme</source>
         <translation>Тема</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="111"/>
+        <location filename="../src/app/mainwindow.cpp" line="113"/>
         <source>Dark</source>
         <translation>Тёмная</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="112"/>
+        <location filename="../src/app/mainwindow.cpp" line="114"/>
         <source>Light</source>
         <translation>Светлая</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="113"/>
+        <location filename="../src/app/mainwindow.cpp" line="115"/>
         <source>Language</source>
         <translation>Язык</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="114"/>
+        <location filename="../src/app/mainwindow.cpp" line="116"/>
         <source>Components</source>
         <translation>Компоненты</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="115"/>
+        <location filename="../src/app/mainwindow.cpp" line="117"/>
         <source>Ready</source>
         <translation>Готово</translation>
+    </message>
+</context>
+<context>
+    <name>PaletteWidget</name>
+    <message>
+        <location filename="../src/app/palettewidget.cpp" line="65"/>
+        <source>Usual wire: %1 mm²</source>
+        <translation>Обычный провод: %1 mm²</translation>
     </message>
 </context>
 </TS>

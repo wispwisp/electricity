@@ -2,8 +2,10 @@
 #include "app/mainwindow.h"
 
 #include "app/language.h"
+#include "app/palettewidget.h"
 #include "app/settings.h"
 #include "app/theme.h"
+#include "core/catalog.h"
 
 #include <QActionGroup>
 #include <QDockWidget>
@@ -19,7 +21,7 @@
 namespace {
 constexpr QSize kDefaultSize(1280, 800);
 constexpr QSize kFrameAllowance(20, 60);
-constexpr int kPaletteWidth = 240;
+constexpr int kPaletteWidth = 300;
 } // namespace
 
 bool startsMaximized(const QSize &availableScreenSize)
@@ -41,7 +43,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     m_dock = new QDockWidget(this);
     m_dock->setObjectName(QStringLiteral("paletteDock"));
-    m_dock->setWidget(new QWidget(m_dock));
+    m_dock->setWidget(new PaletteWidget(embeddedCatalog(), m_dock));
     m_dock->setFeatures(QDockWidget::DockWidgetMovable);
     addDockWidget(Qt::LeftDockWidgetArea, m_dock);
     resizeDocks({ m_dock }, { kPaletteWidth }, Qt::Horizontal);
