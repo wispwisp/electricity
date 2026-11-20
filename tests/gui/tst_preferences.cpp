@@ -1,20 +1,46 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "app/appsetup.h"
 #include "app/language.h"
+#include "app/mainwindow.h"
 #include "app/settings.h"
 #include "app/theme.h"
+#include "screenshot.h"
 #include "testsettings.h"
 
 #include <QApplication>
+#include <QDockWidget>
 #include <QFile>
+#include <QGraphicsView>
 #include <QLocale>
+#include <QMenu>
+#include <QMenuBar>
 #include <QSettings>
+#include <QStatusBar>
 #include <QStyle>
 #include <QTest>
 
 #include <array>
 
 Q_DECLARE_METATYPE(Language)
+
+namespace {
+void clickMenuBarItem(QMainWindow &window, QMenu *menu)
+{
+    QMenuBar *bar = window.menuBar();
+    QTest::mouseClick(bar, Qt::LeftButton, Qt::NoModifier,
+                      bar->actionGeometry(menu->menuAction()).center());
+    QTRY_VERIFY(menu->isVisible());
+}
+
+void clickMenuItem(QMenu *menu, QAction *action)
+{
+    const QPoint center = menu->actionGeometry(action).center();
+    QTest::mouseMove(menu, center);
+    QTest::mouseClick(menu, Qt::LeftButton, Qt::NoModifier, center);
+    // LanguageChange events are posted, not delivered synchronously.
+    QCoreApplication::processEvents();
+}
+} // namespace
 
 class TestPreferences : public QObject
 {
@@ -30,6 +56,7 @@ private slots:
     void settingsRoundTripInIniFile();
     void unknownSavedValuesAreIgnored();
     void appliesLightAndDarkPalettes();
+    void switchesLanguageAndThemeAtRuntimeAndPersists();
 
 private:
     QString m_iniPath;
@@ -140,6 +167,92 @@ void TestPreferences::appliesLightAndDarkPalettes()
     QCOMPARE(Theme::currentMode(), Theme::Mode::Dark);
     QCOMPARE(QApplication::palette().color(QPalette::Window),
              Theme::darkPalette().color(QPalette::Window));
+}
+
+void TestPreferences::switchesLanguageAndThemeAtRuntimeAndPersists()
+{
+    Settings::saveLanguage(Language::Russian);
+    applySavedPreferences();
+    {
+        MainWindow window;
+        window.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&window));
+        auto *settingsMenu = window.findChild<QMenu *>("settingsMenu");
+        auto *themeMenu = window.findChild<QMenu *>("themeMenu");
+        auto *languageMenu = window.findChild<QMenu *>("languageMenu");
+        auto *dark = window.findChild<QAction *>("themeAction_dark");
+        auto *light = window.findChild<QAction *>("themeAction_light");
+        auto *ru = window.findChild<QAction *>("languageAction_ru");
+        auto *kk = window.findChild<QAction *>("languageAction_kk");
+        auto *en = window.findChild<QAction *>("languageAction_en");
+        auto *dock = window.findChild<QDockWidget *>("paletteDock");
+        auto *canvas = window.findChild<QGraphicsView *>("canvasView");
+        QVERIFY(settingsMenu && themeMenu && languageMenu && dark && light && ru && kk && en && dock
+                && canvas);
+        QCOMPARE(languageMenu->title(), QStringLiteral("Язык"));
+        QCOMPARE(settingsMenu->title(), QStringLiteral("Настройки"));
+        QCOMPARE(dock->windowTitle(), QStringLiteral("Компоненты"));
+        QCOMPARE(window.statusBar()->currentMessage(), QStringLiteral("Готово"));
+        QVERIFY(ru->isChecked() && dark->isChecked());
+        QVERIFY(saveScreenshot(window, "f03", "ru"));
+
+        clickMenuBarItem(window, languageMenu);
+        QVERIFY(saveScreenshot(*languageMenu, "f03", "language-menu"));
+        clickMenuItem(languageMenu, kk);
+        QCOMPARE(languageMenu->title(), QStringLiteral("Тіл"));
+        QCOMPARE(settingsMenu->title(), QStringLiteral("Баптаулар"));
+        QCOMPARE(themeMenu->title(), QStringLiteral("Тақырып"));
+        QCOMPARE(dark->text(), QStringLiteral("Қараңғы"));
+        QCOMPARE(light->text(), QStringLiteral("Ашық"));
+        QCOMPARE(dock->windowTitle(), QStringLiteral("Компоненттер"));
+        QCOMPARE(window.statusBar()->currentMessage(), QStringLiteral("Дайын"));
+        QCOMPARE(ru->text(), QStringLiteral("Русский")); // native names never change
+        QCOMPARE(en->text(), QStringLiteral("English"));
+        QCOMPARE(Settings::savedLanguage(), Language::Kazakh);
+        QVERIFY(saveScreenshot(window, "f03", "kk"));
+
+        clickMenuBarItem(window, languageMenu);
+        clickMenuItem(languageMenu, en);
+        QCOMPARE(languageMenu->title(), QStringLiteral("Language"));
+        QCOMPARE(dock->windowTitle(), QStringLiteral("Components"));
+        QCOMPARE(window.statusBar()->currentMessage(), QStringLiteral("Ready"));
+        QVERIFY(saveScreenshot(window, "f03", "en"));
+
+        clickMenuBarItem(window, languageMenu);
+        clickMenuItem(languageMenu, kk);
+        clickMenuBarItem(window, settingsMenu);
+        QTest::mouseMove(settingsMenu,
+                         settingsMenu->actionGeometry(themeMenu->menuAction()).center());
+        QTest::mouseClick(settingsMenu, Qt::LeftButton, Qt::NoModifier,
+                          settingsMenu->actionGeometry(themeMenu->menuAction()).center());
+        QTRY_VERIFY(themeMenu->isVisible());
+        clickMenuItem(themeMenu, light);
+        const QColor lightWindow = Theme::lightPalette().color(QPalette::Window);
+        QCOMPARE(window.palette().color(QPalette::Window), lightWindow);
+        QCOMPARE(dock->palette().color(QPalette::Window), lightWindow);
+        QVERIFY(canvas->palette().color(QPalette::Base).lightness() > 200);
+        QCOMPARE(Settings::savedTheme(), Theme::Mode::Light);
+        QVERIFY(saveScreenshot(window, "f03", "light"));
+    }
+    const QSettings raw(m_iniPath, QSettings::IniFormat);
+    QCOMPARE(raw.value("language").toString(), QStringLiteral("kk"));
+    QCOMPARE(raw.value("theme").toString(), QStringLiteral("light"));
+
+    // Restart: reset the app state, then start up from the saved settings.
+    installLanguage(Language::English);
+    Theme::apply(Theme::Mode::Dark);
+    applySavedPreferences();
+    MainWindow restarted;
+    restarted.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&restarted));
+    QCOMPARE(restarted.findChild<QMenu *>("languageMenu")->title(), QStringLiteral("Тіл"));
+    QCOMPARE(restarted.findChild<QDockWidget *>("paletteDock")->windowTitle(),
+             QStringLiteral("Компоненттер"));
+    QVERIFY(restarted.findChild<QAction *>("languageAction_kk")->isChecked());
+    QVERIFY(restarted.findChild<QAction *>("themeAction_light")->isChecked());
+    QCOMPARE(restarted.palette().color(QPalette::Window),
+             Theme::lightPalette().color(QPalette::Window));
+    QVERIFY(saveScreenshot(restarted, "f03", "restarted"));
 }
 
 QTEST_MAIN(TestPreferences)

@@ -1,9 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "app/mainwindow.h"
 
+#include "app/language.h"
+#include "app/settings.h"
+#include "app/theme.h"
+
+#include <QActionGroup>
 #include <QDockWidget>
+#include <QEvent>
 #include <QGraphicsScene>
 #include <QGraphicsView>
+#include <QMenu>
+#include <QMenuBar>
 #include <QScreen>
 #include <QStatusBar>
 
@@ -30,16 +38,69 @@ MainWindow::MainWindow(QWidget *parent)
     canvas->setObjectName(QStringLiteral("canvasView"));
     setCentralWidget(canvas);
 
-    auto *dock = new QDockWidget(tr("Components"), this);
-    dock->setObjectName(QStringLiteral("paletteDock"));
-    dock->setWidget(new QWidget(dock));
-    dock->setFeatures(QDockWidget::DockWidgetMovable);
-    addDockWidget(Qt::LeftDockWidgetArea, dock);
-    resizeDocks({ dock }, { kPaletteWidth }, Qt::Horizontal);
+    m_dock = new QDockWidget(this);
+    m_dock->setObjectName(QStringLiteral("paletteDock"));
+    m_dock->setWidget(new QWidget(m_dock));
+    m_dock->setFeatures(QDockWidget::DockWidgetMovable);
+    addDockWidget(Qt::LeftDockWidgetArea, m_dock);
+    resizeDocks({ m_dock }, { kPaletteWidth }, Qt::Horizontal);
 
-    statusBar()->showMessage(tr("Ready"));
+    m_settingsMenu = menuBar()->addMenu(QString());
+    m_settingsMenu->setObjectName(QStringLiteral("settingsMenu"));
+    m_themeMenu = m_settingsMenu->addMenu(QString());
+    m_themeMenu->setObjectName(QStringLiteral("themeMenu"));
+    auto *themeGroup = new QActionGroup(this);
+    const auto addThemeAction = [&](const QString &name, Theme::Mode mode) {
+        auto *action = m_themeMenu->addAction(QString());
+        action->setObjectName(QStringLiteral("themeAction_%1").arg(name));
+        action->setCheckable(true);
+        action->setChecked(Theme::currentMode() == mode);
+        themeGroup->addAction(action);
+        connect(action, &QAction::triggered, this, [mode] {
+            Theme::apply(mode);
+            Settings::saveTheme(mode);
+        });
+        return action;
+    };
+    m_darkAction = addThemeAction(QStringLiteral("dark"), Theme::Mode::Dark);
+    m_lightAction = addThemeAction(QStringLiteral("light"), Theme::Mode::Light);
+
+    m_languageMenu = menuBar()->addMenu(QString());
+    m_languageMenu->setObjectName(QStringLiteral("languageMenu"));
+    auto *languageGroup = new QActionGroup(this);
+    for (Language language : kAllLanguages) {
+        auto *action = m_languageMenu->addAction(nativeLanguageName(language));
+        action->setObjectName(QStringLiteral("languageAction_%1").arg(languageCode(language)));
+        action->setCheckable(true);
+        action->setChecked(currentLanguage() == language);
+        languageGroup->addAction(action);
+        connect(action, &QAction::triggered, this, [language] {
+            installLanguage(language);
+            Settings::saveLanguage(language);
+        });
+    }
+
+    retranslateUi();
 
     resize(kDefaultSize);
     if (startsMaximized(screen()->availableGeometry().size()))
         setWindowState(Qt::WindowMaximized);
+}
+
+void MainWindow::changeEvent(QEvent *event)
+{
+    if (event->type() == QEvent::LanguageChange)
+        retranslateUi();
+    QMainWindow::changeEvent(event);
+}
+
+void MainWindow::retranslateUi()
+{
+    m_settingsMenu->setTitle(tr("Settings"));
+    m_themeMenu->setTitle(tr("Theme"));
+    m_darkAction->setText(tr("Dark"));
+    m_lightAction->setText(tr("Light"));
+    m_languageMenu->setTitle(tr("Language"));
+    m_dock->setWindowTitle(tr("Components"));
+    statusBar()->showMessage(tr("Ready"));
 }

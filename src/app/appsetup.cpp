@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "app/appsetup.h"
 
+#include "app/language.h"
+#include "app/settings.h"
 #include "app/theme.h"
 #include "core/version.h"
 
@@ -8,6 +10,13 @@
 #include <QDebug>
 #include <QFont>
 #include <QFontDatabase>
+#include <QLocale>
+
+void applySavedPreferences()
+{
+    Theme::apply(Settings::savedTheme());
+    installLanguage(Settings::savedLanguage().value_or(defaultLanguage(QLocale::system())));
+}
 
 void setupApplication(QApplication &app)
 {
@@ -20,6 +29,6 @@ void setupApplication(QApplication &app)
     font.setFamily(QStringLiteral("DejaVu Sans"));
     QApplication::setFont(font);
 
-    Theme::apply(Theme::Mode::Dark);
+    applySavedPreferences();
     app.setApplicationVersion(appVersion());
 }

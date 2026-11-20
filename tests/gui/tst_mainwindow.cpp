@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "app/appsetup.h"
 #include "app/mainwindow.h"
+#include "app/settings.h"
 #include "app/theme.h"
 #include "screenshot.h"
+#include "testsettings.h"
 
 #include <QApplication>
 #include <QDockWidget>
@@ -29,6 +31,8 @@ private slots:
 
 void TestMainWindow::initTestCase()
 {
+    useTemporarySettings();
+    Settings::saveLanguage(Language::English);
     setupApplication(*qApp);
 }
 

@@ -5,3 +5,5 @@ class QApplication;
 
 // Startup steps shared by the executable and the GUI tests.
 void setupApplication(QApplication &app);
+// Applies the saved theme and installs the saved language (or the system default).
+void applySavedPreferences();
