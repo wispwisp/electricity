@@ -23,9 +23,14 @@ are sold with 4-16).
 - **Parameters.** Names and units: `curve` (string), `ratedCurrent` (A,
   number), `residualCurrent` (mA, number), `rcdType` (string). Each device
   type lists the allowed values per parameter in `allowedValues`.
+- **No type defaults.** Device types carry allowed values, not default
+  parameters. The baseline that a placed device's overrides are measured
+  against (the preset's parameters are the natural candidate) is decided by
+  F05 (panel editor) in its own ADR.
 - **Presets are data.** `presets.json` lists the palette presets (group,
   name, purpose, type, poles, parameters, optional `wireSection` in mm²).
-  This refines 0009, which left presets to code.
+  0009 did not define a presets list (it mentioned products as quick
+  presets); 0023 adds presets as their own data file.
 - **Products.** Grouped by series; each series has one source (a page on
   the manufacturer's own domain, with an access date). The article is
   optional.
@@ -59,8 +64,7 @@ are sold with 4-16).
 
 Adding a device, preset or enclosure is a data change plus a picture. Every
 shown catalog string must be registered in `src/core/catalogstrings.cpp`
-and translated. Loader validation (the catalog loader) rejects inconsistent
-data at start-up.
+and translated. The catalog loader rejects inconsistent data at start-up.
 
 ПУЭ РК checked 2026-11-20: the wire ampacity table of
 [0016](0016-electrical-reference-data.md) matches Appendix 1, table 4

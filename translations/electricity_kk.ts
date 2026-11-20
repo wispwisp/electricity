@@ -140,7 +140,7 @@
 <context>
     <name>PaletteWidget</name>
     <message>
-        <location filename="../src/app/palettewidget.cpp" line="65"/>
+        <location filename="../src/app/palettewidget.cpp" line="79"/>
         <source>Usual wire: %1 mm²</source>
         <translation>Әдеттегі сым: %1 mm²</translation>
     </message>
