@@ -180,6 +180,51 @@
         {"model": "Easy9 2P C50", "article": "EZ9F34250", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 50}},
         {"model": "Easy9 2P C63", "article": "EZ9F34263", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 63}}
       ]
+    },
+    {
+      "brand": "ABB", "series": "S200", "type": "breaker",
+      "source": {"url": "https://library.e.abb.com/public/88e12505fc954941a37f836eeded135c/9AKK107991A8329_Electrical%20installation%20solutions%20for%20buildings%20part%20A%20-%201st%20edition%202026.pdf#page=48", "accessed": "2026-11-20"},
+      "products": [
+        {"model": "S201 C6", "article": "2CDS251001R0064", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 6}},
+        {"model": "S201 C10", "article": "2CDS251001R0104", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 10}},
+        {"model": "S201 C16", "article": "2CDS251001R0164", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 16}},
+        {"model": "S201 C20", "article": "2CDS251001R0204", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 20}},
+        {"model": "S201 C25", "article": "2CDS251001R0254", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 25}},
+        {"model": "S201 C32", "article": "2CDS251001R0324", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 32}},
+        {"model": "S201 C40", "article": "2CDS251001R0404", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 40}},
+        {"model": "S201 C50", "article": "2CDS251001R0504", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 50}},
+        {"model": "S201 C63", "article": "2CDS251001R0634", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 63}},
+        {"model": "S202 C6", "article": "2CDS252001R0064", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 6}},
+        {"model": "S202 C10", "article": "2CDS252001R0104", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 10}},
+        {"model": "S202 C16", "article": "2CDS252001R0164", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 16}},
+        {"model": "S202 C20", "article": "2CDS252001R0204", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 20}},
+        {"model": "S202 C25", "article": "2CDS252001R0254", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 25}},
+        {"model": "S202 C32", "article": "2CDS252001R0324", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 32}},
+        {"model": "S202 C40", "article": "2CDS252001R0404", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 40}},
+        {"model": "S202 C50", "article": "2CDS252001R0504", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 50}},
+        {"model": "S202 C63", "article": "2CDS252001R0634", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 63}}
+      ]
+    },
+    {
+      "brand": "ABB", "series": "F200", "type": "rcd",
+      "source": {"url": "https://library.e.abb.com/public/88e12505fc954941a37f836eeded135c/9AKK107991A8329_Electrical%20installation%20solutions%20for%20buildings%20part%20A%20-%201st%20edition%202026.pdf#page=281", "accessed": "2026-11-20"},
+      "products": [
+        {"model": "F202 A-25/0.03", "article": "2CSF202101R1250", "poles": "2P", "parameters": {"ratedCurrent": 25, "residualCurrent": 30, "rcdType": "A"}},
+        {"model": "F202 A-40/0.03", "article": "2CSF202101R1400", "poles": "2P", "parameters": {"ratedCurrent": 40, "residualCurrent": 30, "rcdType": "A"}},
+        {"model": "F202 A-63/0.03", "article": "2CSF202101R1630", "poles": "2P", "parameters": {"ratedCurrent": 63, "residualCurrent": 30, "rcdType": "A"}}
+      ]
+    },
+    {
+      "brand": "ABB", "series": "DS201", "type": "rcbo",
+      "source": {"url": "https://library.e.abb.com/public/88e12505fc954941a37f836eeded135c/9AKK107991A8329_Electrical%20installation%20solutions%20for%20buildings%20part%20A%20-%201st%20edition%202026.pdf#page=331", "accessed": "2026-11-20"},
+      "products": [
+        {"model": "DS201 C6 A30", "article": "2CSR255180R1064", "poles": "1P+N", "parameters": {"curve": "C", "ratedCurrent": 6, "residualCurrent": 30, "rcdType": "A"}},
+        {"model": "DS201 C10 A30", "article": "2CSR255180R1104", "poles": "1P+N", "parameters": {"curve": "C", "ratedCurrent": 10, "residualCurrent": 30, "rcdType": "A"}},
+        {"model": "DS201 C16 A30", "article": "2CSR255180R1164", "poles": "1P+N", "parameters": {"curve": "C", "ratedCurrent": 16, "residualCurrent": 30, "rcdType": "A"}},
+        {"model": "DS201 C20 A30", "article": "2CSR255180R1204", "poles": "1P+N", "parameters": {"curve": "C", "ratedCurrent": 20, "residualCurrent": 30, "rcdType": "A"}},
+        {"model": "DS201 C25 A30", "article": "2CSR255180R1254", "poles": "1P+N", "parameters": {"curve": "C", "ratedCurrent": 25, "residualCurrent": 30, "rcdType": "A"}},
+        {"model": "DS201 C32 A30", "article": "2CSR255180R1324", "poles": "1P+N", "parameters": {"curve": "C", "ratedCurrent": 32, "residualCurrent": 30, "rcdType": "A"}}
+      ]
     }
   ]
 }
