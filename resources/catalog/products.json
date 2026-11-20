@@ -46,6 +46,82 @@
         {"model": "АВДТ32 C25 30mA тип A", "article": "MAD22-5-025-C-30", "poles": "1P+N", "parameters": {"curve": "C", "ratedCurrent": 25, "residualCurrent": 30, "rcdType": "A"}},
         {"model": "АВДТ32 C32 30mA тип A", "article": "MAD22-5-032-C-30", "poles": "1P+N", "parameters": {"curve": "C", "ratedCurrent": 32, "residualCurrent": 30, "rcdType": "A"}}
       ]
+    },
+    {
+      "brand": "EKF", "series": "ВА 47-63N", "type": "breaker",
+      "source": {"url": "https://ekfgroup.com/uploads/products/E9BE16356512ECCEAE0C031C1C4D1B61.pdf", "accessed": "2026-11-20"},
+      "products": [
+        {"model": "ВА 47-63N 1P C6", "article": "M634106C", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 6}},
+        {"model": "ВА 47-63N 1P C10", "article": "M634110C", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 10}},
+        {"model": "ВА 47-63N 1P C16", "article": "M634116C", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 16}},
+        {"model": "ВА 47-63N 1P C20", "article": "M634120C", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 20}},
+        {"model": "ВА 47-63N 1P C25", "article": "M634125C", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 25}},
+        {"model": "ВА 47-63N 1P C32", "article": "M634132C", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 32}},
+        {"model": "ВА 47-63N 1P C40", "article": "M634140C", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 40}},
+        {"model": "ВА 47-63N 1P C50", "article": "M634150C", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 50}},
+        {"model": "ВА 47-63N 1P C63", "article": "M634163C", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 63}},
+        {"model": "ВА 47-63N 2P C6", "article": "M634206C", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 6}},
+        {"model": "ВА 47-63N 2P C10", "article": "M634210C", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 10}},
+        {"model": "ВА 47-63N 2P C16", "article": "M634216C", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 16}},
+        {"model": "ВА 47-63N 2P C20", "article": "M634220C", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 20}},
+        {"model": "ВА 47-63N 2P C25", "article": "M634225C", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 25}},
+        {"model": "ВА 47-63N 2P C32", "article": "M634232C", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 32}},
+        {"model": "ВА 47-63N 2P C40", "article": "M634240C", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 40}},
+        {"model": "ВА 47-63N 2P C50", "article": "M634250C", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 50}},
+        {"model": "ВА 47-63N 2P C63", "article": "M634263C", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 63}}
+      ]
+    },
+    {
+      "brand": "EKF", "series": "ВД-100N", "type": "rcd",
+      "source": {"url": "https://ekfgroup.com/uploads/products/A90FF9054FD5B15598F0A761A200E18D.pdf", "accessed": "2026-11-20"},
+      "products": [
+        {"model": "ВД-100N 2P 25A 30mA тип A", "article": "E1026MA2530", "poles": "2P", "parameters": {"ratedCurrent": 25, "residualCurrent": 30, "rcdType": "A"}},
+        {"model": "ВД-100N 2P 32A 30mA тип A", "article": "E1026MA3230", "poles": "2P", "parameters": {"ratedCurrent": 32, "residualCurrent": 30, "rcdType": "A"}},
+        {"model": "ВД-100N 2P 40A 30mA тип A", "article": "E1026MA4030", "poles": "2P", "parameters": {"ratedCurrent": 40, "residualCurrent": 30, "rcdType": "A"}},
+        {"model": "ВД-100N 2P 63A 30mA тип A", "article": "E1026MA6330", "poles": "2P", "parameters": {"ratedCurrent": 63, "residualCurrent": 30, "rcdType": "A"}}
+      ]
+    },
+    {
+      "brand": "EKF", "series": "АВДТ-63N", "type": "rcbo",
+      "source": {"url": "https://ekfgroup.com/ru/catalog/products/differencialnyj-avtomat-avdt-63n-1p-n-6a-c-30ma-a-el-me-6ka-proxima-ekf", "accessed": "2026-11-20"},
+      "products": [
+        {"model": "АВДТ-63N C6 30mA тип A", "article": "D63N26MA6C30", "poles": "1P+N", "parameters": {"curve": "C", "ratedCurrent": 6, "residualCurrent": 30, "rcdType": "A"}}
+      ]
+    },
+    {
+      "brand": "EKF", "series": "АВДТ-63N", "type": "rcbo",
+      "source": {"url": "https://ekfgroup.com/ru/catalog/products/differencialnyj-avtomat-avdt-63n-1p-n-10a-c-30ma-a-el-me-6ka-proxima-ekf", "accessed": "2026-11-20"},
+      "products": [
+        {"model": "АВДТ-63N C10 30mA тип A", "article": "D63N26MA10C30", "poles": "1P+N", "parameters": {"curve": "C", "ratedCurrent": 10, "residualCurrent": 30, "rcdType": "A"}}
+      ]
+    },
+    {
+      "brand": "EKF", "series": "АВДТ-63N", "type": "rcbo",
+      "source": {"url": "https://ekfgroup.com/ru/catalog/products/differencialnyj-avtomat-avdt-63n-1p-n-16a-c-30ma-a-el-me-6ka-proxima-ekf", "accessed": "2026-11-20"},
+      "products": [
+        {"model": "АВДТ-63N C16 30mA тип A", "article": "D63N26MA16C30", "poles": "1P+N", "parameters": {"curve": "C", "ratedCurrent": 16, "residualCurrent": 30, "rcdType": "A"}}
+      ]
+    },
+    {
+      "brand": "EKF", "series": "АВДТ-63N", "type": "rcbo",
+      "source": {"url": "https://ekfgroup.com/ru/catalog/products/differencialnyj-avtomat-avdt-63n-1p-n-20a-c-30ma-a-el-me-6ka-proxima-ekf", "accessed": "2026-11-20"},
+      "products": [
+        {"model": "АВДТ-63N C20 30mA тип A", "article": "D63N26MA20C30", "poles": "1P+N", "parameters": {"curve": "C", "ratedCurrent": 20, "residualCurrent": 30, "rcdType": "A"}}
+      ]
+    },
+    {
+      "brand": "EKF", "series": "АВДТ-63N", "type": "rcbo",
+      "source": {"url": "https://ekfgroup.com/ru/catalog/products/differencialnyj-avtomat-avdt-63n-1p-n-25a-c-30ma-a-el-me-6ka-proxima-ekf", "accessed": "2026-11-20"},
+      "products": [
+        {"model": "АВДТ-63N C25 30mA тип A", "article": "D63N26MA25C30", "poles": "1P+N", "parameters": {"curve": "C", "ratedCurrent": 25, "residualCurrent": 30, "rcdType": "A"}}
+      ]
+    },
+    {
+      "brand": "EKF", "series": "АВДТ-63N", "type": "rcbo",
+      "source": {"url": "https://ekfgroup.com/ru/catalog/products/differencialnyj-avtomat-avdt-63n-1p-n-32a-c-30ma-a-el-me-6ka-proxima-ekf", "accessed": "2026-11-20"},
+      "products": [
+        {"model": "АВДТ-63N C32 30mA тип A", "article": "D63N26MA32C30", "poles": "1P+N", "parameters": {"curve": "C", "ratedCurrent": 32, "residualCurrent": 30, "rcdType": "A"}}
+      ]
     }
   ]
 }
