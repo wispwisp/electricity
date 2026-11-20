@@ -122,6 +122,52 @@
       "products": [
         {"model": "АВДТ-63N C32 30mA тип A", "article": "D63N26MA32C30", "poles": "1P+N", "parameters": {"curve": "C", "ratedCurrent": 32, "residualCurrent": 30, "rcdType": "A"}}
       ]
+    },
+    {
+      "brand": "Chint", "series": "NXB-63", "type": "breaker",
+      "source": {"url": "https://www.chintglobal.com/content/dam/chint/global/product-center/low-voltage/iec/final-power-distribution/mcb/nxb-63/catalog/NXB-63-MCB-Catalog.pdf", "accessed": "2026-11-20"},
+      "products": [
+        {"model": "NXB-63 1P C6", "article": "814012", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 6}},
+        {"model": "NXB-63 1P C10", "article": "814013", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 10}},
+        {"model": "NXB-63 1P C16", "article": "814014", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 16}},
+        {"model": "NXB-63 1P C20", "article": "814015", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 20}},
+        {"model": "NXB-63 1P C25", "article": "814016", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 25}},
+        {"model": "NXB-63 1P C32", "article": "814017", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 32}},
+        {"model": "NXB-63 1P C40", "article": "814018", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 40}},
+        {"model": "NXB-63 1P C50", "article": "814019", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 50}},
+        {"model": "NXB-63 1P C63", "article": "814020", "poles": "1P", "parameters": {"curve": "C", "ratedCurrent": 63}},
+        {"model": "NXB-63 2P C6", "article": "814090", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 6}},
+        {"model": "NXB-63 2P C10", "article": "814091", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 10}},
+        {"model": "NXB-63 2P C16", "article": "814092", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 16}},
+        {"model": "NXB-63 2P C20", "article": "814093", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 20}},
+        {"model": "NXB-63 2P C25", "article": "814094", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 25}},
+        {"model": "NXB-63 2P C32", "article": "814095", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 32}},
+        {"model": "NXB-63 2P C40", "article": "814096", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 40}},
+        {"model": "NXB-63 2P C50", "article": "814097", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 50}},
+        {"model": "NXB-63 2P C63", "article": "814098", "poles": "2P", "parameters": {"curve": "C", "ratedCurrent": 63}}
+      ]
+    },
+    {
+      "brand": "Chint", "series": "NL1-63", "type": "rcd",
+      "source": {"url": "https://www.chintglobal.com/content/dam/chint/global/product-center/low-voltage/iec/final-power-distribution/rccb/nl1/catalog/NL1-RCCB-Catalog.pdf", "accessed": "2026-11-20"},
+      "products": [
+        {"model": "NL1-63 2P 25A 30mA тип A", "article": "527234", "poles": "2P", "parameters": {"ratedCurrent": 25, "residualCurrent": 30, "rcdType": "A"}},
+        {"model": "NL1-63 2P 32A 30mA тип A", "article": "527235", "poles": "2P", "parameters": {"ratedCurrent": 32, "residualCurrent": 30, "rcdType": "A"}},
+        {"model": "NL1-63 2P 40A 30mA тип A", "article": "527236", "poles": "2P", "parameters": {"ratedCurrent": 40, "residualCurrent": 30, "rcdType": "A"}},
+        {"model": "NL1-63 2P 63A 30mA тип A", "article": "527237", "poles": "2P", "parameters": {"ratedCurrent": 63, "residualCurrent": 30, "rcdType": "A"}}
+      ]
+    },
+    {
+      "brand": "Chint", "series": "NXBLE-63YH", "type": "rcbo",
+      "source": {"url": "https://www.chintglobal.com/content/dam/chint/global/product-center/low-voltage/iec/final-power-distribution/rcbo/nxble-63yh/catalog/NXBLE-63YH-RCBO-Catalog.pdf", "accessed": "2026-11-20"},
+      "products": [
+        {"model": "NXBLE-63YH 1P+N C6 30mA тип A", "article": "515423", "poles": "1P+N", "parameters": {"curve": "C", "ratedCurrent": 6, "residualCurrent": 30, "rcdType": "A"}},
+        {"model": "NXBLE-63YH 1P+N C10 30mA тип A", "article": "515374", "poles": "1P+N", "parameters": {"curve": "C", "ratedCurrent": 10, "residualCurrent": 30, "rcdType": "A"}},
+        {"model": "NXBLE-63YH 1P+N C16 30mA тип A", "article": "515381", "poles": "1P+N", "parameters": {"curve": "C", "ratedCurrent": 16, "residualCurrent": 30, "rcdType": "A"}},
+        {"model": "NXBLE-63YH 1P+N C20 30mA тип A", "article": "515388", "poles": "1P+N", "parameters": {"curve": "C", "ratedCurrent": 20, "residualCurrent": 30, "rcdType": "A"}},
+        {"model": "NXBLE-63YH 1P+N C25 30mA тип A", "article": "515395", "poles": "1P+N", "parameters": {"curve": "C", "ratedCurrent": 25, "residualCurrent": 30, "rcdType": "A"}},
+        {"model": "NXBLE-63YH 1P+N C32 30mA тип A", "article": "515402", "poles": "1P+N", "parameters": {"curve": "C", "ratedCurrent": 32, "residualCurrent": 30, "rcdType": "A"}}
+      ]
     }
   ]
 }
