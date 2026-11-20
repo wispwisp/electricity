@@ -18,6 +18,7 @@ public:
     explicit MainWindow(QWidget *parent = nullptr);
 
 protected:
+    bool event(QEvent *event) override;
     void changeEvent(QEvent *event) override;
 
 private:

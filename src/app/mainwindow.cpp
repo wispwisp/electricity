@@ -14,6 +14,7 @@
 #include <QMenuBar>
 #include <QScreen>
 #include <QStatusBar>
+#include <QStatusTipEvent>
 
 namespace {
 constexpr QSize kDefaultSize(1280, 800);
@@ -85,6 +86,15 @@ MainWindow::MainWindow(QWidget *parent)
     resize(kDefaultSize);
     if (startsMaximized(screen()->availableGeometry().size()))
         setWindowState(Qt::WindowMaximized);
+}
+
+bool MainWindow::event(QEvent *event)
+{
+    // Menu items without a status tip would otherwise clear the status message.
+    if (event->type() == QEvent::StatusTip
+        && static_cast<QStatusTipEvent *>(event)->tip().isEmpty())
+        return true;
+    return QMainWindow::event(event);
 }
 
 void MainWindow::changeEvent(QEvent *event)

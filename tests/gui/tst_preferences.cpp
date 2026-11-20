@@ -232,6 +232,7 @@ void TestPreferences::switchesLanguageAndThemeAtRuntimeAndPersists()
         QCOMPARE(dock->palette().color(QPalette::Window), lightWindow);
         QVERIFY(canvas->palette().color(QPalette::Base).lightness() > 200);
         QCOMPARE(Settings::savedTheme(), Theme::Mode::Light);
+        QCOMPARE(window.statusBar()->currentMessage(), QStringLiteral("Дайын"));
         QVERIFY(saveScreenshot(window, "f03", "light"));
     }
     const QSettings raw(m_iniPath, QSettings::IniFormat);
