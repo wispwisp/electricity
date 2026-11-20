@@ -97,6 +97,7 @@ void TestPalette::showsProtectionPresetsWithTooltips()
         QCOMPARE(item->data(0, PaletteWidget::PresetIdRole).toString(), expected[i].first);
         QCOMPARE(item->text(0), expected[i].second);
         QVERIFY(!item->icon(0).isNull());
+        QCOMPARE(item->icon(0).actualSize(tree->iconSize()), tree->iconSize());
         QVERIFY(tree->viewport()->rect().contains(tree->visualItemRect(item))); // no scrolling
     }
     QTreeWidgetItem *c10 = presetItem(tree, "breaker-1p-c10");

@@ -9,11 +9,24 @@
 #include <QEvent>
 #include <QHash>
 #include <QLocale>
+#include <QPainter>
 
 namespace {
 QString catalogText(const QString &source)
 {
     return QCoreApplication::translate("Catalog", source.toUtf8().constData());
+}
+
+// Every picture sits centred in the same cell, so the text of all rows starts at the same x.
+QPixmap iconCell(const QString &path, qreal ratio, const QSize &cell)
+{
+    const QPixmap picture = svgPixmap(path, cell.height(), ratio);
+    QPixmap result(cell * ratio);
+    result.setDevicePixelRatio(ratio);
+    result.fill(Qt::transparent);
+    QPainter painter(&result);
+    painter.drawPixmap(QPointF((cell.width() - picture.width() / ratio) / 2, 0), picture);
+    return result;
 }
 } // namespace
 
@@ -44,10 +57,10 @@ PaletteWidget::PaletteWidget(const Catalog &catalog, QWidget *parent)
         item->setData(0, PresetIdRole, preset.id);
         const DeviceType *type = m_catalog.deviceType(preset.type);
         const DeviceVariant *variant = type ? type->variant(preset.poles) : nullptr;
-        if (variant) {
+        if (variant)
             item->setIcon(0,
-                          QIcon(svgPixmap(picturePath(variant->picture), 48, devicePixelRatioF())));
-        }
+                          QIcon(iconCell(picturePath(variant->picture), devicePixelRatioF(),
+                                         iconSize())));
     }
     retranslate();
 }
