@@ -104,8 +104,12 @@ void TestCatalogArt::everyPictureExistsAndFollowsArtRules()
     QTest::failOnWarning(QRegularExpression(QStringLiteral(".*")));
     const std::array forbidden
             = { "<text", "<style", "style=", "<image", "<filter", "<script", "<foreignObject" };
-    for (const QString &picture : pictures()) {
-        const QString path = picturePath(picture);
+    QStringList paths;
+    for (const QString &picture : pictures())
+        paths << picturePath(picture);
+    const QString supply = QStringLiteral(":/svg/devices/supply-1p.svg");
+    paths << supply;
+    for (const QString &path : paths) {
         QVERIFY2(QFile::exists(path), qPrintable(path));
         QVERIFY2(QSvgRenderer(path).isValid(), qPrintable(path));
 
@@ -116,6 +120,9 @@ void TestCatalogArt::everyPictureExistsAndFollowsArtRules()
         for (const char *word : forbidden)
             QVERIFY2(!text.contains(word), qPrintable(path + QStringLiteral(": ") + word));
     }
+    const QSvgRenderer supplyRenderer(supply);
+    for (const char *id : { "terminal-L", "terminal-N", "terminal-PE" })
+        QVERIFY2(supplyRenderer.elementExists(QLatin1StringView(id)), id);
 }
 
 void TestCatalogArt::devicePicturesMatchCatalog()

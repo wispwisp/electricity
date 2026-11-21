@@ -1,0 +1,47 @@
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Generic single-phase supply: a three-way terminal block fed by a cable from above.
+     Terminals left to right: L (brown), N (blue), PE (yellow-green). -->
+<svg xmlns="http://www.w3.org/2000/svg" version="1.2" baseProfile="tiny"
+     width="54" height="46" viewBox="0 0 54 46">
+  <!-- Cable sheath, continuing upwards past the picture edge -->
+  <rect x="20" y="0" width="14" height="9.5" fill="#b9bec4"/>
+  <polyline points="20.6,0 20.6,9.6 33.4,9.6 33.4,0"
+            fill="none" stroke="#1c1e21" stroke-width="1.2"/>
+  <!-- Block body -->
+  <rect x="0.75" y="19.75" width="52.5" height="25.5" rx="2"
+        fill="#d2d5d9" stroke="#1c1e21" stroke-width="1.5"/>
+  <line x1="18" y1="20.5" x2="18" y2="44.5" stroke="#8c9197" stroke-width="0.8"/>
+  <line x1="36" y1="20.5" x2="36" y2="44.5" stroke="#8c9197" stroke-width="0.8"/>
+  <!-- Wires from the cable into the terminals, dark edges first -->
+  <polyline points="24,9 24,11 9,16 9,25" fill="none" stroke="#1c1e21" stroke-width="4.2"/>
+  <polyline points="27,9 27,25" fill="none" stroke="#1c1e21" stroke-width="4.2"/>
+  <polyline points="30,9 30,11 45,16 45,25" fill="none" stroke="#1c1e21" stroke-width="4.2"/>
+  <polyline points="24,9 24,11 9,16 9,25" fill="none" stroke="#8a4b24" stroke-width="3"/>
+  <polyline points="27,9 27,25" fill="none" stroke="#2f6fd0" stroke-width="3"/>
+  <polyline points="30,9 30,11 45,16 45,25" fill="none" stroke="#2e9a46" stroke-width="3"/>
+  <polyline points="30,9 30,11 45,16 45,25" fill="none" stroke="#e8cf2e" stroke-width="3"
+            stroke-dasharray="2.2,2.2"/>
+  <!-- Clamp openings -->
+  <rect x="4" y="23" width="10" height="10" rx="1" fill="#5b6066" stroke="#1c1e21" stroke-width="0.5"/>
+  <rect x="22" y="23" width="10" height="10" rx="1" fill="#5b6066" stroke="#1c1e21" stroke-width="0.5"/>
+  <rect x="40" y="23" width="10" height="10" rx="1" fill="#5b6066" stroke="#1c1e21" stroke-width="0.5"/>
+  <g id="terminal-L">
+    <circle cx="9" cy="28" r="3.6" fill="#c3c7cc" stroke="#2a2c30" stroke-width="0.6"/>
+    <line x1="6.8" y1="30.2" x2="11.2" y2="25.8" stroke="#2a2c30" stroke-width="1"/>
+  </g>
+  <g id="terminal-N">
+    <circle cx="27" cy="28" r="3.6" fill="#c3c7cc" stroke="#2a2c30" stroke-width="0.6"/>
+    <line x1="24.8" y1="30.2" x2="29.2" y2="25.8" stroke="#2a2c30" stroke-width="1"/>
+  </g>
+  <g id="terminal-PE">
+    <circle cx="45" cy="28" r="3.6" fill="#c3c7cc" stroke="#2a2c30" stroke-width="0.6"/>
+    <line x1="42.8" y1="30.2" x2="47.2" y2="25.8" stroke="#2a2c30" stroke-width="1"/>
+  </g>
+  <!-- Conductor colour markers -->
+  <rect x="3" y="36" width="12" height="6" rx="1" fill="#8a4b24" stroke="#1c1e21" stroke-width="0.6"/>
+  <rect x="21" y="36" width="12" height="6" rx="1" fill="#2f6fd0" stroke="#1c1e21" stroke-width="0.6"/>
+  <rect x="39" y="36" width="12" height="6" rx="1" fill="#2e9a46"/>
+  <polygon points="39.3,42 41.8,42 45.8,36 43.3,36" fill="#e8cf2e"/>
+  <polygon points="44.3,42 46.8,42 50.7,36.2 48.3,36" fill="#e8cf2e"/>
+  <rect x="39" y="36" width="12" height="6" rx="1" fill="none" stroke="#1c1e21" stroke-width="0.6"/>
+</svg>

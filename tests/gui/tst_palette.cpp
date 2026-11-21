@@ -5,6 +5,7 @@
 #include "app/palettewidget.h"
 #include "app/settings.h"
 #include "app/theme.h"
+#include "editorhelpers.h"
 #include "menuclicks.h"
 #include "screenshot.h"
 #include "testsettings.h"
@@ -18,18 +19,6 @@
 #include <QTreeWidget>
 
 namespace {
-QTreeWidgetItem *presetItem(QTreeWidget *tree, const QString &id)
-{
-    for (int g = 0; g < tree->topLevelItemCount(); ++g) {
-        QTreeWidgetItem *group = tree->topLevelItem(g);
-        for (int i = 0; i < group->childCount(); ++i) {
-            if (group->child(i)->data(0, PaletteWidget::PresetIdRole).toString() == id)
-                return group->child(i);
-        }
-    }
-    return nullptr;
-}
-
 void hover(QTreeWidget *tree, QTreeWidgetItem *item)
 {
     const QPoint center = tree->visualItemRect(item).center();

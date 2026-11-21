@@ -100,39 +100,47 @@
     </message>
 </context>
 <context>
+    <name>EditorScene</name>
+    <message>
+        <location filename="../src/app/editorscene.cpp" line="112"/>
+        <source>Supply</source>
+        <translation>Кіріс</translation>
+    </message>
+</context>
+<context>
     <name>MainWindow</name>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="111"/>
+        <location filename="../src/app/mainwindow.cpp" line="128"/>
         <source>Settings</source>
         <translation>Баптаулар</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="112"/>
+        <location filename="../src/app/mainwindow.cpp" line="129"/>
         <source>Theme</source>
         <translation>Тақырып</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="113"/>
+        <location filename="../src/app/mainwindow.cpp" line="130"/>
         <source>Dark</source>
         <translation>Қараңғы</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="114"/>
+        <location filename="../src/app/mainwindow.cpp" line="131"/>
         <source>Light</source>
         <translation>Ашық</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="115"/>
+        <location filename="../src/app/mainwindow.cpp" line="132"/>
         <source>Language</source>
         <translation>Тіл</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="116"/>
+        <location filename="../src/app/mainwindow.cpp" line="133"/>
         <source>Components</source>
         <translation>Компоненттер</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="117"/>
+        <location filename="../src/app/mainwindow.cpp" line="135"/>
         <source>Ready</source>
         <translation>Дайын</translation>
     </message>

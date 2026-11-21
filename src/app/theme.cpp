@@ -95,4 +95,19 @@ Mode currentMode()
     return appliedMode;
 }
 
+QColor selectionColor()
+{
+    return accentColor;
+}
+
+QColor refusedColor()
+{
+    return { 220, 40, 40 };
+}
+
+QColor enclosureTextColor()
+{
+    return { 214, 216, 220 };
+}
+
 } // namespace Theme

@@ -1,22 +1,24 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "app/mainwindow.h"
 
+#include "app/canvasview.h"
+#include "app/editorscene.h"
 #include "app/language.h"
 #include "app/palettewidget.h"
 #include "app/settings.h"
 #include "app/theme.h"
 #include "core/catalog.h"
+#include "core/project.h"
 
 #include <QActionGroup>
 #include <QDockWidget>
 #include <QEvent>
-#include <QGraphicsScene>
-#include <QGraphicsView>
 #include <QMenu>
 #include <QMenuBar>
 #include <QScreen>
 #include <QStatusBar>
 #include <QStatusTipEvent>
+#include <QUndoStack>
 
 namespace {
 constexpr QSize kDefaultSize(1280, 800);
@@ -37,9 +39,14 @@ MainWindow::MainWindow(QWidget *parent)
     setObjectName(QStringLiteral("mainWindow"));
     setWindowTitle(QStringLiteral("Electricity"));
 
-    auto *canvas = new QGraphicsView(new QGraphicsScene(this), this);
+    m_project = new Project(embeddedCatalog(), this);
+    m_undoStack = new QUndoStack(this);
+    m_scene = new EditorScene(*m_project, *m_undoStack, this);
+    auto *canvas = new CanvasView(m_scene, this);
     canvas->setObjectName(QStringLiteral("canvasView"));
     setCentralWidget(canvas);
+    // After the scene's own connection, so the fit sees the new enclosure.
+    connect(m_project, &Project::enclosureChanged, canvas, &CanvasView::fitToPanel);
 
     m_dock = new QDockWidget(this);
     m_dock->setObjectName(QStringLiteral("paletteDock"));
@@ -90,6 +97,16 @@ MainWindow::MainWindow(QWidget *parent)
         setWindowState(Qt::WindowMaximized);
 }
 
+Project &MainWindow::project()
+{
+    return *m_project;
+}
+
+QUndoStack &MainWindow::undoStack()
+{
+    return *m_undoStack;
+}
+
 bool MainWindow::event(QEvent *event)
 {
     // Menu items without a status tip would otherwise clear the status message.
@@ -114,5 +131,6 @@ void MainWindow::retranslateUi()
     m_lightAction->setText(tr("Light"));
     m_languageMenu->setTitle(tr("Language"));
     m_dock->setWindowTitle(tr("Components"));
+    m_scene->retranslate();
     statusBar()->showMessage(tr("Ready"));
 }

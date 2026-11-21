@@ -17,4 +17,10 @@ void apply(Mode mode);
 // The mode last passed to apply().
 Mode currentMode();
 
+// Editor colours, the same in both themes.
+QColor selectionColor();
+QColor refusedColor();
+// Designations on the enclosure's dark interior.
+QColor enclosureTextColor();
+
 } // namespace Theme

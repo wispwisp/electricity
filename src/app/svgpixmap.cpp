@@ -5,6 +5,9 @@
 #include <QPainter>
 #include <QSvgRenderer>
 
+#include <map>
+#include <memory>
+
 QString picturePath(const QString &picture)
 {
     return QStringLiteral(":/svg/devices/") + picture;
@@ -27,4 +30,13 @@ QPixmap svgPixmap(const QString &path, int height, qreal devicePixelRatio)
     QPainter painter(&pixmap);
     renderer.render(&painter, QRectF(QPointF(0, 0), size));
     return pixmap;
+}
+
+QSvgRenderer &svgRenderer(const QString &path)
+{
+    static std::map<QString, std::unique_ptr<QSvgRenderer>> renderers;
+    std::unique_ptr<QSvgRenderer> &renderer = renderers[path];
+    if (!renderer)
+        renderer = std::make_unique<QSvgRenderer>(path);
+    return *renderer;
 }
