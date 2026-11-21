@@ -17,11 +17,11 @@ constexpr qreal kSelectionWidth = 2;
 constexpr qreal kDesignationHeight = 9;
 constexpr int kDesignationPixelSize = 6;
 constexpr int kRatingPixelSize = 5;
-constexpr int kRefusedAlpha = 110;
+constexpr int kRefusedAlpha = 150;
 
-void drawSelection(QPainter *painter, const QRectF &rect)
+void drawOutline(QPainter *painter, const QRectF &rect, const QColor &color)
 {
-    painter->setPen(QPen(Theme::selectionColor(), kSelectionWidth));
+    painter->setPen(QPen(color, kSelectionWidth));
     painter->setBrush(Qt::NoBrush);
     const qreal inset = kSelectionWidth / 2;
     painter->drawRect(rect.adjusted(inset, inset, -inset, -inset));
@@ -59,7 +59,7 @@ void PictureItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWi
 {
     svgRenderer(m_path).render(painter, boundingRect());
     if (isSelected())
-        drawSelection(painter, boundingRect());
+        drawOutline(painter, boundingRect(), Theme::selectionColor());
 }
 
 TextItem::TextItem(int pixelSize, QGraphicsItem *parent)
@@ -153,11 +153,14 @@ void DeviceItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWid
     painter->drawText(QRectF(0, -kDesignationHeight, m_size.width(), kDesignationHeight - 1),
                       Qt::AlignHCenter | Qt::AlignBottom, m_designation);
 
+    if (isSelected())
+        drawOutline(painter, body, Theme::selectionColor());
     if (m_refused) {
+        // At full strength even on the translucent drag preview, so a refusal reads as red.
+        painter->setOpacity(1);
         QColor tint = Theme::refusedColor();
         tint.setAlpha(kRefusedAlpha);
         painter->fillRect(body, tint);
+        drawOutline(painter, body, Theme::refusedColor());
     }
-    if (isSelected())
-        drawSelection(painter, body);
 }
