@@ -102,12 +102,14 @@ QString Project::designation(QStringView id) const
     if (!target)
         return {};
     const auto position = [](const PlacedDevice &d) { return std::pair(d.row, d.module); };
+    const QString prefix = m_catalog.deviceType(target->type)->designation;
     int number = 1;
     for (const PlacedDevice &other : m_devices) {
-        if (other.type == target->type && position(other) < position(*target))
+        if (m_catalog.deviceType(other.type)->designation == prefix
+            && position(other) < position(*target))
             ++number;
     }
-    return m_catalog.deviceType(target->type)->designation + QString::number(number);
+    return prefix + QString::number(number);
 }
 
 bool Project::fitsEnclosure(QStringView enclosureId) const
@@ -133,6 +135,12 @@ QString Project::addDevice(PlacedDevice device, qsizetype index)
         while (this->device(device.id));
     } else if (this->device(device.id)) {
         return {};
+    } else if (device.id.startsWith(u'd')) {
+        // A kept "d<n>" (a restored or loaded device) must never be handed out again.
+        bool ok = false;
+        const int n = device.id.sliced(1).toInt(&ok);
+        if (ok)
+            m_nextId = std::max(m_nextId, n + 1);
     }
     if (index == -1)
         index = m_devices.size();

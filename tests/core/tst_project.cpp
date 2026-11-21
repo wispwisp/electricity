@@ -35,10 +35,14 @@ private slots:
     void placement();
     void addAssignsStableIdsAndSignals();
     void restoresGivenIdAndNeverReusesIds();
+    void explicitIdAdvancesTheCounter();
+    void addWithIdInUseIsRefused();
     void addAtIndexRestoresOrder();
     void designationsFollowPosition();
+    void designationsArePerPrefix();
     void updateDeviceRules();
     void enclosureRules();
+    void settingTheCurrentEnclosureEmitsNothing();
     void removeUnknownIsRefused();
 };
 
@@ -144,6 +148,35 @@ void TestProject::restoresGivenIdAndNeverReusesIds()
     QCOMPARE(project.addDevice(preset("breaker-1p-c16", 0, 5)), u"d3"_s);
 }
 
+// A device loaded under its saved id must not get that id handed out again after a delete, or
+// undoing the delete could no longer restore it.
+void TestProject::explicitIdAdvancesTheCounter()
+{
+    Project project(embeddedCatalog());
+    PlacedDevice loaded = preset("breaker-1p-c16", 0, 0);
+    loaded.id = u"d7"_s;
+    QCOMPARE(project.addDevice(loaded), u"d7"_s);
+    QCOMPARE(project.addDevice(preset("breaker-1p-c16", 0, 1)), u"d8"_s);
+    const PlacedDevice saved = *project.device(u"d7");
+    QVERIFY(project.removeDevice(u"d7"));
+    QCOMPARE(project.addDevice(preset("breaker-1p-c16", 0, 2)), u"d9"_s);
+    QCOMPARE(project.addDevice(saved), u"d7"_s);
+    QCOMPARE(project.addDevice(preset("breaker-1p-c16", 0, 3)), u"d10"_s);
+}
+
+void TestProject::addWithIdInUseIsRefused()
+{
+    Project project(embeddedCatalog());
+    project.addDevice(preset("breaker-1p-c16", 0, 0));
+    QSignalSpy changed(&project, &Project::changed);
+    PlacedDevice clash = preset("breaker-1p-c16", 0, 5);
+    clash.id = u"d1"_s;
+    QCOMPARE(project.addDevice(clash), QString());
+    QCOMPARE(project.devices().size(), 1);
+    QCOMPARE(project.device(u"d1")->module, 0);
+    QCOMPARE(changed.size(), 0);
+}
+
 void TestProject::addAtIndexRestoresOrder()
 {
     Project project(embeddedCatalog());
@@ -191,6 +224,25 @@ void TestProject::designationsFollowPosition()
     QCOMPARE(project.addDevice(preset("breaker-1p-c16", 0, 11)).isEmpty(), false);
     const QString second = project.addDevice(preset("breaker-1p-c16", 1, 0));
     QCOMPARE(project.designation(second), u"QF3"_s);
+}
+
+// Types sharing a prefix are numbered together: a second breaker type would also be QF.
+void TestProject::designationsArePerPrefix()
+{
+    Catalog catalog = embeddedCatalog();
+    DeviceType otherBreaker = *catalog.deviceType(u"breaker");
+    otherBreaker.id = u"breaker-other"_s;
+    catalog.deviceTypes << otherBreaker;
+    Project project(catalog);
+    PlacedDevice first = preset("breaker-1p-c16", 0, 0);
+    first.type = otherBreaker.id;
+    const QString a = project.addDevice(first);
+    const QString b = project.addDevice(preset("breaker-1p-c16", 0, 1));
+    const QString rcd = project.addDevice(preset("rcd-2p-40-30", 0, 2));
+    QVERIFY(!a.isEmpty() && !b.isEmpty() && !rcd.isEmpty());
+    QCOMPARE(project.designation(a), u"QF1"_s);
+    QCOMPARE(project.designation(b), u"QF2"_s);
+    QCOMPARE(project.designation(rcd), u"QD1"_s);
 }
 
 void TestProject::updateDeviceRules()
@@ -266,6 +318,16 @@ void TestProject::enclosureRules()
     QVERIFY(project.fitsEnclosure(u"enclosure-12"));
     QVERIFY(project.setEnclosure(u"enclosure-12"_s));
     QVERIFY(!project.setEnclosure(u"nope"_s));
+}
+
+void TestProject::settingTheCurrentEnclosureEmitsNothing()
+{
+    Project project(embeddedCatalog());
+    QSignalSpy changed(&project, &Project::changed);
+    QSignalSpy enclosureChanged(&project, &Project::enclosureChanged);
+    QVERIFY(project.setEnclosure(u"enclosure-12"_s));
+    QCOMPARE(changed.size(), 0);
+    QCOMPARE(enclosureChanged.size(), 0);
 }
 
 void TestProject::removeUnknownIsRefused()
