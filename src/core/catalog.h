@@ -29,6 +29,7 @@ struct DeviceVariant
 struct DeviceType
 {
     QString id, name, description;
+    QString designation;       // reference designation prefix, e.g. "QF"
     QJsonObject allowedValues; // parameter name -> array of allowed values
     QList<DeviceVariant> variants;
     [[nodiscard]] const DeviceVariant *variant(QStringView poles) const; // nullptr if absent

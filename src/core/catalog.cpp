@@ -107,11 +107,13 @@ void loadDevices(const QJsonObject &root, Catalog &catalog, QStringList &errors)
         type.id = o.value("id").toString();
         type.name = o.value("name").toString();
         type.description = o.value("description").toString();
+        type.designation = o.value("designation").toString();
         type.allowedValues = o.value("allowedValues").toObject();
         checkUnique(ids, type.id, errors);
         const QString where = u"device type %1"_s.arg(type.id);
         requireText(type.id, u"id"_s, where, errors);
         requireText(type.name, u"name"_s, where, errors);
+        requireText(type.designation, u"designation"_s, where, errors);
         for (const auto &vv : o.value("variants").toArray()) {
             const QJsonObject vo = vv.toObject();
             DeviceVariant variant;

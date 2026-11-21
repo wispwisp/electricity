@@ -37,6 +37,7 @@ CatalogSources fixture()
         "schemaVersion": 1,
         "deviceTypes": [{
             "id": "breaker", "name": "Circuit breaker", "description": "Protects a line.",
+            "designation": "QF",
             "allowedValues": {"curve": ["C"], "ratedCurrent": [10, 16]},
             "variants": [{
                 "poles": "1P", "modules": 1, "picture": "breaker-1p.svg",
@@ -179,6 +180,13 @@ void TestCatalog::rejectsInvalidCatalog_data()
                 s.products = patched(s.products, [](QJsonObject &o) { o["schemaVersion"] = 2; });
             },
             u"products.json: unsupported schema version 2"_s);
+    row(
+            "missing designation",
+            [](CatalogSources &s) {
+                s.devices = patchedFirst(s.devices, u"deviceTypes"_s,
+                                         [](QJsonObject &type) { type["designation"] = ""; });
+            },
+            u"breaker: missing designation"_s);
     row(
             "duplicate id",
             [](CatalogSources &s) { s.presets = appendCopy(s.presets, u"presets"_s); },
@@ -348,6 +356,10 @@ void TestCatalog::deviceTypesMatchSpec()
     const QList<TerminalSpec> withNeutral{
         { "1", { 9, 8 } }, { "N1", { 27, 8 } }, { "2", { 9, 82 } }, { "N2", { 27, 82 } }
     };
+
+    QCOMPARE(catalog.deviceType(u"breaker")->designation, QStringLiteral("QF"));
+    QCOMPARE(catalog.deviceType(u"rcd")->designation, QStringLiteral("QD"));
+    QCOMPARE(catalog.deviceType(u"rcbo")->designation, QStringLiteral("QFD"));
 
     const DeviceType *breaker = catalog.deviceType(u"breaker");
     QCOMPARE(breaker->name, QStringLiteral("Circuit breaker"));

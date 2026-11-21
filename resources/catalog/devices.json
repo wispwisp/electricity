@@ -3,6 +3,7 @@
   "deviceTypes": [
     {
       "id": "breaker",
+      "designation": "QF",
       "name": "Circuit breaker",
       "description": "Switches a line on and off. Turns it off by itself on overload or short circuit.",
       "allowedValues": {
@@ -30,6 +31,7 @@
     },
     {
       "id": "rcd",
+      "designation": "QD",
       "name": "Residual current device (RCD)",
       "description": "Turns the power off when current leaks to earth, for example through a person. Does not protect against overload.",
       "allowedValues": {
@@ -51,6 +53,7 @@
     },
     {
       "id": "rcbo",
+      "designation": "QFD",
       "name": "Residual current circuit breaker (RCBO)",
       "description": "Breaker and RCD in one device: turns off on overload, short circuit and current leakage.",
       "allowedValues": {
