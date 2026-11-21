@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 add_library(electricity_lib STATIC mainwindow.cpp mainwindow.h theme.cpp theme.h appsetup.cpp appsetup.h
     language.cpp language.h settings.cpp settings.h
-    languagedialog.cpp languagedialog.h svgpixmap.cpp svgpixmap.h palettewidget.cpp palettewidget.h)
+    languagedialog.cpp languagedialog.h svgpixmap.cpp svgpixmap.h palettewidget.cpp palettewidget.h
+    editcommands.cpp editcommands.h)
 target_link_libraries(electricity_lib PUBLIC panelcore Qt6::Widgets Qt6::Svg)
 qt_add_resources(electricity_lib "fonts" PREFIX "/fonts"
     BASE "${PROJECT_SOURCE_DIR}/resources/fonts"
