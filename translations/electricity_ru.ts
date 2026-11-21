@@ -102,17 +102,17 @@
 <context>
     <name>EditorScene</name>
     <message>
-        <location filename="../src/app/editorscene.cpp" line="130"/>
+        <location filename="../src/app/editorscene.cpp" line="131"/>
         <source>Supply</source>
         <translation>Ввод</translation>
     </message>
     <message>
-        <location filename="../src/app/editorscene.cpp" line="221"/>
+        <location filename="../src/app/editorscene.cpp" line="245"/>
         <source>Devices go on a DIN rail inside the enclosure.</source>
         <translation>Аппараты ставятся на DIN-рейку внутри щита.</translation>
     </message>
     <message>
-        <location filename="../src/app/editorscene.cpp" line="227"/>
+        <location filename="../src/app/editorscene.cpp" line="251"/>
         <source>No room here: another device is in the way.</source>
         <translation>Здесь нет места: мешает другой аппарат.</translation>
     </message>
@@ -120,38 +120,69 @@
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="142"/>
+        <location filename="../src/app/mainwindow.cpp" line="201"/>
+        <location filename="../src/app/mainwindow.cpp" line="202"/>
+        <source>Edit</source>
+        <translation>Правка</translation>
+    </message>
+    <message>
+        <location filename="../src/app/mainwindow.cpp" line="203"/>
+        <source>Undo</source>
+        <translation>Отменить</translation>
+    </message>
+    <message>
+        <location filename="../src/app/mainwindow.cpp" line="204"/>
+        <source>Redo</source>
+        <translation>Повторить</translation>
+    </message>
+    <message>
+        <location filename="../src/app/mainwindow.cpp" line="205"/>
+        <source>Delete</source>
+        <translation>Удалить</translation>
+    </message>
+    <message>
+        <location filename="../src/app/mainwindow.cpp" line="206"/>
+        <source>View</source>
+        <translation>Вид</translation>
+    </message>
+    <message>
+        <location filename="../src/app/mainwindow.cpp" line="207"/>
+        <source>Fit to window</source>
+        <translation>По размеру окна</translation>
+    </message>
+    <message>
+        <location filename="../src/app/mainwindow.cpp" line="208"/>
         <source>Settings</source>
         <translation>Настройки</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="143"/>
+        <location filename="../src/app/mainwindow.cpp" line="209"/>
         <source>Theme</source>
         <translation>Тема</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="144"/>
+        <location filename="../src/app/mainwindow.cpp" line="210"/>
         <source>Dark</source>
         <translation>Тёмная</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="145"/>
+        <location filename="../src/app/mainwindow.cpp" line="211"/>
         <source>Light</source>
         <translation>Светлая</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="146"/>
+        <location filename="../src/app/mainwindow.cpp" line="212"/>
         <source>Language</source>
         <translation>Язык</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="147"/>
+        <location filename="../src/app/mainwindow.cpp" line="213"/>
         <source>Components</source>
         <translation>Компоненты</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="56"/>
-        <location filename="../src/app/mainwindow.cpp" line="149"/>
+        <location filename="../src/app/mainwindow.cpp" line="60"/>
+        <location filename="../src/app/mainwindow.cpp" line="215"/>
         <source>Ready</source>
         <translation>Готово</translation>
     </message>

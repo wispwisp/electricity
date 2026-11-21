@@ -32,6 +32,14 @@ QPixmap svgPixmap(const QString &path, int height, qreal devicePixelRatio)
     return pixmap;
 }
 
+QIcon svgIcon(const QString &path, int size)
+{
+    QIcon icon;
+    icon.addPixmap(svgPixmap(path, size));
+    icon.addPixmap(svgPixmap(path, size, 2.0));
+    return icon;
+}
+
 QSvgRenderer &svgRenderer(const QString &path)
 {
     static std::map<QString, std::unique_ptr<QSvgRenderer>> renderers;

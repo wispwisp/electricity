@@ -2,14 +2,17 @@
 #include "app/mainwindow.h"
 
 #include "app/canvasview.h"
+#include "app/editcommands.h"
 #include "app/editorscene.h"
 #include "app/language.h"
 #include "app/palettewidget.h"
 #include "app/settings.h"
+#include "app/svgpixmap.h"
 #include "app/theme.h"
 #include "core/catalog.h"
 #include "core/project.h"
 
+#include <QAction>
 #include <QActionGroup>
 #include <QDockWidget>
 #include <QEvent>
@@ -18,6 +21,7 @@
 #include <QScreen>
 #include <QStatusBar>
 #include <QStatusTipEvent>
+#include <QToolBar>
 #include <QUndoStack>
 
 namespace {
@@ -62,6 +66,60 @@ MainWindow::MainWindow(QWidget *parent)
     m_dock->setFeatures(QDockWidget::DockWidgetMovable);
     addDockWidget(Qt::LeftDockWidgetArea, m_dock);
     resizeDocks({ m_dock }, { kPaletteWidth }, Qt::Horizontal);
+
+    m_undoAction = new QAction(this);
+    m_undoAction->setObjectName(QStringLiteral("undoAction"));
+    m_undoAction->setIcon(svgIcon(QStringLiteral(":/svg/ui/undo.svg"), 24));
+    m_undoAction->setShortcut(QKeySequence::Undo);
+    m_undoAction->setEnabled(false);
+    connect(m_undoAction, &QAction::triggered, m_undoStack, &QUndoStack::undo);
+    connect(m_undoStack, &QUndoStack::canUndoChanged, m_undoAction, &QAction::setEnabled);
+    m_redoAction = new QAction(this);
+    m_redoAction->setObjectName(QStringLiteral("redoAction"));
+    m_redoAction->setIcon(svgIcon(QStringLiteral(":/svg/ui/redo.svg"), 24));
+    m_redoAction->setShortcuts(
+            { QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Z), QKeySequence(Qt::CTRL | Qt::Key_Y) });
+    m_redoAction->setEnabled(false);
+    connect(m_redoAction, &QAction::triggered, m_undoStack, &QUndoStack::redo);
+    connect(m_undoStack, &QUndoStack::canRedoChanged, m_redoAction, &QAction::setEnabled);
+
+    m_deleteAction = new QAction(this);
+    m_deleteAction->setObjectName(QStringLiteral("deleteAction"));
+    m_deleteAction->setShortcut(QKeySequence::Delete);
+    m_deleteAction->setShortcutContext(Qt::WidgetShortcut);
+    m_deleteAction->setEnabled(false);
+    canvas->addAction(m_deleteAction);
+    m_scene->setDeviceContextActions({ m_deleteAction });
+    const auto updateDelete
+            = [this] { m_deleteAction->setEnabled(!m_scene->selectedDeviceId().isEmpty()); };
+    connect(m_scene, &QGraphicsScene::selectionChanged, this, updateDelete);
+    connect(m_project, &Project::changed, this, updateDelete);
+    connect(m_deleteAction, &QAction::triggered, this, [this] {
+        const QString id = m_scene->selectedDeviceId();
+        if (!id.isEmpty())
+            m_undoStack->push(new RemoveDeviceCommand(*m_project, id));
+    });
+
+    m_fitAction = new QAction(this);
+    m_fitAction->setObjectName(QStringLiteral("fitAction"));
+    m_fitAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_0));
+    connect(m_fitAction, &QAction::triggered, canvas, &CanvasView::fitToPanel);
+
+    m_editMenu = menuBar()->addMenu(QString());
+    m_editMenu->setObjectName(QStringLiteral("editMenu"));
+    m_editMenu->addAction(m_undoAction);
+    m_editMenu->addAction(m_redoAction);
+    m_editMenu->addSeparator();
+    m_editMenu->addAction(m_deleteAction);
+    m_viewMenu = menuBar()->addMenu(QString());
+    m_viewMenu->setObjectName(QStringLiteral("viewMenu"));
+    m_viewMenu->addAction(m_fitAction);
+
+    m_editToolBar = addToolBar(QString());
+    m_editToolBar->setObjectName(QStringLiteral("editToolBar"));
+    m_editToolBar->setMovable(false);
+    m_editToolBar->addAction(m_undoAction);
+    m_editToolBar->addAction(m_redoAction);
 
     m_settingsMenu = menuBar()->addMenu(QString());
     m_settingsMenu->setObjectName(QStringLiteral("settingsMenu"));
@@ -139,6 +197,13 @@ void MainWindow::changeEvent(QEvent *event)
 
 void MainWindow::retranslateUi()
 {
+    m_editMenu->setTitle(tr("Edit"));
+    m_editToolBar->setWindowTitle(tr("Edit"));
+    m_undoAction->setText(tr("Undo"));
+    m_redoAction->setText(tr("Redo"));
+    m_deleteAction->setText(tr("Delete"));
+    m_viewMenu->setTitle(tr("View"));
+    m_fitAction->setText(tr("Fit to window"));
     m_settingsMenu->setTitle(tr("Settings"));
     m_themeMenu->setTitle(tr("Theme"));
     m_darkAction->setText(tr("Dark"));

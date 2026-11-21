@@ -1,0 +1,8 @@
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Undo icon: a curved arrow turning back to the left, in the accent blue so it reads on both themes. -->
+<svg xmlns="http://www.w3.org/2000/svg" version="1.2" baseProfile="tiny"
+     width="24" height="24" viewBox="0 0 24 24">
+  <path d="M 9 7 L 3 12 L 9 17 Z" fill="#2a82da"/>
+  <path d="M 7 12 C 11 6.5 20 7 20 16" fill="none" stroke="#2a82da" stroke-width="2.6"
+        stroke-linecap="round"/>
+</svg>

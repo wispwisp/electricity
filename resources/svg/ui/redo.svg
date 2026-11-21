@@ -1,0 +1,8 @@
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Redo icon: the undo arrow mirrored, in the accent blue so it reads on both themes. -->
+<svg xmlns="http://www.w3.org/2000/svg" version="1.2" baseProfile="tiny"
+     width="24" height="24" viewBox="0 0 24 24">
+  <path d="M 15 7 L 21 12 L 15 17 Z" fill="#2a82da"/>
+  <path d="M 17 12 C 13 6.5 4 7 4 16" fill="none" stroke="#2a82da" stroke-width="2.6"
+        stroke-linecap="round"/>
+</svg>

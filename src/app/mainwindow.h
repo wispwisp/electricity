@@ -9,6 +9,7 @@ class Project;
 class QAction;
 class QDockWidget;
 class QMenu;
+class QToolBar;
 class QUndoStack;
 
 // True when the screen is too small for the default window size plus its frame.
@@ -34,6 +35,13 @@ private:
     QUndoStack *m_undoStack = nullptr;
     EditorScene *m_scene = nullptr;
     QDockWidget *m_dock = nullptr;
+    QMenu *m_editMenu = nullptr;
+    QMenu *m_viewMenu = nullptr;
+    QToolBar *m_editToolBar = nullptr;
+    QAction *m_undoAction = nullptr;
+    QAction *m_redoAction = nullptr;
+    QAction *m_deleteAction = nullptr;
+    QAction *m_fitAction = nullptr;
     QMenu *m_settingsMenu = nullptr;
     QMenu *m_themeMenu = nullptr;
     QMenu *m_languageMenu = nullptr;

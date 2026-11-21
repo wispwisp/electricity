@@ -10,6 +10,7 @@
 #include <QApplication>
 #include <QGraphicsSceneDragDropEvent>
 #include <QGraphicsSceneMouseEvent>
+#include <QMenu>
 #include <QMimeData>
 #include <QSvgRenderer>
 #include <QUndoStack>
@@ -131,8 +132,31 @@ void EditorScene::retranslate()
     updateSceneRect();
 }
 
+void EditorScene::setDeviceContextActions(const QList<QAction *> &actions)
+{
+    m_contextActions = actions;
+}
+
 void EditorScene::mousePressEvent(QGraphicsSceneMouseEvent *event)
 {
+    if (event->button() == Qt::RightButton) {
+        const QList<QGraphicsItem *> hits = items(event->scenePos());
+        for (const QGraphicsItem *hit : hits) {
+            const QString id = hit->data(IdKey).toString();
+            if (!m_devices.contains(id))
+                continue;
+            clearSelection();
+            m_devices.value(id)->setSelected(true);
+            if (!m_contextMenu)
+                m_contextMenu = new QMenu(event->widget());
+            m_contextMenu->setObjectName(QStringLiteral("deviceContextMenu"));
+            m_contextMenu->clear();
+            m_contextMenu->addActions(m_contextActions);
+            m_contextMenu->popup(event->screenPos());
+            event->accept();
+            return;
+        }
+    }
     dropSelectionModifiers(event);
     QGraphicsScene::mousePressEvent(event);
     pressDevice(event);

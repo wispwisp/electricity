@@ -9,6 +9,8 @@
 
 class DeviceItem;
 class PictureItem;
+class QAction;
+class QMenu;
 class Project;
 class QUndoStack;
 class TextItem;
@@ -41,6 +43,8 @@ public:
     // "" if none
     [[nodiscard]] QString selectedDeviceId() const;
     [[nodiscard]] bool isEnclosureSelected() const;
+    // Actions of the menu shown by a right-click on a device.
+    void setDeviceContextActions(const QList<QAction *> &actions);
     // the "Supply" text
     void retranslate();
 
@@ -85,6 +89,8 @@ private:
     DeviceItem *m_preview = nullptr; // while a preset is dragged over the scene
     QString m_movingId;              // the device under a left press, "" if none
     QPointF m_grabOffset;            // press point minus the device body centre
+    QList<QAction *> m_contextActions;
+    QMenu *m_contextMenu = nullptr;
     QPoint m_pressScreenPos;
     bool m_moving = false; // the press has moved beyond the start drag distance
 };
