@@ -12,6 +12,7 @@ class PictureItem;
 class Project;
 class QUndoStack;
 class TextItem;
+struct PlacedDevice;
 
 struct RailSlot
 {
@@ -22,7 +23,8 @@ struct RailSlot
 
 // The panel: the supply block, the enclosure with its N and PE bars, and one item per placed
 // device, kept in sync with the project. Scene units are enclosure picture units; the enclosure
-// sits at (0, 0). One item is selected at a time: a device or the enclosure.
+// sits at (0, 0). One item is selected at a time: a device or the enclosure. Presets dropped from
+// the palette are placed, and devices are moved with the mouse, through the undo stack.
 class EditorScene : public QGraphicsScene
 {
     Q_OBJECT
@@ -47,8 +49,13 @@ signals:
 
 protected:
     void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
+    void mouseMoveEvent(QGraphicsSceneMouseEvent *event) override;
     void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
     void mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event) override;
+    void dragEnterEvent(QGraphicsSceneDragDropEvent *event) override;
+    void dragMoveEvent(QGraphicsSceneDragDropEvent *event) override;
+    void dragLeaveEvent(QGraphicsSceneDragDropEvent *event) override;
+    void dropEvent(QGraphicsSceneDragDropEvent *event) override;
 
 private:
     // bounds of an element of the current enclosure picture
@@ -58,6 +65,15 @@ private:
     void syncDevices();
     void addBar(const QString &barId, const QString &mountId, int terminals);
     void updateSceneRect();
+    // Puts the device on the slot for a body centred on centre; false, with a hint, if it can't
+    // go there.
+    bool placeAt(PlacedDevice &device, QPointF centre);
+    // Shows the item on the slot, tinted if the device doesn't fit there.
+    void snapItem(DeviceItem *item, PlacedDevice device, RailSlot slot);
+    // A left press on a device may become a move.
+    void pressDevice(QGraphicsSceneMouseEvent *event);
+    void finishMove(QPointF centre);
+    void removePreview();
 
     Project &m_project;
     QUndoStack &m_undoStack;
@@ -66,4 +82,9 @@ private:
     TextItem *m_supplyText;
     QList<PictureItem *> m_barCells;
     QHash<QString, DeviceItem *> m_devices;
+    DeviceItem *m_preview = nullptr; // while a preset is dragged over the scene
+    QString m_movingId;              // the device under a left press, "" if none
+    QPointF m_grabOffset;            // press point minus the device body centre
+    QPoint m_pressScreenPos;
+    bool m_moving = false; // the press has moved beyond the start drag distance
 };

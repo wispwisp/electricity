@@ -33,7 +33,6 @@ private:
     bool panPress(QMouseEvent *event);
     void updateCursor();
 
-    EditorScene *m_scene;
     bool m_viewChanged = false; // the user zoomed or panned
     bool m_spaceHeld = false;
     Qt::MouseButton m_panButton = Qt::NoButton; // NoButton while not panning

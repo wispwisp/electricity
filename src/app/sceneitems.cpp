@@ -92,7 +92,7 @@ DeviceItem::DeviceItem(const Catalog &catalog, const QString &id)
 {
     setData(EditorScene::IdKey, id);
     setFlag(ItemIsSelectable);
-    setZValue(1);
+    setZValue(PlacedZ);
 }
 
 void DeviceItem::setDevice(const PlacedDevice &device, const QString &designation)

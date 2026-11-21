@@ -5,15 +5,24 @@
 #include "core/catalog.h"
 
 #include <QApplication>
+#include <QDragEnterEvent>
 #include <QGraphicsItem>
 #include <QGraphicsScene>
 #include <QGraphicsView>
+#include <QMimeData>
 #include <QMouseEvent>
+#include <QPointer>
 #include <QTest>
 #include <QTreeWidget>
 #include <QWheelEvent>
 
 #include <algorithm>
+
+namespace {
+// The data of the drag in progress. Qt keeps it until the drag ends, and the view hands it to the
+// scene again on leave; owned by the view, so it goes away with a window closed mid-drag.
+QPointer<QMimeData> dragData;
+} // namespace
 
 QTreeWidgetItem *presetItem(QTreeWidget *tree, const QString &id)
 {
@@ -80,4 +89,34 @@ void wheel(QWidget *viewport, QPoint pos, int angleDeltaY)
 bool fullyVisible(QGraphicsView *view, const QRectF &sceneRect)
 {
     return view->viewport()->rect().contains(view->mapFromScene(sceneRect).boundingRect());
+}
+
+void dragPresetOver(QGraphicsView *view, PaletteWidget *palette, const QString &presetId,
+                    QPoint viewportPos)
+{
+    delete dragData;
+    dragData = palette->mimeData({ presetItem(palette, presetId) });
+    dragData->setParent(view);
+    QDragEnterEvent enter(QPointF(viewportPos), Qt::CopyAction, dragData, Qt::LeftButton,
+                          Qt::NoModifier);
+    QApplication::sendEvent(view->viewport(), &enter);
+    QDragMoveEvent move(QPointF(viewportPos), Qt::CopyAction, dragData, Qt::LeftButton,
+                        Qt::NoModifier);
+    QApplication::sendEvent(view->viewport(), &move);
+}
+
+void leaveDrag(QGraphicsView *view)
+{
+    QDragLeaveEvent leave;
+    QApplication::sendEvent(view->viewport(), &leave);
+    delete dragData;
+}
+
+void dropPreset(QGraphicsView *view, PaletteWidget *palette, const QString &presetId,
+                QPoint viewportPos)
+{
+    dragPresetOver(view, palette, presetId, viewportPos);
+    QDropEvent drop(viewportPos, Qt::CopyAction, dragData, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(view->viewport(), &drop);
+    delete dragData;
 }

@@ -102,45 +102,56 @@
 <context>
     <name>EditorScene</name>
     <message>
-        <location filename="../src/app/editorscene.cpp" line="112"/>
+        <location filename="../src/app/editorscene.cpp" line="130"/>
         <source>Supply</source>
         <translation>Ввод</translation>
+    </message>
+    <message>
+        <location filename="../src/app/editorscene.cpp" line="221"/>
+        <source>Devices go on a DIN rail inside the enclosure.</source>
+        <translation>Аппараты ставятся на DIN-рейку внутри щита.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/editorscene.cpp" line="227"/>
+        <source>No room here: another device is in the way.</source>
+        <translation>Здесь нет места: мешает другой аппарат.</translation>
     </message>
 </context>
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="128"/>
+        <location filename="../src/app/mainwindow.cpp" line="142"/>
         <source>Settings</source>
         <translation>Настройки</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="129"/>
+        <location filename="../src/app/mainwindow.cpp" line="143"/>
         <source>Theme</source>
         <translation>Тема</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="130"/>
+        <location filename="../src/app/mainwindow.cpp" line="144"/>
         <source>Dark</source>
         <translation>Тёмная</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="131"/>
+        <location filename="../src/app/mainwindow.cpp" line="145"/>
         <source>Light</source>
         <translation>Светлая</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="132"/>
+        <location filename="../src/app/mainwindow.cpp" line="146"/>
         <source>Language</source>
         <translation>Язык</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="133"/>
+        <location filename="../src/app/mainwindow.cpp" line="147"/>
         <source>Components</source>
         <translation>Компоненты</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="135"/>
+        <location filename="../src/app/mainwindow.cpp" line="56"/>
+        <location filename="../src/app/mainwindow.cpp" line="149"/>
         <source>Ready</source>
         <translation>Готово</translation>
     </message>
@@ -148,7 +159,7 @@
 <context>
     <name>PaletteWidget</name>
     <message>
-        <location filename="../src/app/palettewidget.cpp" line="79"/>
+        <location filename="../src/app/palettewidget.cpp" line="85"/>
         <source>Usual wire: %1 mm²</source>
         <translation>Обычный провод: %1 mm²</translation>
     </message>

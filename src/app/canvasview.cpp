@@ -20,7 +20,6 @@ constexpr qreal kFitMargin = 16;
 
 CanvasView::CanvasView(EditorScene *scene, QWidget *parent)
     : QGraphicsView(scene, parent)
-    , m_scene(scene)
 {
     setRenderHints(QPainter::Antialiasing | QPainter::TextAntialiasing
                    | QPainter::SmoothPixmapTransform);
@@ -31,7 +30,8 @@ CanvasView::CanvasView(EditorScene *scene, QWidget *parent)
 
 void CanvasView::fitToPanel()
 {
-    fitInView(m_scene->panelRect().adjusted(-kFitMargin, -kFitMargin, kFitMargin, kFitMargin),
+    const QRectF panel = static_cast<EditorScene *>(scene())->panelRect();
+    fitInView(panel.adjusted(-kFitMargin, -kFitMargin, kFitMargin, kFitMargin),
               Qt::KeepAspectRatio);
 }
 
@@ -88,7 +88,9 @@ bool CanvasView::panPress(QMouseEvent *event)
 {
     const bool panButton = event->button() == Qt::MiddleButton
             || (event->button() == Qt::LeftButton && m_spaceHeld);
-    if (m_panButton == Qt::NoButton && panButton) {
+    // With another button held (a device move, say) the press goes to the scene.
+    const bool onlyButton = event->buttons() == event->button();
+    if (m_panButton == Qt::NoButton && panButton && onlyButton) {
         m_viewChanged = true;
         m_panButton = event->button();
         m_panFrom = event->position().toPoint();
@@ -114,16 +116,15 @@ void CanvasView::mouseMoveEvent(QMouseEvent *event)
     event->accept();
 }
 
+// Releases of other buttons reach the scene, whose mouse grabber waits for them.
 void CanvasView::mouseReleaseEvent(QMouseEvent *event)
 {
-    if (m_panButton == Qt::NoButton) {
+    if (event->button() != m_panButton) {
         QGraphicsView::mouseReleaseEvent(event);
         return;
     }
-    if (event->button() == m_panButton) {
-        m_panButton = Qt::NoButton;
-        updateCursor();
-    }
+    m_panButton = Qt::NoButton;
+    updateCursor();
     event->accept();
 }
 

@@ -43,6 +43,9 @@ private:
 class DeviceItem : public QGraphicsItem
 {
 public:
+    static constexpr qreal PlacedZ = 1;
+    static constexpr qreal LiftedZ = 2; // the drag preview and a device being moved
+
     DeviceItem(const Catalog &catalog, const QString &id);
     void setDevice(const PlacedDevice &device, const QString &designation);
     [[nodiscard]] QString designation() const;

@@ -24,6 +24,7 @@ namespace {
 constexpr QSize kDefaultSize(1280, 800);
 constexpr QSize kFrameAllowance(20, 60);
 constexpr int kPaletteWidth = 300;
+constexpr int kHintTimeout = 5000; // ms
 } // namespace
 
 bool startsMaximized(const QSize &availableScreenSize)
@@ -47,6 +48,13 @@ MainWindow::MainWindow(QWidget *parent)
     setCentralWidget(canvas);
     // After the scene's own connection, so the fit sees the new enclosure.
     connect(m_project, &Project::enclosureChanged, canvas, &CanvasView::fitToPanel);
+    QStatusBar *bar = statusBar();
+    connect(m_scene, &EditorScene::hint, bar,
+            [bar](const QString &text) { bar->showMessage(text, kHintTimeout); });
+    connect(bar, &QStatusBar::messageChanged, bar, [bar](const QString &message) {
+        if (message.isEmpty())
+            bar->showMessage(tr("Ready"));
+    });
 
     m_dock = new QDockWidget(this);
     m_dock->setObjectName(QStringLiteral("paletteDock"));
@@ -95,6 +103,12 @@ MainWindow::MainWindow(QWidget *parent)
     resize(kDefaultSize);
     if (startsMaximized(screen()->availableGeometry().size()))
         setWindowState(Qt::WindowMaximized);
+}
+
+// The scene refers to the project, which as the older child would otherwise be deleted first.
+MainWindow::~MainWindow()
+{
+    delete m_scene;
 }
 
 Project &MainWindow::project()

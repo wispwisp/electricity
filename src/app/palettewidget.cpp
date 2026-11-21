@@ -5,11 +5,17 @@
 #include "app/svgpixmap.h"
 #include "core/catalog.h"
 
+#include <QApplication>
 #include <QCoreApplication>
+#include <QDrag>
 #include <QEvent>
 #include <QHash>
 #include <QLocale>
+#include <QMimeData>
+#include <QMouseEvent>
 #include <QPainter>
+
+#include <utility>
 
 namespace {
 QString catalogText(const QString &source)
@@ -106,4 +112,57 @@ void PaletteWidget::changeEvent(QEvent *event)
     if (event->type() == QEvent::LanguageChange)
         retranslate();
     QTreeWidget::changeEvent(event);
+}
+
+QStringList PaletteWidget::mimeTypes() const
+{
+    return { QString::fromLatin1(PresetMimeType) };
+}
+
+QMimeData *PaletteWidget::mimeData(const QList<QTreeWidgetItem *> &items) const
+{
+    for (const QTreeWidgetItem *item : items) {
+        const QString id = item->data(0, PresetIdRole).toString();
+        if (id.isEmpty())
+            continue;
+        auto *data = new QMimeData;
+        data->setData(QString::fromLatin1(PresetMimeType), id.toUtf8());
+        return data;
+    }
+    return nullptr;
+}
+
+// Presets aren't selectable and QAbstractItemView only drags selected items, so the palette starts
+// the drag itself (ADR 0025).
+void PaletteWidget::mousePressEvent(QMouseEvent *event)
+{
+    m_pressedPreset = nullptr;
+    if (event->button() == Qt::LeftButton) {
+        m_pressPos = event->position().toPoint();
+        QTreeWidgetItem *item = itemAt(m_pressPos);
+        if (item && !item->data(0, PresetIdRole).toString().isEmpty())
+            m_pressedPreset = item;
+    }
+    QTreeWidget::mousePressEvent(event);
+}
+
+void PaletteWidget::mouseMoveEvent(QMouseEvent *event)
+{
+    if (m_pressedPreset && (event->buttons() & Qt::LeftButton)
+        && (event->position().toPoint() - m_pressPos).manhattanLength()
+                >= QApplication::startDragDistance()) {
+        dragPreset(std::exchange(m_pressedPreset, nullptr));
+        event->accept();
+        return;
+    }
+    QTreeWidget::mouseMoveEvent(event);
+}
+
+void PaletteWidget::dragPreset(QTreeWidgetItem *item)
+{
+    auto *drag = new QDrag(this);
+    drag->setMimeData(mimeData({ item }));
+    drag->setPixmap(item->icon(0).pixmap(iconSize(), devicePixelRatioF()));
+    drag->setHotSpot(QPoint(iconSize().width(), iconSize().height()) / 2);
+    drag->exec(Qt::CopyAction);
 }

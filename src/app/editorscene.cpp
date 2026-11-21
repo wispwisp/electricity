@@ -1,12 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "app/editorscene.h"
 
+#include "app/editcommands.h"
+#include "app/palettewidget.h"
 #include "app/sceneitems.h"
 #include "app/svgpixmap.h"
 #include "core/project.h"
 
+#include <QApplication>
+#include <QGraphicsSceneDragDropEvent>
 #include <QGraphicsSceneMouseEvent>
+#include <QMimeData>
 #include <QSvgRenderer>
+#include <QUndoStack>
 
 #include <algorithm>
 #include <limits>
@@ -19,11 +25,23 @@ constexpr qreal kSupplyGap = 12; // between the supply block and the enclosure
 constexpr qreal kSupplyTextGap = 6;
 constexpr int kSupplyTextPixelSize = 10;
 constexpr qreal kSceneMargin = 1000; // room to pan around the panel
+constexpr qreal kPreviewOpacity = 0.6;
 
 // Ctrl and Shift would add to the selection; one item is selected at a time.
 void dropSelectionModifiers(QGraphicsSceneMouseEvent *event)
 {
     event->setModifiers(event->modifiers() & ~(Qt::ControlModifier | Qt::ShiftModifier));
+}
+
+// The preset a palette drag carries, or nullptr.
+const Preset *draggedPreset(const Catalog &catalog, const QMimeData *data)
+{
+    const QString format = QString::fromLatin1(PaletteWidget::PresetMimeType);
+    if (!data || !data->hasFormat(format))
+        return nullptr;
+    const auto it = std::ranges::find(catalog.presets, QString::fromUtf8(data->data(format)),
+                                      &Preset::id);
+    return it == catalog.presets.end() ? nullptr : &*it;
 }
 } // namespace
 
@@ -117,18 +135,170 @@ void EditorScene::mousePressEvent(QGraphicsSceneMouseEvent *event)
 {
     dropSelectionModifiers(event);
     QGraphicsScene::mousePressEvent(event);
+    pressDevice(event);
+}
+
+void EditorScene::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
+{
+    QGraphicsScene::mouseMoveEvent(event);
+    if (m_movingId.isEmpty() || !(event->buttons() & Qt::LeftButton))
+        return;
+    if (!m_moving
+        && (event->screenPos() - m_pressScreenPos).manhattanLength()
+                < QApplication::startDragDistance())
+        return;
+    const PlacedDevice *device = m_project.device(m_movingId);
+    DeviceItem *item = m_devices.value(m_movingId);
+    if (!device || !item)
+        return;
+    m_moving = true;
+    item->setZValue(DeviceItem::LiftedZ);
+    const QPointF centre = event->scenePos() - m_grabOffset;
+    const int modules = m_project.moduleWidth(*device);
+    if (const std::optional<RailSlot> slot = slotAt(centre, modules)) {
+        snapItem(item, *device, *slot);
+    } else {
+        item->setPos(centre - QPointF(kModuleWidth * modules, kModuleHeight) / 2);
+        item->setRefused(true);
+    }
 }
 
 void EditorScene::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
 {
     dropSelectionModifiers(event);
     QGraphicsScene::mouseReleaseEvent(event);
+    if (event->button() != Qt::LeftButton || m_movingId.isEmpty())
+        return;
+    if (std::exchange(m_moving, false))
+        finishMove(event->scenePos() - m_grabOffset);
+    m_movingId.clear();
 }
 
 void EditorScene::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event)
 {
     dropSelectionModifiers(event);
     QGraphicsScene::mouseDoubleClickEvent(event);
+    // The press of a quick second drag arrives as a double click.
+    pressDevice(event);
+}
+
+// Other buttons pressed during a move leave it running.
+void EditorScene::pressDevice(QGraphicsSceneMouseEvent *event)
+{
+    if (event->button() != Qt::LeftButton)
+        return;
+    m_moving = false;
+    m_movingId.clear();
+    const auto *item = dynamic_cast<DeviceItem *>(mouseGrabberItem());
+    const PlacedDevice *device = item ? m_project.device(item->data(IdKey).toString()) : nullptr;
+    if (!device)
+        return;
+    m_movingId = device->id;
+    m_grabOffset = event->scenePos()
+            - slotRect(device->row, device->module, m_project.moduleWidth(*device)).center();
+    m_pressScreenPos = event->screenPos();
+}
+
+void EditorScene::finishMove(QPointF centre)
+{
+    const PlacedDevice *device = m_project.device(m_movingId);
+    DeviceItem *item = m_devices.value(m_movingId);
+    if (!device || !item)
+        return;
+    // Back where the model has it; a move that fits then syncs it to the new slot.
+    item->setZValue(DeviceItem::PlacedZ);
+    item->setRefused(false);
+    item->setPos(slotRect(device->row, device->module, m_project.moduleWidth(*device)).topLeft());
+    PlacedDevice moved = *device;
+    if (placeAt(moved, centre) && moved != *device)
+        m_undoStack.push(new UpdateDeviceCommand(m_project, moved));
+}
+
+bool EditorScene::placeAt(PlacedDevice &device, QPointF centre)
+{
+    const std::optional<RailSlot> slot = slotAt(centre, m_project.moduleWidth(device));
+    if (!slot) {
+        emit hint(tr("Devices go on a DIN rail inside the enclosure."));
+        return false;
+    }
+    device.row = slot->row;
+    device.module = slot->module;
+    if (m_project.placement(device) != Placement::Fits) {
+        emit hint(tr("No room here: another device is in the way."));
+        return false;
+    }
+    return true;
+}
+
+void EditorScene::snapItem(DeviceItem *item, PlacedDevice device, RailSlot slot)
+{
+    device.row = slot.row;
+    device.module = slot.module;
+    item->setPos(slotRect(slot.row, slot.module, m_project.moduleWidth(device)).topLeft());
+    item->setRefused(m_project.placement(device) != Placement::Fits);
+}
+
+void EditorScene::dragEnterEvent(QGraphicsSceneDragDropEvent *event)
+{
+    removePreview();
+    dragMoveEvent(event);
+}
+
+// Every preset drag is accepted, even where the device doesn't fit, so that the drop arrives and
+// can say why.
+void EditorScene::dragMoveEvent(QGraphicsSceneDragDropEvent *event)
+{
+    const Preset *preset = draggedPreset(m_project.catalog(), event->mimeData());
+    if (!preset) {
+        event->ignore();
+        return;
+    }
+    event->setDropAction(Qt::CopyAction);
+    event->accept();
+    const PlacedDevice device = deviceFromPreset(*preset, 0, 0);
+    if (!m_preview) {
+        m_preview = new DeviceItem(m_project.catalog(), QStringLiteral("preview"));
+        m_preview->setFlag(QGraphicsItem::ItemIsSelectable, false);
+        m_preview->setOpacity(kPreviewOpacity);
+        m_preview->setZValue(DeviceItem::LiftedZ);
+        m_preview->setDevice(device, QString());
+        addItem(m_preview);
+    }
+    const std::optional<RailSlot> slot = slotAt(event->scenePos(), m_project.moduleWidth(device));
+    m_preview->setVisible(slot.has_value());
+    if (slot)
+        snapItem(m_preview, device, *slot);
+}
+
+void EditorScene::dragLeaveEvent(QGraphicsSceneDragDropEvent *)
+{
+    removePreview();
+}
+
+void EditorScene::dropEvent(QGraphicsSceneDragDropEvent *event)
+{
+    removePreview();
+    const Preset *preset = draggedPreset(m_project.catalog(), event->mimeData());
+    if (!preset) {
+        event->ignore();
+        return;
+    }
+    PlacedDevice device = deviceFromPreset(*preset, 0, 0);
+    if (!placeAt(device, event->scenePos())) {
+        event->ignore();
+        return;
+    }
+    event->setDropAction(Qt::CopyAction);
+    event->accept();
+    auto *command = new AddDeviceCommand(m_project, device);
+    m_undoStack.push(command);
+    clearSelection();
+    m_devices.value(command->deviceId())->setSelected(true);
+}
+
+void EditorScene::removePreview()
+{
+    delete std::exchange(m_preview, nullptr);
 }
 
 // Swaps the picture and bars of the existing enclosure item, so a selected enclosure stays

@@ -102,45 +102,56 @@
 <context>
     <name>EditorScene</name>
     <message>
-        <location filename="../src/app/editorscene.cpp" line="112"/>
+        <location filename="../src/app/editorscene.cpp" line="130"/>
         <source>Supply</source>
         <translation>Кіріс</translation>
+    </message>
+    <message>
+        <location filename="../src/app/editorscene.cpp" line="221"/>
+        <source>Devices go on a DIN rail inside the enclosure.</source>
+        <translation>Аппараттар қалқан ішіндегі DIN-рейкаға орнатылады.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/editorscene.cpp" line="227"/>
+        <source>No room here: another device is in the way.</source>
+        <translation>Мұнда орын жоқ: басқа аппарат кедергі жасайды.</translation>
     </message>
 </context>
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="128"/>
+        <location filename="../src/app/mainwindow.cpp" line="142"/>
         <source>Settings</source>
         <translation>Баптаулар</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="129"/>
+        <location filename="../src/app/mainwindow.cpp" line="143"/>
         <source>Theme</source>
         <translation>Тақырып</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="130"/>
+        <location filename="../src/app/mainwindow.cpp" line="144"/>
         <source>Dark</source>
         <translation>Қараңғы</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="131"/>
+        <location filename="../src/app/mainwindow.cpp" line="145"/>
         <source>Light</source>
         <translation>Ашық</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="132"/>
+        <location filename="../src/app/mainwindow.cpp" line="146"/>
         <source>Language</source>
         <translation>Тіл</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="133"/>
+        <location filename="../src/app/mainwindow.cpp" line="147"/>
         <source>Components</source>
         <translation>Компоненттер</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="135"/>
+        <location filename="../src/app/mainwindow.cpp" line="56"/>
+        <location filename="../src/app/mainwindow.cpp" line="149"/>
         <source>Ready</source>
         <translation>Дайын</translation>
     </message>
@@ -148,7 +159,7 @@
 <context>
     <name>PaletteWidget</name>
     <message>
-        <location filename="../src/app/palettewidget.cpp" line="79"/>
+        <location filename="../src/app/palettewidget.cpp" line="85"/>
         <source>Usual wire: %1 mm²</source>
         <translation>Әдеттегі сым: %1 mm²</translation>
     </message>
