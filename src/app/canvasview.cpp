@@ -3,6 +3,7 @@
 
 #include "app/editorscene.h"
 
+#include <QDropEvent>
 #include <QKeyEvent>
 #include <QMouseEvent>
 #include <QScrollBar>
@@ -158,6 +159,17 @@ void CanvasView::focusOutEvent(QFocusEvent *event)
     m_spaceHeld = false;
     updateCursor();
     QGraphicsView::focusOutEvent(event);
+}
+
+// A drag leaves focus where the press was, on the palette; the dropped device is selected, so the
+// canvas takes focus for the Delete key and Space panning.
+void CanvasView::dropEvent(QDropEvent *event)
+{
+    QGraphicsView::dropEvent(event);
+    if (!event->isAccepted())
+        return;
+    activateWindow();
+    setFocus(Qt::OtherFocusReason);
 }
 
 void CanvasView::updateCursor()

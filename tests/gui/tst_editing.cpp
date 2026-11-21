@@ -13,6 +13,7 @@
 #include "testsettings.h"
 
 #include <QAction>
+#include <QApplication>
 #include <QGraphicsItem>
 #include <QMenu>
 #include <QMenuBar>
@@ -33,6 +34,7 @@ private slots:
     void undoRedoThroughToolbarAndShortcuts();
     void deletesWithKeyAndContextMenu();
     void deleteNeedsASelectedDevice();
+    void deleteKeyRightAfterADrop();
     void refusedEditLeavesNoUndoEntry();
     void fitActionRefits();
     void sceneTeardownEmitsNoSelectionChange();
@@ -213,6 +215,19 @@ void TestEditing::deleteNeedsASelectedDevice()
     clickMenuItem(editMenu, del);
     QVERIFY(window->project().devices().isEmpty());
     QVERIFY(!del->isEnabled());
+}
+
+// Pressing a palette entry gives the palette focus, and a drag never moves it; after the drop the
+// canvas has focus, so the Delete key (and Space for panning) reach it.
+void TestEditing::deleteKeyRightAfterADrop()
+{
+    palette->setFocus();
+    QVERIFY(palette->hasFocus());
+    drop("breaker-1p-c16", 0, 0);
+    QCOMPARE(window->project().devices().size(), 1);
+    QTest::keyClick(QApplication::focusWidget(), Qt::Key_Delete);
+    QVERIFY(window->project().devices().isEmpty());
+    QCOMPARE(QApplication::focusWidget(), canvas);
 }
 
 void TestEditing::refusedEditLeavesNoUndoEntry()
