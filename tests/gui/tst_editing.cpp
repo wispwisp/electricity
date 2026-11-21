@@ -5,6 +5,7 @@
 #include "app/mainwindow.h"
 #include "app/palettewidget.h"
 #include "app/settings.h"
+#include "core/catalog.h"
 #include "core/project.h"
 #include "editorhelpers.h"
 #include "menuclicks.h"
@@ -12,6 +13,7 @@
 #include "testsettings.h"
 
 #include <QAction>
+#include <QGraphicsItem>
 #include <QMenu>
 #include <QMenuBar>
 #include <QTest>
@@ -33,6 +35,7 @@ private slots:
     void deleteNeedsASelectedDevice();
     void refusedEditLeavesNoUndoEntry();
     void fitActionRefits();
+    void sceneTeardownEmitsNoSelectionChange();
 
 private:
     [[nodiscard]] QPoint at(int row, int module, int modules) const;
@@ -229,6 +232,19 @@ void TestEditing::fitActionRefits()
     QVERIFY(!fullyVisible(canvas, scene->panelRect()));
     QTest::keyClick(window.get(), Qt::Key_0, Qt::ControlModifier);
     QVERIFY(fullyVisible(canvas, scene->panelRect()));
+}
+
+void TestEditing::sceneTeardownEmitsNoSelectionChange()
+{
+    Project project(embeddedCatalog());
+    QUndoStack undoStack;
+    auto *standalone = new EditorScene(project, undoStack);
+    const QString id = project.addDevice(deviceFromPreset(preset("breaker-1p-c16"), 0, 0));
+    sceneItem(standalone, id)->setSelected(true);
+    int changes = 0;
+    connect(standalone, &QGraphicsScene::selectionChanged, this, [&] { ++changes; });
+    delete standalone;
+    QCOMPARE(changes, 0);
 }
 
 QTEST_MAIN(TestEditing)

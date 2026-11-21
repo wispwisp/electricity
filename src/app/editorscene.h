@@ -34,6 +34,7 @@ public:
     static constexpr int IdKey = 0;
 
     EditorScene(Project &project, QUndoStack &undoStack, QObject *parent = nullptr);
+    ~EditorScene() override;
     // scene rect the device body would occupy
     [[nodiscard]] QRectF slotRect(int row, int module, int modules) const;
     // device centred on scenePos; nullopt outside the enclosure interior

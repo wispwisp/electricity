@@ -132,6 +132,13 @@ void EditorScene::retranslate()
     updateSceneRect();
 }
 
+// ~QGraphicsScene deletes the selected items and would emit selectionChanged to listeners that
+// call back into this already destroyed EditorScene.
+EditorScene::~EditorScene()
+{
+    blockSignals(true);
+}
+
 void EditorScene::setDeviceContextActions(const QList<QAction *> &actions)
 {
     m_contextActions = actions;
