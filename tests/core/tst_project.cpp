@@ -35,6 +35,7 @@ private slots:
     void placement();
     void addAssignsStableIdsAndSignals();
     void restoresGivenIdAndNeverReusesIds();
+    void addAtIndexRestoresOrder();
     void designationsFollowPosition();
     void updateDeviceRules();
     void enclosureRules();
@@ -141,6 +142,27 @@ void TestProject::restoresGivenIdAndNeverReusesIds()
     QCOMPARE(*project.device(u"d1"), saved);
     QVERIFY(project.removeDevice(u"d2"));
     QCOMPARE(project.addDevice(preset("breaker-1p-c16", 0, 5)), u"d3"_s);
+}
+
+void TestProject::addAtIndexRestoresOrder()
+{
+    Project project(embeddedCatalog());
+    for (int module = 0; module < 3; ++module)
+        project.addDevice(preset("breaker-1p-c16", 0, module));
+    const QList<PlacedDevice> original = project.devices();
+    QVERIFY(project.removeDevice(u"d2"));
+    QSignalSpy changed(&project, &Project::changed);
+    QCOMPARE(project.addDevice(original[1], 1), u"d2"_s);
+    QCOMPARE(project.devices(), original);
+    QCOMPARE(changed.size(), 1);
+
+    QVERIFY(project.removeDevice(u"d2"));
+    changed.clear();
+    QCOMPARE(project.addDevice(original[1], 3), QString());
+    QCOMPARE(project.addDevice(original[1], -2), QString());
+    QCOMPARE(changed.size(), 0);
+    QCOMPARE(project.addDevice(original[1], 2), u"d2"_s);
+    QCOMPARE(project.devices().last().id, u"d2"_s);
 }
 
 void TestProject::designationsFollowPosition()

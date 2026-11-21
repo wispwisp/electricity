@@ -3,7 +3,6 @@
 
 #include "core/project.h"
 
-#include <QList>
 #include <QString>
 #include <QUndoCommand>
 
@@ -33,7 +32,7 @@ public:
 private:
     Project &m_project;
     PlacedDevice m_device;
-    QList<PlacedDevice> m_later; // devices after it in insertion order
+    qsizetype m_index = 0; // position in devices() when removed
 };
 
 class UpdateDeviceCommand : public QUndoCommand

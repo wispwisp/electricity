@@ -58,8 +58,9 @@ public:
     // false if unknown or a device would fall off
     [[nodiscard]] bool fitsEnclosure(QStringView enclosureId) const;
 
-    // keeps a non-empty id; returns the id, "" if refused
-    QString addDevice(PlacedDevice device);
+    // keeps a non-empty id; returns the id, "" if refused. index is the position in devices()
+    // to insert at, -1 appends; any other index outside [0, devices().size()] is refused.
+    QString addDevice(PlacedDevice device, qsizetype index = -1);
     bool removeDevice(QStringView id);
     // replaces the device with the same id
     bool updateDevice(const PlacedDevice &device);

@@ -121,8 +121,10 @@ bool Project::fitsEnclosure(QStringView enclosureId) const
     });
 }
 
-QString Project::addDevice(PlacedDevice device)
+QString Project::addDevice(PlacedDevice device, qsizetype index)
 {
+    if (index < -1 || index > m_devices.size())
+        return {};
     if (placement(device) != Placement::Fits)
         return {};
     if (device.id.isEmpty()) {
@@ -132,7 +134,9 @@ QString Project::addDevice(PlacedDevice device)
     } else if (this->device(device.id)) {
         return {};
     }
-    m_devices << device;
+    if (index == -1)
+        index = m_devices.size();
+    m_devices.insert(index, device);
     emit changed();
     return device.id;
 }

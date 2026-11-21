@@ -3,6 +3,7 @@
 #include "core/catalog.h"
 #include "core/project.h"
 
+#include <QSignalSpy>
 #include <QUndoStack>
 #include <QtTest>
 
@@ -68,7 +69,9 @@ void TestEditCommands::removeRestoresDeviceAndDesignations()
     QCOMPARE(project.designation(u"d3"), u"QF2"_s);
     const QList<PlacedDevice> after = project.devices();
 
+    QSignalSpy changed(&project, &Project::changed);
     stack.undo();
+    QCOMPARE(changed.size(), 1);
     QCOMPARE(project.devices(), before);
     QCOMPARE(*project.device(u"d2"), removed);
     QCOMPARE(project.designation(u"d2"), u"QF2"_s);

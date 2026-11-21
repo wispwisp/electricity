@@ -3,6 +3,7 @@
 
 #include <QtAssert>
 
+#include <algorithm>
 #include <utility>
 
 AddDeviceCommand::AddDeviceCommand(Project &project, PlacedDevice device)
@@ -38,27 +39,14 @@ RemoveDeviceCommand::RemoveDeviceCommand(Project &project, const QString &id)
 
 void RemoveDeviceCommand::undo()
 {
-    [[maybe_unused]] const QString id = m_project.addDevice(m_device);
+    [[maybe_unused]] const QString id = m_project.addDevice(m_device, m_index);
     Q_ASSERT(id == m_device.id);
-    // addDevice appends, so re-add the devices that followed to restore the insertion order.
-    for (const PlacedDevice &later : std::as_const(m_later)) {
-        [[maybe_unused]] const bool removed = m_project.removeDevice(later.id);
-        Q_ASSERT(removed);
-        [[maybe_unused]] const QString laterId = m_project.addDevice(later);
-        Q_ASSERT(laterId == later.id);
-    }
 }
 
 void RemoveDeviceCommand::redo()
 {
-    const QList<PlacedDevice> &devices = m_project.devices();
-    m_later.clear();
-    for (qsizetype i = 0; i < devices.size(); ++i) {
-        if (devices[i].id == m_device.id) {
-            m_later = devices.mid(i + 1);
-            break;
-        }
-    }
+    m_index = std::ranges::find(m_project.devices(), m_device.id, &PlacedDevice::id)
+            - m_project.devices().begin();
     [[maybe_unused]] const bool removed = m_project.removeDevice(m_device.id);
     Q_ASSERT(removed);
 }
