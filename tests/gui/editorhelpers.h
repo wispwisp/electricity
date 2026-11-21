@@ -8,6 +8,7 @@
 #include <Qt>
 
 class PaletteWidget;
+class QComboBox;
 class QGraphicsItem;
 class QGraphicsScene;
 class QGraphicsView;
@@ -38,3 +39,5 @@ void leaveDrag(QGraphicsView *view);
 // Enter, move and drop at viewportPos.
 void dropPreset(QGraphicsView *view, PaletteWidget *palette, const QString &presetId,
                 QPoint viewportPos);
+// Clicks the combo, waits for its popup view and clicks the item with that text.
+void chooseComboItem(QComboBox *combo, const QString &text);

@@ -107,12 +107,12 @@
         <translation>Ввод</translation>
     </message>
     <message>
-        <location filename="../src/app/editorscene.cpp" line="245"/>
+        <location filename="../src/app/editorscene.cpp" line="252"/>
         <source>Devices go on a DIN rail inside the enclosure.</source>
         <translation>Аппараты ставятся на DIN-рейку внутри щита.</translation>
     </message>
     <message>
-        <location filename="../src/app/editorscene.cpp" line="251"/>
+        <location filename="../src/app/editorscene.cpp" line="258"/>
         <source>No room here: another device is in the way.</source>
         <translation>Здесь нет места: мешает другой аппарат.</translation>
     </message>
@@ -120,69 +120,74 @@
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="201"/>
-        <location filename="../src/app/mainwindow.cpp" line="202"/>
+        <location filename="../src/app/mainwindow.cpp" line="214"/>
+        <location filename="../src/app/mainwindow.cpp" line="215"/>
         <source>Edit</source>
         <translation>Правка</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="203"/>
+        <location filename="../src/app/mainwindow.cpp" line="216"/>
         <source>Undo</source>
         <translation>Отменить</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="204"/>
+        <location filename="../src/app/mainwindow.cpp" line="217"/>
         <source>Redo</source>
         <translation>Повторить</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="205"/>
+        <location filename="../src/app/mainwindow.cpp" line="218"/>
         <source>Delete</source>
         <translation>Удалить</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="206"/>
+        <location filename="../src/app/mainwindow.cpp" line="219"/>
         <source>View</source>
         <translation>Вид</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="207"/>
+        <location filename="../src/app/mainwindow.cpp" line="220"/>
         <source>Fit to window</source>
         <translation>По размеру окна</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="208"/>
+        <location filename="../src/app/mainwindow.cpp" line="221"/>
         <source>Settings</source>
         <translation>Настройки</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="209"/>
+        <location filename="../src/app/mainwindow.cpp" line="222"/>
         <source>Theme</source>
         <translation>Тема</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="210"/>
+        <location filename="../src/app/mainwindow.cpp" line="223"/>
         <source>Dark</source>
         <translation>Тёмная</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="211"/>
+        <location filename="../src/app/mainwindow.cpp" line="224"/>
         <source>Light</source>
         <translation>Светлая</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="212"/>
+        <location filename="../src/app/mainwindow.cpp" line="225"/>
         <source>Language</source>
         <translation>Язык</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="213"/>
+        <location filename="../src/app/mainwindow.cpp" line="226"/>
         <source>Components</source>
         <translation>Компоненты</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="60"/>
-        <location filename="../src/app/mainwindow.cpp" line="215"/>
+        <location filename="../src/app/mainwindow.cpp" line="227"/>
+        <source>Properties</source>
+        <translation>Свойства</translation>
+    </message>
+    <message>
+        <location filename="../src/app/mainwindow.cpp" line="62"/>
+        <location filename="../src/app/mainwindow.cpp" line="229"/>
         <source>Ready</source>
         <translation>Готово</translation>
     </message>
@@ -193,6 +198,54 @@
         <location filename="../src/app/palettewidget.cpp" line="85"/>
         <source>Usual wire: %1 mm²</source>
         <translation>Обычный провод: %1 mm²</translation>
+    </message>
+</context>
+<context>
+    <name>PropertiesPanel</name>
+    <message>
+        <location filename="../src/app/propertiespanel.cpp" line="130"/>
+        <source>Select a device on the panel to see its properties.</source>
+        <translation>Выберите аппарат на щите, чтобы увидеть его свойства.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/propertiespanel.cpp" line="131"/>
+        <source>Enclosure</source>
+        <translation>Корпус щита</translation>
+    </message>
+    <message>
+        <location filename="../src/app/propertiespanel.cpp" line="132"/>
+        <source>Rating</source>
+        <translation>Номинал</translation>
+    </message>
+    <message>
+        <location filename="../src/app/propertiespanel.cpp" line="133"/>
+        <source>Poles</source>
+        <translation>Полюсы</translation>
+    </message>
+    <message>
+        <location filename="../src/app/propertiespanel.cpp" line="134"/>
+        <source>Curve</source>
+        <translation>Характеристика</translation>
+    </message>
+    <message>
+        <location filename="../src/app/propertiespanel.cpp" line="135"/>
+        <source>Residual current</source>
+        <translation>Ток утечки</translation>
+    </message>
+    <message>
+        <location filename="../src/app/propertiespanel.cpp" line="136"/>
+        <source>Size, modules</source>
+        <translation>Размер, модулей</translation>
+    </message>
+    <message>
+        <location filename="../src/app/propertiespanel.cpp" line="192"/>
+        <source>Not enough room next to the device for more poles.</source>
+        <translation>Рядом с аппаратом не хватает места для дополнительных полюсов.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/propertiespanel.cpp" line="202"/>
+        <source>Move or delete the devices on the rows that would be removed first.</source>
+        <translation>Сначала переместите или удалите аппараты с рядов, которые будут убраны.</translation>
     </message>
 </context>
 </TS>

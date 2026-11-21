@@ -4,7 +4,9 @@
 #include "app/palettewidget.h"
 #include "core/catalog.h"
 
+#include <QAbstractItemView>
 #include <QApplication>
+#include <QComboBox>
 #include <QDragEnterEvent>
 #include <QGraphicsItem>
 #include <QGraphicsScene>
@@ -119,4 +121,19 @@ void dropPreset(QGraphicsView *view, PaletteWidget *palette, const QString &pres
     QDropEvent drop(viewportPos, Qt::CopyAction, dragData, Qt::LeftButton, Qt::NoModifier);
     QApplication::sendEvent(view->viewport(), &drop);
     delete dragData;
+}
+
+void chooseComboItem(QComboBox *combo, const QString &text)
+{
+    QTest::mouseClick(combo, Qt::LeftButton);
+    QAbstractItemView *view = combo->view();
+    QTRY_VERIFY(view->isVisible());
+    const int row = combo->findText(text);
+    QVERIFY(row >= 0);
+    const QPoint itemPos = view->visualRect(view->model()->index(row, 0)).center();
+    // The popup only accepts a click after the pointer has moved onto the item, and a move to
+    // where the pointer already is does nothing.
+    QTest::mouseMove(view->viewport(), itemPos + QPoint(1, 0));
+    QTest::mouseMove(view->viewport(), itemPos);
+    QTest::mouseClick(view->viewport(), Qt::LeftButton, {}, itemPos);
 }

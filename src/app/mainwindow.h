@@ -35,6 +35,7 @@ private:
     QUndoStack *m_undoStack = nullptr;
     EditorScene *m_scene = nullptr;
     QDockWidget *m_dock = nullptr;
+    QDockWidget *m_propertiesDock = nullptr;
     QMenu *m_editMenu = nullptr;
     QMenu *m_viewMenu = nullptr;
     QToolBar *m_editToolBar = nullptr;

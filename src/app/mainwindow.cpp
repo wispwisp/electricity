@@ -6,6 +6,7 @@
 #include "app/editorscene.h"
 #include "app/language.h"
 #include "app/palettewidget.h"
+#include "app/propertiespanel.h"
 #include "app/settings.h"
 #include "app/svgpixmap.h"
 #include "app/theme.h"
@@ -28,6 +29,7 @@ namespace {
 constexpr QSize kDefaultSize(1280, 800);
 constexpr QSize kFrameAllowance(20, 60);
 constexpr int kPaletteWidth = 300;
+constexpr int kPropertiesWidth = 230;
 constexpr int kHintTimeout = 5000; // ms
 } // namespace
 
@@ -66,6 +68,16 @@ MainWindow::MainWindow(QWidget *parent)
     m_dock->setFeatures(QDockWidget::DockWidgetMovable);
     addDockWidget(Qt::LeftDockWidgetArea, m_dock);
     resizeDocks({ m_dock }, { kPaletteWidth }, Qt::Horizontal);
+
+    m_propertiesDock = new QDockWidget(this);
+    m_propertiesDock->setObjectName(QStringLiteral("propertiesDock"));
+    auto *properties = new PropertiesPanel(*m_project, *m_undoStack, *m_scene, m_propertiesDock);
+    m_propertiesDock->setWidget(properties);
+    m_propertiesDock->setFeatures(QDockWidget::DockWidgetMovable);
+    addDockWidget(Qt::RightDockWidgetArea, m_propertiesDock);
+    resizeDocks({ m_propertiesDock }, { kPropertiesWidth }, Qt::Horizontal);
+    connect(properties, &PropertiesPanel::hint, bar,
+            [bar](const QString &text) { bar->showMessage(text, kHintTimeout); });
 
     m_undoAction = new QAction(this);
     m_undoAction->setObjectName(QStringLiteral("undoAction"));
@@ -163,9 +175,11 @@ MainWindow::MainWindow(QWidget *parent)
         setWindowState(Qt::WindowMaximized);
 }
 
-// The scene refers to the project, which as the older child would otherwise be deleted first.
+// The scene refers to the project, which as the older child would otherwise be deleted first. The
+// properties panel refers to both.
 MainWindow::~MainWindow()
 {
+    delete m_propertiesDock;
     delete m_scene;
 }
 
@@ -210,6 +224,7 @@ void MainWindow::retranslateUi()
     m_lightAction->setText(tr("Light"));
     m_languageMenu->setTitle(tr("Language"));
     m_dock->setWindowTitle(tr("Components"));
+    m_propertiesDock->setWindowTitle(tr("Properties"));
     m_scene->retranslate();
     statusBar()->showMessage(tr("Ready"));
 }

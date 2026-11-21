@@ -57,6 +57,7 @@ add_gui_test(tst_editcommands gui/tst_editcommands.cpp)
 add_gui_test(tst_canvas gui/tst_canvas.cpp)
 add_gui_test(tst_placing gui/tst_placing.cpp)
 add_gui_test(tst_editing gui/tst_editing.cpp)
+add_gui_test(tst_properties gui/tst_properties.cpp)
 
 # Strings must be extracted before scanning: the fixture .ts has no unfinished entries,
 # only the fixture source has a new one.
