@@ -139,6 +139,7 @@ cross-section ([0007](adr/0007-electrical-model.md)).
   terminals under the cursor, select/delete wire, change section, undo.
 - Wires follow devices when moved. A terminal accepts at most two wires
   ([0007](adr/0007-electrical-model.md)); a third is refused with a hint.
+- Supply block: draw the letters L, N, PE next to its terminals; since F05 they are told apart by colour only, which a beginner can't map to "supply L → QF1".
 
 **Scenario test:** wire supply L → QF1 terminal 1 with 10 mm², QF1 → QD1,
 assert wires in model with sections and colors; delete one; undo.
@@ -201,6 +202,9 @@ thermal threshold is 1.3·32 ≈ 41.6 A). Screenshots per case.
 **Goal:** New / Open / Save / Save As, recent files, unsaved-changes prompt
 ([0010](adr/0010-project-file-format.md)).
 
+- Loading: add a load/replace call to `Project` that sets the device-id counter past every `d<n>` in the file, so ids are never reused ([0024](adr/0024-placed-devices-and-designations.md)).
+- `Project::placement()` accepts only parameters that exactly match the type's allowed keys, so a parameter added to the catalog later (F12, F16) needs a per-version migration that fills it in for older files.
+
 **Scenario test:** build a small panel, save to a temp file, New, Open it
 back, assert model equality; modify and close → prompt shown. Fixture-based
 migration test scaffold for version 1.
@@ -214,6 +218,7 @@ step ([0017](adr/0017-tutorial-engine.md)).
 - Tutorial engine (steps JSON, conditions, allow filter, highlight overlay,
   setup fixtures), all 13 steps, texts translated to ru/kk/en.
 - Help → Tutorial to restart; Skip.
+- Allow filter: since F05, edits enter from four places (palette drop and device move in `EditorScene`, delete in `MainWindow`, edits in `PropertiesPanel`); put one gate in front of all of them.
 
 **Scenario test:** walk the whole tutorial by real clicks and drags, asserting
 each step's completion; screenshot every step in Russian; spot-check
