@@ -38,6 +38,7 @@ private slots:
     void changesEnclosureSize();
     void panelFollowsUndoOfSelectedDevice();
     void deleteKeyInComboKeepsDevice();
+    void choosingTheShownValueAddsNoUndoStep();
     void retranslatesAndFollowsTheme();
 
 private:
@@ -264,6 +265,21 @@ void TestProperties::deleteKeyInComboKeepsDevice()
     rating->setFocus();
     QTest::keyClick(rating, Qt::Key_Delete);
     QCOMPARE(window->project().devices().size(), 1);
+}
+
+// A drop-down reports a choice even when it is the value already shown; that is no edit, so Ctrl+Z
+// must not first undo an invisible step.
+void TestProperties::choosingTheShownValueAddsNoUndoStep()
+{
+    drop("breaker-1p-c16", 0, 4);
+    const int undoCount = window->undoStack().count();
+    chooseComboItem(named<QComboBox>("ratingCombo"), "16 A");
+    QCOMPARE(window->undoStack().count(), undoCount);
+    chooseComboItem(named<QComboBox>("polesCombo"), "1P");
+    QCOMPARE(window->undoStack().count(), undoCount);
+    selectEnclosure();
+    chooseComboItem(named<QComboBox>("enclosureSizeCombo"), "12");
+    QCOMPARE(window->undoStack().count(), undoCount);
 }
 
 void TestProperties::retranslatesAndFollowsTheme()

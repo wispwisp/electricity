@@ -186,6 +186,8 @@ void PropertiesPanel::editDevice(const std::function<void(PlacedDevice &)> &chan
         return;
     PlacedDevice after = *current;
     change(after);
+    if (after == *current)
+        return; // the value already shown was chosen again
     if (m_project.placement(after) == Placement::Fits)
         m_undoStack.push(new UpdateDeviceCommand(m_project, after));
     else
@@ -196,6 +198,8 @@ void PropertiesPanel::editDevice(const std::function<void(PlacedDevice &)> &chan
 void PropertiesPanel::changeSize(int index)
 {
     const QString id = m_size->itemData(index).toString();
+    if (id == m_project.enclosure().id)
+        return;
     if (m_project.fitsEnclosure(id))
         m_undoStack.push(new SetEnclosureCommand(m_project, id));
     else
