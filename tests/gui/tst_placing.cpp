@@ -399,6 +399,7 @@ void TestPlacing::rightClickDuringAMoveOpensNoMenu()
     QCOMPARE(item->zValue(), DeviceItem::PlacedZ);
     QCOMPARE(position(qf), std::pair(0, 5));
     QCOMPARE(window->undoStack().count(), 1);
+    QVERIFY(saveScreenshot(*window, "f05", "right-click-mid-move"));
 
     // A drag on the empty interior afterwards doesn't take the device along.
     const QPoint interior = viewportPoint(canvas, kEnclosureInterior);
@@ -452,6 +453,7 @@ void TestPlacing::escapeCancelsAMove()
     QCOMPARE(item->pos(), scene->slotRect(0, 6, 1).topLeft());
     QVERIFY(!item->isRefused());
     QCOMPARE(item->zValue(), DeviceItem::PlacedZ);
+    QVERIFY(saveScreenshot(*window, "f05", "escape-cancelled-move"));
 
     // The rest of the drag no longer moves the device.
     QTest::mouseMove(viewport, at(0, 3, 1));
