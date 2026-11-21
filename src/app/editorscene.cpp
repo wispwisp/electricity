@@ -146,7 +146,8 @@ void EditorScene::setDeviceContextActions(const QList<QAction *> &actions)
 
 void EditorScene::mousePressEvent(QGraphicsSceneMouseEvent *event)
 {
-    if (event->button() == Qt::RightButton) {
+    // The menu takes the mouse, so with the left button held a move would never see its release.
+    if (event->button() == Qt::RightButton && !(event->buttons() & Qt::LeftButton)) {
         const QList<QGraphicsItem *> hits = items(event->scenePos());
         for (const QGraphicsItem *hit : hits) {
             const QString id = hit->data(IdKey).toString();
@@ -165,6 +166,8 @@ void EditorScene::mousePressEvent(QGraphicsSceneMouseEvent *event)
         }
     }
     dropSelectionModifiers(event);
+    if (event->button() == Qt::LeftButton)
+        cancelMove(); // one still marked lost its release (to a popup, say)
     QGraphicsScene::mousePressEvent(event);
     pressDevice(event);
 }
@@ -208,6 +211,8 @@ void EditorScene::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
 void EditorScene::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event)
 {
     dropSelectionModifiers(event);
+    if (event->button() == Qt::LeftButton)
+        cancelMove();
     QGraphicsScene::mouseDoubleClickEvent(event);
     // The press of a quick second drag arrives as a double click.
     pressDevice(event);
@@ -218,8 +223,6 @@ void EditorScene::pressDevice(QGraphicsSceneMouseEvent *event)
 {
     if (event->button() != Qt::LeftButton)
         return;
-    m_moving = false;
-    m_movingId.clear();
     const auto *item = dynamic_cast<DeviceItem *>(mouseGrabberItem());
     const PlacedDevice *device = item ? m_project.device(item->data(IdKey).toString()) : nullptr;
     if (!device)
@@ -233,16 +236,28 @@ void EditorScene::pressDevice(QGraphicsSceneMouseEvent *event)
 void EditorScene::finishMove(QPointF centre)
 {
     const PlacedDevice *device = m_project.device(m_movingId);
-    DeviceItem *item = m_devices.value(m_movingId);
-    if (!device || !item)
+    if (!device)
         return;
     // Back where the model has it; a move that fits then syncs it to the new slot.
-    item->setZValue(DeviceItem::PlacedZ);
-    item->setRefused(false);
-    item->setPos(slotRect(device->row, device->module, m_project.moduleWidth(*device)).topLeft());
+    cancelMove();
     PlacedDevice moved = *device;
     if (placeAt(moved, centre) && moved != *device)
         m_undoStack.push(new UpdateDeviceCommand(m_project, moved));
+}
+
+void EditorScene::cancelMove()
+{
+    const PlacedDevice *device = m_project.device(m_movingId);
+    DeviceItem *item = m_devices.value(m_movingId);
+    m_moving = false;
+    m_movingId.clear();
+    if (!device || !item)
+        return;
+    item->setZValue(DeviceItem::PlacedZ);
+    item->setRefused(false);
+    item->setPos(slotRect(device->row, device->module, m_project.moduleWidth(*device)).topLeft());
+    if (mouseGrabberItem() == item)
+        item->ungrabMouse();
 }
 
 bool EditorScene::placeAt(PlacedDevice &device, QPointF centre)

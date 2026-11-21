@@ -78,6 +78,9 @@ private:
     // A left press on a device may become a move.
     void pressDevice(QGraphicsSceneMouseEvent *event);
     void finishMove(QPointF centre);
+    // Ends a move without changing the model: the item goes back to where the model has it, and
+    // the mouse grab of a move whose release never arrived is dropped.
+    void cancelMove();
     void removePreview();
 
     Project &m_project;

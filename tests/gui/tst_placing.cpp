@@ -14,10 +14,12 @@
 #include <QApplication>
 #include <QDrag>
 #include <QJsonObject>
+#include <QMenu>
 #include <QMimeData>
 #include <QStatusBar>
 #include <QTest>
 #include <QUndoStack>
+#include <QWindow>
 
 #include <memory>
 #include <utility>
@@ -58,6 +60,8 @@ private slots:
     void spaceDragPansInsteadOfMoving();
     void quickSecondDragStillMoves();
     void otherButtonsDontBreakAMove();
+    void rightClickDuringAMoveOpensNoMenu();
+    void nextPressEndsAMoveThatLostItsRelease();
     void closesWhileSelectedOrDragging();
 
 private:
@@ -65,6 +69,8 @@ private:
     [[nodiscard]] QPoint at(int row, int module, int modules) const;
     [[nodiscard]] QString message() const;
     [[nodiscard]] std::pair<int, int> position(const QString &id) const;
+    // a viewport point in the coordinates of the window, for events sent through the window
+    [[nodiscard]] QPoint windowPoint(QPoint viewportPos) const;
 
     std::unique_ptr<MainWindow> window;
     CanvasView *canvas = nullptr;
@@ -86,6 +92,11 @@ std::pair<int, int> TestPlacing::position(const QString &id) const
 {
     const PlacedDevice *device = window->project().device(id);
     return device ? std::pair(device->row, device->module) : std::pair(-1, -1);
+}
+
+QPoint TestPlacing::windowPoint(QPoint viewportPos) const
+{
+    return canvas->viewport()->mapTo(window.get(), viewportPos);
 }
 
 void TestPlacing::initTestCase()
@@ -363,6 +374,67 @@ void TestPlacing::otherButtonsDontBreakAMove()
     QTest::mouseClick(viewport, Qt::LeftButton, {}, interior);
     QVERIFY(scene->isEnclosureSelected());
     QCOMPARE(window->undoStack().count(), 2);
+}
+
+// The right button mid-move opens no menu: the menu would take the mouse and the left release would
+// never end the move. Like the middle button, it leaves the move running. These events go through
+// the window, as the platform sends them, so an open popup would get them.
+void TestPlacing::rightClickDuringAMoveOpensNoMenu()
+{
+    const QString qf = addPreset(window->project(), "breaker-1p-c10", 0, 0);
+    DeviceItem *item = deviceItem(scene, qf);
+    QWindow *handle = window->windowHandle();
+    const QPoint p5 = windowPoint(at(0, 5, 1));
+    QTest::mousePress(handle, Qt::LeftButton, {}, windowPoint(at(0, 0, 1)));
+    QTest::mouseMove(handle, p5);
+    QCOMPARE(item->pos(), scene->slotRect(0, 5, 1).topLeft());
+    QTest::mousePress(handle, Qt::RightButton, {}, p5);
+    QTest::mouseRelease(handle, Qt::RightButton, {}, p5);
+    QTest::mouseRelease(handle, Qt::LeftButton, {}, p5);
+    QTest::keyClick(handle, Qt::Key_Escape); // closes a menu, if one opened
+    const auto [row, module] = position(qf);
+    QCOMPARE(item->pos(), scene->slotRect(row, module, 1).topLeft());
+    QVERIFY(!item->isRefused());
+    QCOMPARE(item->zValue(), DeviceItem::PlacedZ);
+    QCOMPARE(position(qf), std::pair(0, 5));
+    QCOMPARE(window->undoStack().count(), 1);
+
+    // A drag on the empty interior afterwards doesn't take the device along.
+    const QPoint interior = viewportPoint(canvas, kEnclosureInterior);
+    mouseDrag(canvas->viewport(), interior, interior - (at(0, 2, 1) - at(0, 0, 1)));
+    QCOMPARE(position(qf), std::pair(0, 5));
+    QCOMPARE(item->pos(), scene->slotRect(0, 5, 1).topLeft());
+    QCOMPARE(window->undoStack().count(), 1);
+    QVERIFY(scene->isEnclosureSelected());
+}
+
+// A popup opened mid-move (a menu opened from the keyboard, say) takes the left release. The next
+// press ends that move: the device goes back to its slot, and the press doesn't drag it along.
+void TestPlacing::nextPressEndsAMoveThatLostItsRelease()
+{
+    const QString qf = addPreset(window->project(), "breaker-1p-c10", 0, 6);
+    DeviceItem *item = deviceItem(scene, qf);
+    QWindow *handle = window->windowHandle();
+    const QPoint p9 = windowPoint(at(0, 9, 1));
+    QTest::mousePress(handle, Qt::LeftButton, {}, windowPoint(at(0, 6, 1)));
+    QTest::mouseMove(handle, p9);
+    QCOMPARE(item->pos(), scene->slotRect(0, 9, 1).topLeft());
+    auto *menu = window->findChild<QMenu *>(QStringLiteral("editMenu"));
+    QVERIFY(menu);
+    menu->popup(window->mapToGlobal(QPoint(0, 0)));
+    QTRY_VERIFY(menu->isVisible());
+    QTest::mouseRelease(handle, Qt::LeftButton, {}, p9);
+    QTest::keyClick(handle, Qt::Key_Escape);
+    QTRY_VERIFY(!menu->isVisible());
+
+    const QPoint interior = viewportPoint(canvas, kEnclosureInterior);
+    mouseDrag(canvas->viewport(), interior, interior - (at(0, 2, 1) - at(0, 0, 1)));
+    QCOMPARE(item->pos(), scene->slotRect(0, 6, 1).topLeft());
+    QVERIFY(!item->isRefused());
+    QCOMPARE(item->zValue(), DeviceItem::PlacedZ);
+    QCOMPARE(position(qf), std::pair(0, 6));
+    QCOMPARE(window->undoStack().count(), 0);
+    QVERIFY(scene->isEnclosureSelected());
 }
 
 void TestPlacing::closesWhileSelectedOrDragging()
