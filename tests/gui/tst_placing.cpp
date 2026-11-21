@@ -62,6 +62,7 @@ private slots:
     void otherButtonsDontBreakAMove();
     void rightClickDuringAMoveOpensNoMenu();
     void nextPressEndsAMoveThatLostItsRelease();
+    void escapeCancelsAMove();
     void closesWhileSelectedOrDragging();
 
 private:
@@ -435,6 +436,30 @@ void TestPlacing::nextPressEndsAMoveThatLostItsRelease()
     QCOMPARE(position(qf), std::pair(0, 6));
     QCOMPARE(window->undoStack().count(), 0);
     QVERIFY(scene->isEnclosureSelected());
+}
+
+void TestPlacing::escapeCancelsAMove()
+{
+    const QString qf = addPreset(window->project(), "breaker-1p-c10", 0, 6);
+    addPreset(window->project(), "breaker-1p-c10", 0, 9);
+    DeviceItem *item = deviceItem(scene, qf);
+    QWidget *viewport = canvas->viewport();
+    QTest::mousePress(viewport, Qt::LeftButton, {}, at(0, 6, 1));
+    QTest::mouseMove(viewport, at(0, 9, 1));
+    QVERIFY(item->isRefused());
+    QCOMPARE(QApplication::focusWidget(), canvas);
+    QTest::keyClick(QApplication::focusWidget(), Qt::Key_Escape);
+    QCOMPARE(item->pos(), scene->slotRect(0, 6, 1).topLeft());
+    QVERIFY(!item->isRefused());
+    QCOMPARE(item->zValue(), DeviceItem::PlacedZ);
+
+    // The rest of the drag no longer moves the device.
+    QTest::mouseMove(viewport, at(0, 3, 1));
+    QCOMPARE(item->pos(), scene->slotRect(0, 6, 1).topLeft());
+    QTest::mouseRelease(viewport, Qt::LeftButton, {}, at(0, 3, 1));
+    QCOMPARE(position(qf), std::pair(0, 6));
+    QCOMPARE(window->undoStack().count(), 0);
+    QCOMPARE(scene->selectedDeviceId(), qf);
 }
 
 void TestPlacing::closesWhileSelectedOrDragging()

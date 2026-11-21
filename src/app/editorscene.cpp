@@ -10,6 +10,7 @@
 #include <QApplication>
 #include <QGraphicsSceneDragDropEvent>
 #include <QGraphicsSceneMouseEvent>
+#include <QKeyEvent>
 #include <QMenu>
 #include <QMimeData>
 #include <QSvgRenderer>
@@ -216,6 +217,17 @@ void EditorScene::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event)
     QGraphicsScene::mouseDoubleClickEvent(event);
     // The press of a quick second drag arrives as a double click.
     pressDevice(event);
+}
+
+// Esc cancels a move.
+void EditorScene::keyPressEvent(QKeyEvent *event)
+{
+    if (event->key() != Qt::Key_Escape || m_movingId.isEmpty()) {
+        QGraphicsScene::keyPressEvent(event);
+        return;
+    }
+    cancelMove();
+    event->accept();
 }
 
 // Other buttons pressed during a move leave it running.
