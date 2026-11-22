@@ -14,6 +14,8 @@
 #include <QEvent>
 #include <QFormLayout>
 #include <QJsonArray>
+#include <QKeyEvent>
+#include <QKeySequence>
 #include <QLabel>
 #include <QLocale>
 #include <QSpinBox>
@@ -188,6 +190,8 @@ PropertiesPanel::PropertiesPanel(Project &project, QUndoStack &undoStack, Editor
         refresh();
     });
     connect(&m_project, &Project::changed, this, &PropertiesPanel::refresh);
+    m_power->installEventFilter(this);
+    m_length->installEventFilter(this);
     retranslate();
 }
 
@@ -196,6 +200,22 @@ void PropertiesPanel::changeEvent(QEvent *event)
     if (event->type() == QEvent::LanguageChange)
         retranslate();
     QWidget::changeEvent(event);
+}
+
+// The fields keep the focus after Enter, and their own text undo would take the undo and redo keys.
+// Not taking them over lets the window's Undo and Redo fire (ADR 0026); the refresh after an undo
+// or redo shows the model's value in place of one still being typed.
+bool PropertiesPanel::eventFilter(QObject *watched, QEvent *event)
+{
+    if (event->type() == QEvent::ShortcutOverride) {
+        const auto *key = static_cast<QKeyEvent *>(event);
+        const QKeyCombination combination = key->keyCombination();
+        if (key->matches(QKeySequence::Undo) || key->matches(QKeySequence::Redo)
+            || combination == (Qt::CTRL | Qt::Key_Y)
+            || combination == (Qt::CTRL | Qt::SHIFT | Qt::Key_Z))
+            return true; // left unaccepted, so the shortcut goes ahead
+    }
+    return QWidget::eventFilter(watched, event);
 }
 
 void PropertiesPanel::retranslate()

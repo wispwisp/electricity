@@ -59,6 +59,7 @@ private slots:
     void directSwitchCommitsTypedValueToItsObject();
     void refusesShrinkWhenLoadsWouldCollide();
     void panelFollowsUndoOfSelectedLoad();
+    void undoAndRedoKeysWorkInTheFields();
     void loadPropertiesTranslated();
 
 private:
@@ -567,7 +568,7 @@ void TestProperties::typeInto(QAbstractSpinBox *spin, const QString &text)
     QTest::keyClicks(spin, text);
 }
 
-// The field keeps the focus after Enter, and with it Ctrl+Z, so this undoes like a user would.
+// Undoes from the toolbar, like a user would with the mouse.
 void TestProperties::clickUndo()
 {
     QTest::mouseClick(named<QToolBar>("editToolBar")->widgetForAction(named<QAction>("undoAction")),
@@ -822,6 +823,60 @@ void TestProperties::panelFollowsUndoOfSelectedLoad()
     QVERIFY(hint->isVisible());
     QCOMPARE(hint->text(), QStringLiteral("Select a device on the panel to see its properties."));
     QVERIFY(!named<QWidget>("loadBox")->isVisible());
+}
+
+// The fields keep the focus after Enter; the undo and redo keys still reach the window's Undo and
+// Redo (ADR 0026), not the field's own text history.
+void TestProperties::undoAndRedoKeysWorkInTheFields()
+{
+    addLoads();
+    addLoadWires();
+    Project &project = window->project();
+    clickLoad(lamp);
+    auto *power = named<QSpinBox>("powerSpin");
+    typeInto(power, "15");
+    QTest::keyClick(power, Qt::Key_Return);
+    QCOMPARE(project.load(lamp)->power, 15);
+    QVERIFY(power->hasFocus());
+    QTest::keyClick(power, Qt::Key_Z, Qt::ControlModifier);
+    QCOMPARE(project.load(lamp)->power, 10);
+    QCOMPARE(power->value(), 10);
+    QTest::keyClick(power, Qt::Key_Z, Qt::ControlModifier | Qt::ShiftModifier);
+    QCOMPARE(project.load(lamp)->power, 15);
+    QTest::keyClick(power, Qt::Key_Z, Qt::ControlModifier);
+    QCOMPARE(project.load(lamp)->power, 10);
+    QTest::keyClick(power, Qt::Key_Y, Qt::ControlModifier);
+    QCOMPARE(project.load(lamp)->power, 15);
+    QCOMPARE(power->value(), 15);
+
+    selectWire(lampWires[0]);
+    auto *length = named<QDoubleSpinBox>("lengthSpin");
+    typeInto(length, "8");
+    QTest::keyClick(length, Qt::Key_Return);
+    QCOMPARE(project.wire(lampWires[0])->length, 8.0);
+    QVERIFY(length->hasFocus());
+    QTest::keyClick(length, Qt::Key_Z, Qt::ControlModifier);
+    QCOMPARE(project.wire(lampWires[0])->length, LoadWireLength);
+    QCOMPARE(length->value(), LoadWireLength);
+    QTest::keyClick(length, Qt::Key_Z, Qt::ControlModifier | Qt::ShiftModifier);
+    QCOMPARE(project.wire(lampWires[0])->length, 8.0);
+    QTest::keyClick(length, Qt::Key_Z, Qt::ControlModifier);
+    QCOMPARE(project.wire(lampWires[0])->length, LoadWireLength);
+    QTest::keyClick(length, Qt::Key_Y, Qt::ControlModifier);
+    QCOMPARE(project.wire(lampWires[0])->length, 8.0);
+    QCOMPARE(length->value(), 8.0);
+
+    // A value typed but not sent is dropped: the field shows the model's value after the undo, and
+    // leaving the field sends nothing.
+    const int undoCount = window->undoStack().count();
+    typeInto(length, "6");
+    QTest::keyClick(length, Qt::Key_Z, Qt::ControlModifier);
+    QCOMPARE(project.wire(lampWires[0])->length, LoadWireLength);
+    QCOMPARE(length->text(), QStringLiteral("15.0 m"));
+    clickLoad(lamp);
+    QCOMPARE(project.wire(lampWires[0])->length, LoadWireLength);
+    QCOMPARE(window->undoStack().count(), undoCount);
+    QCOMPARE(window->undoStack().index(), undoCount - 1);
 }
 
 void TestProperties::loadPropertiesTranslated()
