@@ -161,9 +161,10 @@ bool Project::fitsEnclosure(QStringView enclosureId) const
     if (!candidate)
         return false;
     const int perRow = candidate->modules / candidate->rows;
-    return keepsBarWires(enclosureId) && std::ranges::all_of(m_devices, [&](const PlacedDevice &d) {
-               return d.row < candidate->rows && d.module + moduleWidth(d) <= perRow;
-           });
+    return keepsBarWires(enclosureId) && keepsLoadsClear(enclosureId)
+            && std::ranges::all_of(m_devices, [&](const PlacedDevice &d) {
+                   return d.row < candidate->rows && d.module + moduleWidth(d) <= perRow;
+               });
 }
 
 const SupplyType &Project::supply() const
@@ -373,6 +374,9 @@ bool Project::setEnclosure(const QString &enclosureId)
     const EnclosureType *next = findEnclosure(enclosureId);
     if (next == m_enclosure)
         return true;
+    const qreal shift = next->size.height() - m_enclosure->size.height();
+    for (const qsizetype i : loadsBelowEnclosure())
+        m_loads[i].position.ry() += shift;
     m_enclosure = next;
     emit changed();
     emit enclosureChanged();
@@ -489,6 +493,38 @@ QRectF Project::loadOutline(const PlacedLoad &load) const
     for (int place = 1; place <= type->places.size(); ++place)
         outline = outline.united(plugPlaceRect(load, place));
     return outline;
+}
+
+// The loads that follow the bottom edge: unplugged ones whose outline top is at or below it. The
+// set is the same for a change and its reverse, so undo needs no extra state.
+QList<qsizetype> Project::loadsBelowEnclosure() const
+{
+    QList<qsizetype> below;
+    for (qsizetype i = 0; i < m_loads.size(); ++i) {
+        if (m_loads[i].socket.isEmpty()
+            && loadOutline(m_loads[i]).top() >= m_enclosure->size.height())
+            below << i;
+    }
+    return below;
+}
+
+bool Project::keepsLoadsClear(QStringView enclosureId) const
+{
+    const EnclosureType *candidate = findEnclosure(enclosureId);
+    if (!candidate)
+        return false;
+    const qreal shift = candidate->size.height() - m_enclosure->size.height();
+    const QList<qsizetype> below = loadsBelowEnclosure();
+    for (qsizetype i = 0; i < m_loads.size(); ++i) {
+        if (below.contains(i) || !m_loads[i].socket.isEmpty())
+            continue;
+        const QRectF stays = loadOutline(m_loads[i]);
+        if (std::ranges::any_of(below, [&](qsizetype j) {
+                return loadOutline(m_loads[j]).translated(0, shift).intersects(stays);
+            }))
+            return false;
+    }
+    return true;
 }
 
 QStringList Project::pluggedInto(QStringView socketId) const

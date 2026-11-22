@@ -57,6 +57,9 @@ private slots:
     void removingSocketUnplugsItsAppliances();
     void updateLoadRules();
     void removeUnknownLoadIsRefused();
+    void growingEnclosureMovesLoadsBelow();
+    void shrinkingMovesThemBackUp();
+    void shrinkRefusedWhenLoadsWouldCollide();
 
 private:
     std::unique_ptr<Project> m_project;
@@ -252,6 +255,50 @@ void TestLoads::removeUnknownLoadIsRefused()
     QSignalSpy spy(m_project.get(), &Project::changed);
     QVERIFY(!m_project->removeLoad(u"l1"));
     QCOMPARE(spy.count(), 0);
+}
+
+void TestLoads::growingEnclosureMovesLoadsBelow()
+{
+    m_project->addLoad(load("ceiling-lamp", { 0, 260 }));
+    m_project->addLoad(load("ceiling-lamp", { 300, 100 }));
+    m_project->addLoad(load("socket", { 90, 270 }));
+    m_project->addLoad(plugged("kettle", u"l3"_s, 1));
+    const QPointF kettleBefore = m_project->loadPosition(*m_project->load(u"l4"));
+    QSignalSpy spy(m_project.get(), &Project::changed);
+    QVERIFY(m_project->setEnclosure(u"enclosure-24"_s));
+    QCOMPARE(spy.count(), 1);
+    QCOMPARE(m_project->load(u"l1")->position, QPointF(0, 384));
+    QCOMPARE(m_project->load(u"l2")->position, QPointF(300, 100));
+    QCOMPARE(m_project->load(u"l3")->position, QPointF(90, 394));
+    QCOMPARE(m_project->loadPosition(*m_project->load(u"l4")), kettleBefore + QPointF(0, 124));
+}
+
+void TestLoads::shrinkingMovesThemBackUp()
+{
+    m_project->addLoad(load("ceiling-lamp", { 0, 260 }));
+    m_project->addLoad(load("ceiling-lamp", { 300, 100 }));
+    m_project->addLoad(load("socket", { 90, 270 }));
+    m_project->addLoad(plugged("kettle", u"l3"_s, 1));
+    QVERIFY(m_project->setEnclosure(u"enclosure-24"_s));
+    QVERIFY(m_project->setEnclosure(u"enclosure-12"_s));
+    QCOMPARE(m_project->load(u"l1")->position, QPointF(0, 260));
+    QCOMPARE(m_project->load(u"l2")->position, QPointF(300, 100));
+    QCOMPARE(m_project->load(u"l3")->position, QPointF(90, 270));
+}
+
+void TestLoads::shrinkRefusedWhenLoadsWouldCollide()
+{
+    QVERIFY(m_project->setEnclosure(u"enclosure-24"_s));
+    m_project->addLoad(load("ceiling-lamp", { 300, 300 }));
+    m_project->addLoad(load("ceiling-lamp", { 300, 400 }));
+    QVERIFY(!m_project->keepsLoadsClear(u"enclosure-12"_s));
+    QVERIFY(!m_project->fitsEnclosure(u"enclosure-12"_s));
+    QSignalSpy spy(m_project.get(), &Project::changed);
+    QVERIFY(!m_project->setEnclosure(u"enclosure-12"_s));
+    QCOMPARE(spy.count(), 0);
+    QCOMPARE(m_project->load(u"l1")->position, QPointF(300, 300));
+    QCOMPARE(m_project->load(u"l2")->position, QPointF(300, 400));
+    QCOMPARE(m_project->enclosure().id, u"enclosure-24"_s);
 }
 
 QTEST_APPLESS_MAIN(TestLoads)

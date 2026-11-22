@@ -168,6 +168,9 @@ public:
     // removes its wires; a socket's appliances stay where they hung, unplugged
     bool removeLoad(QStringView id);
     bool updateLoad(const PlacedLoad &load);
+    // false if moving the loads below the enclosure with its bottom edge would put one onto a load
+    // that stays, or the enclosure is unknown
+    [[nodiscard]] bool keepsLoadsClear(QStringView enclosureId) const;
 
 signals:
     void changed();          // after every successful mutation
@@ -175,6 +178,8 @@ signals:
 
 private:
     [[nodiscard]] const EnclosureType *findEnclosure(QAnyStringView id) const;
+    // indices in m_loads of the loads that follow the enclosure's bottom edge
+    [[nodiscard]] QList<qsizetype> loadsBelowEnclosure() const;
 
     const Catalog &m_catalog;
     const EnclosureType *m_enclosure;
