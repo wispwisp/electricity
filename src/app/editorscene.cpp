@@ -528,7 +528,8 @@ void EditorScene::clickTerminal(const QString &terminalId)
 void EditorScene::finishWire(const QString &end)
 {
     const Conductor conductor = m_project.conductorFor(m_wireStart, end);
-    const Wire wire{ {}, m_wireStart, end, m_wireSection, conductor };
+    const double length = m_project.newWireLength(m_wireStart, end);
+    const Wire wire{ {}, m_wireStart, end, m_wireSection, conductor, length };
     const WireCheck check = m_project.wireCheck(wire);
     if (check == WireCheck::Ok) {
         m_wireStart.clear();

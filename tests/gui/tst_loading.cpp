@@ -16,7 +16,10 @@
 
 #include <QAction>
 #include <QApplication>
+#include <QComboBox>
+#include <QDoubleSpinBox>
 #include <QElapsedTimer>
+#include <QGraphicsLineItem>
 #include <QHash>
 #include <QMenu>
 #include <QStatusBar>
@@ -54,6 +57,9 @@ private slots:
     void escCancelsLoadMove();
     void nextPressEndsALoadMoveThatLostItsRelease();
     void noLoadMovesUnderWireTool();
+    void drawnLoadWiresStartAt15mAndJoinTheirCable();
+    void undoCancelsWireFromRemovedLoad();
+    void roadmapScenario();
 
 private:
     [[nodiscard]] LoadItem *loadItem(const QString &id) const;
@@ -78,6 +84,10 @@ private:
     // The status bar text; cleared by clearMessage, so a test sees the hint of its last drop.
     [[nodiscard]] QString message() const;
     void clearMessage();
+    void clickWireButton();
+    // Chooses the section of new wires in the toolbar combo.
+    void chooseSection(double section);
+    void clickTerminal(const QString &id);
     template<typename T>
     T *named(const char *name) const
     {
@@ -194,6 +204,26 @@ QString TestLoading::message() const
 void TestLoading::clearMessage()
 {
     window->statusBar()->clearMessage();
+}
+
+void TestLoading::clickWireButton()
+{
+    QTest::mouseClick(named<QToolBar>("editToolBar")->widgetForAction(named<QAction>("wireAction")),
+                      Qt::LeftButton);
+}
+
+void TestLoading::chooseSection(double section)
+{
+    auto *combo = named<QComboBox>("wireSectionCombo");
+    QVERIFY(combo);
+    chooseComboItem(combo, combo->itemText(combo->findData(section)));
+    QCOMPARE(scene->wireSection(), section);
+}
+
+void TestLoading::clickTerminal(const QString &id)
+{
+    QTest::mouseClick(canvas->viewport(), Qt::LeftButton, {},
+                      viewportPoint(canvas, scene->terminalPos(id)));
 }
 
 void TestLoading::initTestCase()
@@ -781,6 +811,187 @@ void TestLoading::noLoadMovesUnderWireTool()
     QCOMPARE(loadItem(lamp)->pos(), QPointF(0, 270));
     QCOMPARE(loadItem(lamp)->zValue(), LoadItem::PlacedZ);
     QCOMPARE(window->undoStack().count(), 0);
+}
+
+void TestLoading::drawnLoadWiresStartAt15mAndJoinTheirCable()
+{
+    lamp = addLoad("ceiling-lamp", QPointF(0, 270));
+    QVERIFY(!lamp.isEmpty());
+    Project &project = window->project();
+    clickWireButton();
+    QVERIFY(scene->isWireMode());
+
+    clickTerminal("d3:2");
+    clickTerminal(lamp + ":L");
+    const Wire first = project.wires().last();
+    QCOMPARE(first.from, QStringLiteral("d3:2"));
+    QCOMPARE(first.to, lamp + ":L");
+    QCOMPARE(first.length, LoadWireLength);
+    QCOMPARE(scene->selectedWireId(), first.id);
+
+    auto *length = named<QDoubleSpinBox>("lengthSpin");
+    QVERIFY(length);
+    QVERIFY(length->isVisible());
+    QCOMPARE(length->value(), LoadWireLength);
+    QTest::mouseClick(length, Qt::LeftButton, {},
+                      QPoint(length->width() / 4, length->height() / 2));
+    QVERIFY(length->hasFocus());
+    QTest::keyClick(length, Qt::Key_A, Qt::ControlModifier);
+    QTest::keyClicks(length, "8");
+    QTest::keyClick(length, Qt::Key_Return);
+    QCOMPARE(project.wire(first.id)->length, 8.0);
+
+    clickTerminal("nbar:2");
+    clickTerminal(lamp + ":N");
+    QCOMPARE(project.wires().last().from, QStringLiteral("nbar:2"));
+    QCOMPARE(project.wires().last().to, lamp + ":N");
+    QCOMPARE(project.wires().last().length, 8.0);
+
+    // The tutorial already joins QF1 2 to QD1 1: that wire is removed, then drawn again.
+    const auto tutorialWire = std::ranges::find_if(project.wires(), [](const Wire &wire) {
+        return wire.from == QStringLiteral("d1:2") && wire.to == QStringLiteral("d2:1");
+    });
+    QVERIFY(tutorialWire != project.wires().end());
+    const QString tutorialWireId = tutorialWire->id;
+    QVERIFY(project.removeWire(tutorialWireId));
+    clickTerminal("d1:2");
+    clickTerminal("d2:1");
+    QCOMPARE(project.wires().last().from, QStringLiteral("d1:2"));
+    QCOMPARE(project.wires().last().to, QStringLiteral("d2:1"));
+    QCOMPARE(project.wires().last().length, 0.3);
+}
+
+void TestLoading::undoCancelsWireFromRemovedLoad()
+{
+    const Project &project = window->project();
+    drop("ceiling-lamp", QPointF(18, 288));
+    QCOMPARE(project.loads().size(), 1);
+    const QString dropped = project.loads().last().id;
+    clickWireButton();
+    QVERIFY(scene->isWireMode());
+    clickTerminal(dropped + ":L");
+    QCOMPARE(scene->wireStart(), dropped + ":L");
+    auto *preview = qgraphicsitem_cast<QGraphicsLineItem *>(sceneItem(scene, "wirePreview"));
+    QVERIFY(preview);
+    QVERIFY(preview->isVisible());
+
+    QTest::keyClick(window.get(), Qt::Key_Z, Qt::ControlModifier);
+    QVERIFY(project.loads().isEmpty());
+    QVERIFY(scene->wireStart().isEmpty());
+    QVERIFY(!preview->isVisible());
+    QVERIFY(scene->isWireMode());
+
+    clickTerminal("d3:2");
+    QCOMPARE(scene->wireStart(), QStringLiteral("d3:2"));
+}
+
+// The F07 roadmap scenario on the tutorial panel, all through the UI.
+void TestLoading::roadmapScenario()
+{
+    Project &project = window->project();
+    const qsizetype panelWires = project.wires().size(); // w1 to w9
+
+    // A lamp and a socket below the enclosure, and a kettle plugged into the socket.
+    drop("ceiling-lamp", QPointF(18, 288));
+    drop("socket", QPointF(117, 283.5));
+    QCOMPARE(project.loads().size(), 2);
+    lamp = project.loads()[0].id;
+    socket = project.loads()[1].id;
+    QCOMPARE(project.load(lamp)->position, QPointF(0, 270));
+    QCOMPARE(project.load(socket)->position, QPointF(90, 270));
+    QVERIFY(saveScreenshot(*window, "f07", "scenario-placed"));
+    drop("kettle", project.plugPlaceRect(*project.load(socket), 1).center());
+    QCOMPARE(project.loads().size(), 3);
+    kettle = project.loads()[2].id;
+    QCOMPARE(project.load(kettle)->type, QStringLiteral("kettle"));
+    QVERIFY(saveScreenshot(*window, "f07", "scenario-plugged"));
+
+    // The lighting line in 1.5 mm², the socket line in 2.5 mm².
+    clickWireButton();
+    QVERIFY(scene->isWireMode());
+    chooseSection(1.5);
+    clickTerminal("d3:2");
+    clickTerminal(lamp + ":L");
+    clickTerminal("nbar:2");
+    clickTerminal(lamp + ":N");
+    clickTerminal("pebar:2");
+    clickTerminal(lamp + ":PE");
+    chooseSection(2.5);
+    clickTerminal("d4:2");
+    clickTerminal(socket + ":L");
+    clickTerminal("nbar:3");
+    clickTerminal(socket + ":N");
+    clickTerminal("pebar:3");
+    clickTerminal(socket + ":PE");
+    QVERIFY(saveScreenshot(*window, "f07", "scenario-wired"));
+
+    QCOMPARE(project.loads().size(), 3);
+    QCOMPARE(project.pluggedInto(socket), QStringList{ kettle });
+    QCOMPARE(project.load(kettle)->place, 1);
+    QCOMPARE(project.wires().size(), panelWires + 6);
+    QCOMPARE(project.wires().mid(panelWires),
+             (QList<Wire>{
+                     Wire{ "w10", "d3:2", lamp + ":L", 1.5, Conductor::L, LoadWireLength },
+                     Wire{ "w11", "nbar:2", lamp + ":N", 1.5, Conductor::N, LoadWireLength },
+                     Wire{ "w12", "pebar:2", lamp + ":PE", 1.5, Conductor::PE, LoadWireLength },
+                     Wire{ "w13", "d4:2", socket + ":L", 2.5, Conductor::L, LoadWireLength },
+                     Wire{ "w14", "nbar:3", socket + ":N", 2.5, Conductor::N, LoadWireLength },
+                     Wire{ "w15", "pebar:3", socket + ":PE", 2.5, Conductor::PE,
+                           LoadWireLength } }));
+
+    // Deleting the socket takes its wires, and the kettle stays where it hung, unplugged.
+    clickWireButton();
+    QVERIFY(!scene->isWireMode());
+    const QList<PlacedLoad> loads = project.loads();
+    const QList<Wire> wires = project.wires();
+    QTest::mouseClick(canvas->viewport(), Qt::LeftButton, {}, onPicture(socket));
+    QCOMPARE(scene->selectedLoadId(), socket);
+    canvas->setFocus();
+    QTest::keyClick(canvas, Qt::Key_Delete);
+    QVERIFY(!project.load(socket));
+    QVERIFY(!sceneItem(scene, socket));
+    QCOMPARE(project.wires(), wires.first(panelWires + 3));
+    QCOMPARE(project.load(kettle)->socket, QString());
+    QCOMPARE(project.load(kettle)->place, 0);
+    QCOMPARE(project.load(kettle)->position, QPointF(76.5, 310.5));
+    QCOMPARE(loadItem(kettle)->pos(), QPointF(76.5, 310.5));
+    QVERIFY(saveScreenshot(*window, "f07", "scenario-socket-deleted"));
+
+    QTest::keyClick(window.get(), Qt::Key_Z, Qt::ControlModifier);
+    QCOMPARE(project.loads(), loads);
+    QCOMPARE(project.wires(), wires);
+    for (const PlacedLoad &load : loads)
+        QCOMPARE(loadItem(load.id)->pos(), project.loadPosition(load));
+    for (const Wire &wire : wires)
+        QVERIFY2(wireItem(wire.id), qPrintable(wire.id));
+    QVERIFY(saveScreenshot(*window, "f07", "scenario-undone"));
+
+    // A 24-module enclosure is 124 taller: the loads below it move down, and their wires follow.
+    QHash<QString, QPointF> positions;
+    for (const PlacedLoad &load : loads)
+        positions.insert(load.id, project.loadPosition(load));
+    QTest::mouseClick(canvas->viewport(), Qt::LeftButton, {},
+                      viewportPoint(canvas, scene->slotRect(0, 9, 1).center()));
+    QVERIFY(scene->isEnclosureSelected());
+    chooseComboItem(named<QComboBox>("enclosureSizeCombo"), "24");
+    QCOMPARE(project.enclosure().id, QStringLiteral("enclosure-24"));
+    QCOMPARE(project.load(lamp)->position, QPointF(0, 394));
+    QCOMPARE(project.load(socket)->position, QPointF(90, 394));
+    QCOMPARE(project.pluggedInto(socket), QStringList{ kettle });
+    for (const PlacedLoad &load : project.loads()) {
+        QCOMPARE(project.loadPosition(load), positions.value(load.id) + QPointF(0, 124));
+        QCOMPARE(loadItem(load.id)->pos(), project.loadPosition(load));
+    }
+    QCOMPARE(project.wires(), wires);
+    QCOMPARE(scene->terminalPos(lamp + ":L"), QPointF(9, 398.5));
+    QCOMPARE(scene->terminalPos(socket + ":L"), QPointF(103.5, 398.5));
+    for (const Wire &wire : wires) {
+        const QPolygonF route = wireItem(wire.id)->route();
+        QVERIFY2(route.size() >= 2, qPrintable(wire.id));
+        QCOMPARE(route.first(), scene->terminalPos(wire.from));
+        QCOMPARE(route.last(), scene->terminalPos(wire.to));
+    }
+    QVERIFY(saveScreenshot(*window, "f07", "scenario-enclosure-24"));
 }
 
 QTEST_MAIN(TestLoading)
