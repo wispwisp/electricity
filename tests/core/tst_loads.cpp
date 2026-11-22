@@ -60,6 +60,8 @@ private slots:
     void growingEnclosureMovesLoadsBelow();
     void shrinkingMovesThemBackUp();
     void shrinkRefusedWhenLoadsWouldCollide();
+    void shrinkMovesLoadsBelowPastLoadsBeside();
+    void setEnclosureMovesExactlyTheGivenLoads();
     void newWireLengthDependsOnEnds();
     void cableGroupsWiresBySides();
     void setCableLengthSetsEveryWire();
@@ -329,6 +331,42 @@ void TestLoads::shrinkRefusedWhenLoadsWouldCollide()
     QCOMPARE(spy.count(), 0);
     QCOMPARE(m_project->load(u"l1")->position, QPointF(300, 300));
     QCOMPARE(m_project->load(u"l2")->position, QPointF(300, 400));
+    QCOMPARE(m_project->enclosure().id, u"enclosure-24"_s);
+}
+
+void TestLoads::shrinkMovesLoadsBelowPastLoadsBeside()
+{
+    QVERIFY(m_project->setEnclosure(u"enclosure-24"_s));
+    m_project->addLoad(load("ceiling-lamp", { 300, 300 }));
+    m_project->addLoad(load("ceiling-lamp", { 300, 480 }));
+    QCOMPARE(m_project->loadsBelowEnclosure(), QStringList{ u"l2"_s });
+    QVERIFY(m_project->keepsLoadsClear(u"enclosure-12"_s));
+    QSignalSpy spy(m_project.get(), &Project::changed);
+    QVERIFY(m_project->setEnclosure(u"enclosure-12"_s));
+    QCOMPARE(spy.count(), 1);
+    QCOMPARE(m_project->load(u"l1")->position, QPointF(300, 300));
+    QCOMPARE(m_project->load(u"l2")->position, QPointF(300, 356));
+}
+
+// After a shrink the lamp beside is below the bottom edge too; going back moves only the lamp the
+// shrink moved.
+void TestLoads::setEnclosureMovesExactlyTheGivenLoads()
+{
+    QVERIFY(m_project->setEnclosure(u"enclosure-24"_s));
+    m_project->addLoad(load("ceiling-lamp", { 300, 300 }));
+    m_project->addLoad(load("ceiling-lamp", { 300, 480 }));
+    QVERIFY(m_project->setEnclosure(u"enclosure-12"_s));
+    QCOMPARE(m_project->loadsBelowEnclosure(), (QStringList{ u"l1"_s, u"l2"_s }));
+    QVERIFY(m_project->setEnclosure(u"enclosure-24"_s, { u"l2"_s }));
+    QCOMPARE(m_project->load(u"l1")->position, QPointF(300, 300));
+    QCOMPARE(m_project->load(u"l2")->position, QPointF(300, 480));
+
+    // The given loads are checked against all others, which stay.
+    m_project->addLoad(load("ceiling-lamp", { 300, 600 }));
+    QVERIFY(m_project->keepsLoadsClear(u"enclosure-12"_s));
+    QVERIFY(!m_project->keepsLoadsClear(u"enclosure-12"_s, { u"l3"_s }));
+    QVERIFY(!m_project->setEnclosure(u"enclosure-12"_s, { u"l3"_s }));
+    QCOMPARE(m_project->load(u"l3")->position, QPointF(300, 600));
     QCOMPARE(m_project->enclosure().id, u"enclosure-24"_s);
 }
 

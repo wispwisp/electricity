@@ -34,7 +34,9 @@ This refines 0007, 0009, 0010 and 0023.
   at 15 m, or takes its cable's length. Length stays per wire; a cable object
   was rejected as another entity to store and undo.
 - Loads below the enclosure follow its bottom edge when the enclosure size
-  changes; a shrink that makes loads collide is refused.
+  changes; a shrink that makes loads collide is refused. The size change
+  remembers which loads it moved, and its undo moves exactly those back: after
+  a shrink, a load beside the enclosure can be below the new bottom edge.
 
 ## Rejected alternatives
 

@@ -4,6 +4,7 @@
 #include "core/project.h"
 
 #include <QString>
+#include <QStringList>
 #include <QUndoCommand>
 
 // Callers check placement() / fitsEnclosure() before pushing; each command asserts its model call
@@ -100,6 +101,7 @@ private:
     Project &m_project;
     QString m_before;
     QString m_after;
+    QStringList m_movedLoads; // the loads below the enclosure when created; both ways move these
 };
 
 class AddLoadCommand : public QUndoCommand

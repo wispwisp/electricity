@@ -157,11 +157,16 @@ QString Project::designation(QStringView id) const
 
 bool Project::fitsEnclosure(QStringView enclosureId) const
 {
+    return fitsEnclosure(enclosureId, loadsBelowEnclosure());
+}
+
+bool Project::fitsEnclosure(QStringView enclosureId, const QStringList &movedLoadIds) const
+{
     const EnclosureType *candidate = findEnclosure(enclosureId);
     if (!candidate)
         return false;
     const int perRow = candidate->modules / candidate->rows;
-    return keepsBarWires(enclosureId) && keepsLoadsClear(enclosureId)
+    return keepsBarWires(enclosureId) && keepsLoadsClear(enclosureId, movedLoadIds)
             && std::ranges::all_of(m_devices, [&](const PlacedDevice &d) {
                    return d.row < candidate->rows && d.module + moduleWidth(d) <= perRow;
                });
@@ -369,14 +374,21 @@ bool Project::updateDevice(const PlacedDevice &device)
 
 bool Project::setEnclosure(const QString &enclosureId)
 {
-    if (!fitsEnclosure(enclosureId))
+    return setEnclosure(enclosureId, loadsBelowEnclosure());
+}
+
+bool Project::setEnclosure(const QString &enclosureId, const QStringList &movedLoadIds)
+{
+    if (!fitsEnclosure(enclosureId, movedLoadIds))
         return false;
     const EnclosureType *next = findEnclosure(enclosureId);
     if (next == m_enclosure)
         return true;
     const qreal shift = next->size.height() - m_enclosure->size.height();
-    for (const qsizetype i : loadsBelowEnclosure())
-        m_loads[i].position.ry() += shift;
+    for (PlacedLoad &load : m_loads) {
+        if (movedLoadIds.contains(load.id))
+            load.position.ry() += shift;
+    }
     m_enclosure = next;
     emit changed();
     emit enclosureChanged();
@@ -539,32 +551,36 @@ QRectF Project::loadOutline(const PlacedLoad &load) const
     return outline;
 }
 
-// The loads that follow the bottom edge: unplugged ones whose outline top is at or below it. The
-// set is the same for a change and its reverse, so undo needs no extra state.
-QList<qsizetype> Project::loadsBelowEnclosure() const
+// The set is not the same for a change and its reverse: after a shrink, a load beside the enclosure
+// that stayed can reach below the new bottom edge. So an undo moves the loads its change moved.
+QStringList Project::loadsBelowEnclosure() const
 {
-    QList<qsizetype> below;
-    for (qsizetype i = 0; i < m_loads.size(); ++i) {
-        if (m_loads[i].socket.isEmpty()
-            && loadOutline(m_loads[i]).top() >= m_enclosure->size.height())
-            below << i;
+    QStringList below;
+    for (const PlacedLoad &load : m_loads) {
+        if (load.socket.isEmpty() && loadOutline(load).top() >= m_enclosure->size.height())
+            below << load.id;
     }
     return below;
 }
 
 bool Project::keepsLoadsClear(QStringView enclosureId) const
 {
+    return keepsLoadsClear(enclosureId, loadsBelowEnclosure());
+}
+
+bool Project::keepsLoadsClear(QStringView enclosureId, const QStringList &movedLoadIds) const
+{
     const EnclosureType *candidate = findEnclosure(enclosureId);
     if (!candidate)
         return false;
     const qreal shift = candidate->size.height() - m_enclosure->size.height();
-    const QList<qsizetype> below = loadsBelowEnclosure();
-    for (qsizetype i = 0; i < m_loads.size(); ++i) {
-        if (below.contains(i) || !m_loads[i].socket.isEmpty())
+    for (const PlacedLoad &stays : m_loads) {
+        if (movedLoadIds.contains(stays.id) || !stays.socket.isEmpty())
             continue;
-        const QRectF stays = loadOutline(m_loads[i]);
-        if (std::ranges::any_of(below, [&](qsizetype j) {
-                return loadOutline(m_loads[j]).translated(0, shift).intersects(stays);
+        const QRectF outline = loadOutline(stays);
+        if (std::ranges::any_of(m_loads, [&](const PlacedLoad &moved) {
+                return movedLoadIds.contains(moved.id)
+                        && loadOutline(moved).translated(0, shift).intersects(outline);
             }))
             return false;
     }

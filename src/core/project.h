@@ -146,6 +146,9 @@ public:
     // replaces the device with the same id
     bool updateDevice(const PlacedDevice &device);
     bool setEnclosure(const QString &enclosureId);
+    // the same, moving exactly these loads with the bottom edge; an undo passes the loads its
+    // change moved, as after a shrink a load beside the enclosure can be below the new bottom edge
+    bool setEnclosure(const QString &enclosureId, const QStringList &movedLoadIds);
 
     // same id and index rules as addDevice; returns the id, "" if refused
     QString addWire(Wire wire, qsizetype index = -1);
@@ -180,9 +183,15 @@ public:
     // removes its wires; a socket's appliances stay where they hung, unplugged
     bool removeLoad(QStringView id);
     bool updateLoad(const PlacedLoad &load);
+    // ids of the unplugged loads whose outline top is at or below the enclosure's bottom edge, in
+    // loads() order: the loads that follow the edge when the enclosure changes size
+    [[nodiscard]] QStringList loadsBelowEnclosure() const;
     // false if moving the loads below the enclosure with its bottom edge would put one onto a load
     // that stays, or the enclosure is unknown
     [[nodiscard]] bool keepsLoadsClear(QStringView enclosureId) const;
+    // the same, moving exactly these loads
+    [[nodiscard]] bool keepsLoadsClear(QStringView enclosureId,
+                                       const QStringList &movedLoadIds) const;
 
 signals:
     void changed();          // after every successful mutation
@@ -190,8 +199,9 @@ signals:
 
 private:
     [[nodiscard]] const EnclosureType *findEnclosure(QAnyStringView id) const;
-    // indices in m_loads of the loads that follow the enclosure's bottom edge
-    [[nodiscard]] QList<qsizetype> loadsBelowEnclosure() const;
+    // fitsEnclosure(), moving exactly these loads with the bottom edge
+    [[nodiscard]] bool fitsEnclosure(QStringView enclosureId,
+                                     const QStringList &movedLoadIds) const;
 
     const Catalog &m_catalog;
     const EnclosureType *m_enclosure;

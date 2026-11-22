@@ -155,18 +155,19 @@ SetEnclosureCommand::SetEnclosureCommand(Project &project, QString enclosureId)
     : m_project(project)
     , m_before(project.enclosure().id)
     , m_after(std::move(enclosureId))
+    , m_movedLoads(project.loadsBelowEnclosure())
 {
 }
 
 void SetEnclosureCommand::undo()
 {
-    [[maybe_unused]] const bool set = m_project.setEnclosure(m_before);
+    [[maybe_unused]] const bool set = m_project.setEnclosure(m_before, m_movedLoads);
     Q_ASSERT(set);
 }
 
 void SetEnclosureCommand::redo()
 {
-    [[maybe_unused]] const bool set = m_project.setEnclosure(m_after);
+    [[maybe_unused]] const bool set = m_project.setEnclosure(m_after, m_movedLoads);
     Q_ASSERT(set);
 }
 

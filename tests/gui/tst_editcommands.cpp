@@ -48,6 +48,8 @@ private slots:
     void updateLoadUndoRestoresPlugAndPower();
     void setCableLengthUndoRestoresEachWire();
     void setEnclosureUndoMovesLoadsBack();
+    void undoingShrinkMovesBackOnlyTheLoadsItMoved();
+    void undoAfterUndoneShrinkFindsItsPlaceFree();
 };
 
 void TestEditCommands::addUndoRedoKeepsId()
@@ -420,6 +422,51 @@ void TestEditCommands::setEnclosureUndoMovesLoadsBack()
 
     stack.undo();
     QCOMPARE(project.load(u"l1")->position, QPointF(0, 260));
+}
+
+// A lamp beside the enclosure reaching below its 12-module bottom edge stays put on the shrink, and
+// so on its undo, though it is then below the edge.
+void TestEditCommands::undoingShrinkMovesBackOnlyTheLoadsItMoved()
+{
+    Project project(embeddedCatalog());
+    QUndoStack stack;
+    stack.push(new SetEnclosureCommand(project, u"enclosure-24"_s));
+    stack.push(new AddLoadCommand(project, loadOf("ceiling-lamp", { 300, 300 }))); // beside
+    stack.push(new AddLoadCommand(project, loadOf("ceiling-lamp", { 0, 400 })));   // below
+
+    stack.push(new SetEnclosureCommand(project, u"enclosure-12"_s));
+    QCOMPARE(project.load(u"l1")->position, QPointF(300, 300));
+    QCOMPARE(project.load(u"l2")->position, QPointF(0, 276));
+
+    stack.undo();
+    QCOMPARE(project.enclosure().id, u"enclosure-24"_s);
+    QCOMPARE(project.load(u"l1")->position, QPointF(300, 300));
+    QCOMPARE(project.load(u"l2")->position, QPointF(0, 400));
+
+    stack.redo();
+    QCOMPARE(project.enclosure().id, u"enclosure-12"_s);
+    QCOMPARE(project.load(u"l1")->position, QPointF(300, 300));
+    QCOMPARE(project.load(u"l2")->position, QPointF(0, 276));
+}
+
+// The lamp beside stays where it was, so an earlier move undone after the shrink's undo finds its
+// old place free.
+void TestEditCommands::undoAfterUndoneShrinkFindsItsPlaceFree()
+{
+    Project project(embeddedCatalog());
+    QUndoStack stack;
+    stack.push(new SetEnclosureCommand(project, u"enclosure-24"_s));
+    stack.push(new AddLoadCommand(project, loadOf("ceiling-lamp", { 300, 300 }))); // beside
+    stack.push(new AddLoadCommand(project, loadOf("ceiling-lamp", { 300, 424 }))); // below it
+    PlacedLoad aside = *project.load(u"l2");
+    aside.position = { 400, 0 };
+    stack.push(new UpdateLoadCommand(project, aside));
+    stack.push(new SetEnclosureCommand(project, u"enclosure-12"_s));
+
+    stack.undo();
+    stack.undo();
+    QCOMPARE(project.load(u"l2")->position, QPointF(300, 424));
+    QCOMPARE(project.load(u"l1")->position, QPointF(300, 300));
 }
 
 QTEST_MAIN(TestEditCommands)
