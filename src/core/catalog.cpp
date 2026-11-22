@@ -33,6 +33,15 @@ const SupplyType *Catalog::supply(QStringView id) const
     return nullptr;
 }
 
+const LoadType *Catalog::loadType(QStringView id) const
+{
+    for (const LoadType &l : loads) {
+        if (l.id == id)
+            return &l;
+    }
+    return nullptr;
+}
+
 using namespace Qt::StringLiterals;
 
 namespace {
@@ -217,14 +226,18 @@ void loadEnclosures(const QJsonObject &root, Catalog &catalog, QStringList &erro
     QSet<QString> ids;
     for (const auto &ev : root.value("enclosures").toArray()) {
         const QJsonObject o = ev.toObject();
-        EnclosureType enclosure{
-            o.value("id").toString(),          o.value("modules").toInt(),
-            o.value("rows").toInt(),           o.value("nBarTerminals").toInt(),
-            o.value("peBarTerminals").toInt(), o.value("picture").toString()
-        };
+        EnclosureType enclosure{ o.value("id").toString(),
+                                 o.value("modules").toInt(),
+                                 o.value("rows").toInt(),
+                                 o.value("nBarTerminals").toInt(),
+                                 o.value("peBarTerminals").toInt(),
+                                 o.value("picture").toString(),
+                                 { o.value("width").toDouble(), o.value("height").toDouble() } };
         checkUnique(ids, enclosure.id, errors);
         if (enclosure.rows <= 0)
             errors << u"%1: rows must be positive"_s.arg(enclosure.id);
+        if (enclosure.size.width() <= 0 || enclosure.size.height() <= 0)
+            errors << u"%1: width and height must be positive"_s.arg(enclosure.id);
         catalog.enclosures << enclosure;
     }
 }
@@ -304,6 +317,66 @@ void loadProducts(const QJsonObject &root, Catalog &catalog, QStringList &errors
     }
 }
 
+void loadLoads(const QJsonObject &root, Catalog &catalog, QStringList &errors)
+{
+    QSet<QString> ids;
+    for (const auto &lv : root.value("loads").toArray()) {
+        const QJsonObject o = lv.toObject();
+        LoadType load;
+        load.id = o.value("id").toString();
+        load.name = o.value("name").toString();
+        load.description = o.value("description").toString();
+        load.caption = o.value("caption").toString();
+        load.picture = o.value("picture").toString();
+        load.size = { o.value("width").toDouble(), o.value("height").toDouble() };
+        load.power = o.value("power").toInt();
+        load.plugsIn = o.value("plugsIn").toBool();
+        for (const auto &pv : o.value("places").toArray()) {
+            const QJsonObject po = pv.toObject();
+            load.places << QPointF(po.value("x").toDouble(), po.value("y").toDouble());
+        }
+        checkUnique(ids, load.id, errors);
+        const QString where = u"load %1"_s.arg(load.id);
+        requireText(load.name, u"name"_s, where, errors);
+        requireText(load.description, u"description"_s, where, errors);
+        requireText(load.picture, u"picture"_s, where, errors);
+        if (load.size.width() <= 0 || load.size.height() <= 0)
+            errors << u"%1: width and height must be positive"_s.arg(where);
+        QSet<QString> names;
+        for (const auto &terminalValue : o.value("terminals").toArray()) {
+            const QJsonObject to = terminalValue.toObject();
+            TerminalSpec terminal{ to.value("name").toString(),
+                                   { to.value("x").toDouble(), to.value("y").toDouble() },
+                                   terminalRole(to, where, errors) };
+            if (names.contains(terminal.name))
+                errors << u"%1: duplicate terminal %2"_s.arg(where, terminal.name);
+            names.insert(terminal.name);
+            load.terminals << terminal;
+        }
+        const bool isSocket = o.contains("places");
+        if (isSocket && load.power != 0)
+            errors << u"%1: a socket has no power"_s.arg(where);
+        else if (!isSocket && (load.power < 1 || load.power > 15000))
+            errors << u"%1: power must be 1 to 15000 W"_s.arg(where);
+        if (load.plugsIn) {
+            if (!load.terminals.isEmpty() || isSocket || !load.caption.isEmpty())
+                errors << u"%1: a plug-in appliance has no terminals, places or caption"_s.arg(
+                        where);
+        } else {
+            const QList<TerminalSpec> &t = load.terminals;
+            const bool wired = t.size() == 3 && t[0].name == u"L" && t[0].role == Conductor::L
+                    && t[1].name == u"N" && t[1].role == Conductor::N && t[2].name == u"PE"
+                    && t[2].role == Conductor::PE;
+            if (!wired)
+                errors << u"%1: terminals must be L, N and PE with matching roles"_s.arg(where);
+            requireText(load.caption, u"caption"_s, where, errors);
+        }
+        if (isSocket && load.places.size() != 2)
+            errors << u"%1: a socket needs two places"_s.arg(where);
+        catalog.loads << load;
+    }
+}
+
 } // namespace
 
 CatalogLoad loadCatalog(const CatalogSources &sources)
@@ -318,6 +391,8 @@ CatalogLoad loadCatalog(const CatalogSources &sources)
         loadPresets(*root, load.catalog, load.errors);
     if (const auto root = parseFile(sources.products, u"products.json"_s, load.errors))
         loadProducts(*root, load.catalog, load.errors);
+    if (const auto root = parseFile(sources.loads, u"loads.json"_s, load.errors))
+        loadLoads(*root, load.catalog, load.errors);
     return load;
 }
 
@@ -336,7 +411,7 @@ QByteArray readResource(const QString &name)
 CatalogSources embeddedCatalogSources()
 {
     return { readResource(u"devices"_s), readResource(u"enclosures"_s), readResource(u"presets"_s),
-             readResource(u"products"_s) };
+             readResource(u"products"_s), readResource(u"loads"_s) };
 }
 
 const Catalog &embeddedCatalog()

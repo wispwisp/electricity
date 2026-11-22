@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "loads": [
+    {"id": "ceiling-lamp", "name": "Ceiling lamp", "description": "An LED ceiling lamp. Wire it to a lighting line: L, N and PE.", "caption": "Lamp", "picture": "ceiling-lamp.svg", "width": 36, "height": 36, "power": 10, "terminals": [{"name": "L", "x": 9, "y": 4.5, "role": "L"}, {"name": "N", "x": 18, "y": 4.5, "role": "N"}, {"name": "PE", "x": 27, "y": 4.5, "role": "PE"}]},
+    {"id": "socket", "name": "Double socket", "description": "A double wall socket for up to two appliances. Wire it to a socket line: L, N and PE.", "caption": "Socket", "picture": "socket.svg", "width": 54, "height": 27, "terminals": [{"name": "L", "x": 13.5, "y": 4.5, "role": "L"}, {"name": "N", "x": 27, "y": 4.5, "role": "N"}, {"name": "PE", "x": 40.5, "y": 4.5, "role": "PE"}], "places": [{"x": 4.5, "y": 40.5}, {"x": 49.5, "y": 40.5}]},
+    {"id": "kettle", "name": "Kettle", "description": "An appliance. Drop it onto a socket to plug it in.", "picture": "kettle.svg", "width": 36, "height": 36, "power": 2000, "plugsIn": true},
+    {"id": "washing-machine", "name": "Washing machine", "description": "An appliance. Drop it onto a socket to plug it in.", "picture": "washing-machine.svg", "width": 36, "height": 36, "power": 2200, "plugsIn": true},
+    {"id": "refrigerator", "name": "Refrigerator", "description": "An appliance. Drop it onto a socket to plug it in.", "picture": "refrigerator.svg", "width": 36, "height": 36, "power": 150, "plugsIn": true},
+    {"id": "tv", "name": "TV", "description": "An appliance. Drop it onto a socket to plug it in.", "picture": "tv.svg", "width": 36, "height": 36, "power": 120, "plugsIn": true},
+    {"id": "microwave", "name": "Microwave", "description": "An appliance. Drop it onto a socket to plug it in.", "picture": "microwave.svg", "width": 36, "height": 36, "power": 1200, "plugsIn": true},
+    {"id": "air-conditioner", "name": "Air conditioner", "description": "An appliance. Drop it onto a socket to plug it in.", "picture": "air-conditioner.svg", "width": 36, "height": 36, "power": 1000, "plugsIn": true},
+    {"id": "water-heater", "name": "Water heater", "description": "An appliance. Drop it onto a socket to plug it in.", "picture": "water-heater.svg", "width": 36, "height": 36, "power": 2000, "plugsIn": true},
+    {"id": "cooktop", "name": "Electric cooktop", "description": "A 7 kW electric cooktop. It needs its own line: a C32 breaker and 6 mm² wire.", "caption": "Cooktop", "picture": "cooktop.svg", "width": 54, "height": 36, "power": 7000, "terminals": [{"name": "L", "x": 18, "y": 4.5, "role": "L"}, {"name": "N", "x": 27, "y": 4.5, "role": "N"}, {"name": "PE", "x": 36, "y": 4.5, "role": "PE"}]}
+  ]
+}

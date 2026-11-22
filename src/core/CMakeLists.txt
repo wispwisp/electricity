@@ -7,4 +7,5 @@ qt_add_resources(panelcore "catalog" PREFIX "/" BASE "${PROJECT_SOURCE_DIR}/reso
     FILES "${PROJECT_SOURCE_DIR}/resources/catalog/devices.json"
           "${PROJECT_SOURCE_DIR}/resources/catalog/enclosures.json"
           "${PROJECT_SOURCE_DIR}/resources/catalog/presets.json"
-          "${PROJECT_SOURCE_DIR}/resources/catalog/products.json")
+          "${PROJECT_SOURCE_DIR}/resources/catalog/products.json"
+          "${PROJECT_SOURCE_DIR}/resources/catalog/loads.json")

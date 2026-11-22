@@ -23,7 +23,24 @@ QStringList catalogTranslationSources()
         QT_TRANSLATE_NOOP(
                 "Catalog",
                 "Switches a line on and off. Turns it off by itself on overload or short circuit."),
+        QT_TRANSLATE_NOOP("Catalog", "Loads"), QT_TRANSLATE_NOOP("Catalog", "Ceiling lamp"),
+        QT_TRANSLATE_NOOP("Catalog", "Lamp"), QT_TRANSLATE_NOOP("Catalog", "Double socket"),
+        QT_TRANSLATE_NOOP("Catalog", "Socket"), QT_TRANSLATE_NOOP("Catalog", "Kettle"),
+        QT_TRANSLATE_NOOP("Catalog", "Washing machine"),
+        QT_TRANSLATE_NOOP("Catalog", "Refrigerator"), QT_TRANSLATE_NOOP("Catalog", "TV"),
+        QT_TRANSLATE_NOOP("Catalog", "Microwave"), QT_TRANSLATE_NOOP("Catalog", "Air conditioner"),
+        QT_TRANSLATE_NOOP("Catalog", "Water heater"),
+        QT_TRANSLATE_NOOP("Catalog", "Electric cooktop"), QT_TRANSLATE_NOOP("Catalog", "Cooktop"),
         // NOLINTBEGIN(bugprone-suspicious-missing-comma)
+        QT_TRANSLATE_NOOP("Catalog",
+                          "An LED ceiling lamp. Wire it to a lighting line: L, N and PE."),
+        QT_TRANSLATE_NOOP("Catalog",
+                          "A double wall socket for up to two appliances. Wire it to a socket "
+                          "line: L, N and PE."),
+        QT_TRANSLATE_NOOP("Catalog",
+                          "A 7 kW electric cooktop. It needs its own line: a C32 breaker and "
+                          "6 mm² wire."),
+        QT_TRANSLATE_NOOP("Catalog", "An appliance. Drop it onto a socket to plug it in."),
         QT_TRANSLATE_NOOP("Catalog",
                           "Turns the power off when current leaks to earth, for example through a "
                           "person. Does not protect against overload."),

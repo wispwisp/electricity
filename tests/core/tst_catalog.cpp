@@ -50,7 +50,8 @@ CatalogSources fixture()
     s.enclosures = R"json({
         "schemaVersion": 1,
         "enclosures": [{"id": "enclosure-12", "modules": 12, "rows": 1, "nBarTerminals": 8,
-                        "peBarTerminals": 8, "picture": "enclosure-12.svg"}]
+                        "peBarTerminals": 8, "picture": "enclosure-12.svg",
+                        "width": 280, "height": 244}]
     })json";
     s.presets = R"json({
         "schemaVersion": 1,
@@ -66,6 +67,24 @@ CatalogSources fixture()
             "products": [{"model": "B16 1P", "article": "A-16", "poles": "1P",
                           "parameters": {"curve": "C", "ratedCurrent": 16}}]
         }]
+    })json";
+    s.loads = R"json({
+        "schemaVersion": 1,
+        "loads": [
+            {"id": "lamp", "name": "Ceiling lamp", "description": "A lamp.", "caption": "Lamp",
+             "picture": "lamp.svg", "width": 36, "height": 36, "power": 10,
+             "terminals": [{"name": "L", "x": 9, "y": 4.5, "role": "L"},
+                           {"name": "N", "x": 18, "y": 4.5, "role": "N"},
+                           {"name": "PE", "x": 27, "y": 4.5, "role": "PE"}]},
+            {"id": "socket", "name": "Double socket", "description": "A socket.",
+             "caption": "Socket", "picture": "socket.svg", "width": 54, "height": 27,
+             "terminals": [{"name": "L", "x": 13.5, "y": 4.5, "role": "L"},
+                           {"name": "N", "x": 27, "y": 4.5, "role": "N"},
+                           {"name": "PE", "x": 40.5, "y": 4.5, "role": "PE"}],
+             "places": [{"x": 4.5, "y": 40.5}, {"x": 49.5, "y": 40.5}]},
+            {"id": "kettle", "name": "Kettle", "description": "An appliance.",
+             "picture": "kettle.svg", "width": 36, "height": 36, "power": 2000, "plugsIn": true}
+        ]
     })json";
     return s;
 }
@@ -134,6 +153,12 @@ private slots:
     void deviceTypesMatchSpec();
     void terminalRolesMatchSpec();
     void enclosuresMatchSpec();
+    void loadsValidLoads();
+    void rejectsInvalidLoads_data();
+    void rejectsInvalidLoads();
+    void loadTypesMatchSpec();
+    void enclosureSizesMatchSpec();
+    void loadStringsAreRegisteredForTranslation();
     void presetsMatchSpec();
     void catalogStringsAreRegisteredForTranslation();
     void productsHaveProvenance();
@@ -526,6 +551,227 @@ void TestCatalog::enclosuresMatchSpec()
         QCOMPARE(e.nBarTerminals, expected[i].bars);
         QCOMPARE(e.peBarTerminals, expected[i].bars);
         QCOMPARE(e.picture, QStringLiteral("enclosure-%1.svg").arg(expected[i].modules));
+    }
+}
+
+// Edits the load with the given id.
+QByteArray patchedLoad(const QByteArray &json, const QString &id,
+                       const std::function<void(QJsonObject &)> &edit)
+{
+    return patched(json, [&](QJsonObject &root) {
+        QJsonArray array = root.value("loads").toArray();
+        for (int i = 0; i < array.size(); ++i) {
+            QJsonObject o = array.at(i).toObject();
+            if (o.value("id").toString() != id)
+                continue;
+            edit(o);
+            array.replace(i, o);
+        }
+        root.insert("loads", array);
+    });
+}
+
+void TestCatalog::loadsValidLoads()
+{
+    const CatalogLoad load = loadCatalog(fixture());
+    QVERIFY2(load.errors.isEmpty(), qPrintable(load.errors.join(u'\n')));
+    const Catalog &catalog = load.catalog;
+    QVERIFY(!catalog.loadType(u"fridge"));
+    const LoadType *kettle = catalog.loadType(u"kettle");
+    QVERIFY(kettle);
+    QVERIFY(kettle->plugsIn);
+    QCOMPARE(kettle->power, 2000);
+    QCOMPARE(kettle->size, QSizeF(36, 36));
+    const LoadType *socket = catalog.loadType(u"socket");
+    QVERIFY(socket);
+    QCOMPARE(socket->places.size(), 2);
+    QCOMPARE(socket->power, 0);
+    QCOMPARE(socket->terminals.size(), 3);
+    QCOMPARE(socket->terminals.at(0).role, std::optional(Conductor::L));
+    QCOMPARE(socket->terminals.at(1).role, std::optional(Conductor::N));
+    QCOMPARE(socket->terminals.at(2).role, std::optional(Conductor::PE));
+    QCOMPARE(catalog.loadType(u"lamp")->caption, QStringLiteral("Lamp"));
+    QCOMPARE(catalog.enclosures.at(0).size, QSizeF(280, 244));
+}
+
+void TestCatalog::rejectsInvalidLoads_data()
+{
+    QTest::addColumn<Edit>("edit");
+    QTest::addColumn<QString>("expected");
+
+    const auto row = [](const char *name, const Edit &edit, const QString &expected) {
+        QTest::newRow(name) << edit << expected;
+    };
+    const auto load = [](const QString &id, const std::function<void(QJsonObject &)> &change) {
+        return Edit([=](CatalogSources &s) { s.loads = patchedLoad(s.loads, id, change); });
+    };
+    row("missing name", load(u"lamp"_s, [](QJsonObject &o) { o["name"] = ""; }),
+        u"load lamp: missing name"_s);
+    row("missing description", load(u"lamp"_s, [](QJsonObject &o) { o["description"] = ""; }),
+        u"load lamp: missing description"_s);
+    row("missing picture", load(u"lamp"_s, [](QJsonObject &o) { o["picture"] = ""; }),
+        u"load lamp: missing picture"_s);
+    row("zero width", load(u"lamp"_s, [](QJsonObject &o) { o["width"] = 0; }),
+        u"load lamp: width and height must be positive"_s);
+    row("negative height", load(u"lamp"_s, [](QJsonObject &o) { o["height"] = -1; }),
+        u"load lamp: width and height must be positive"_s);
+    row("zero power", load(u"lamp"_s, [](QJsonObject &o) { o["power"] = 0; }),
+        u"load lamp: power must be 1 to 15000 W"_s);
+    row("huge power", load(u"kettle"_s, [](QJsonObject &o) { o["power"] = 15001; }),
+        u"load kettle: power must be 1 to 15000 W"_s);
+    row("socket with power", load(u"socket"_s, [](QJsonObject &o) { o["power"] = 5; }),
+        u"load socket: a socket has no power"_s);
+    row("plug-in with terminals",
+        load(u"kettle"_s,
+             [](QJsonObject &o) {
+                 o["terminals"] = QJsonArray{ QJsonObject{ { "name", "L" }, { "role", "L" } } };
+             }),
+        u"load kettle: a plug-in appliance has no terminals, places or caption"_s);
+    row("plug-in with places",
+        load(u"kettle"_s,
+             [](QJsonObject &o) { o["places"] = QJsonArray{ QJsonObject{}, QJsonObject{} }; }),
+        u"load kettle: a plug-in appliance has no terminals, places or caption"_s);
+    row("plug-in with caption", load(u"kettle"_s, [](QJsonObject &o) { o["caption"] = "Kettle"; }),
+        u"load kettle: a plug-in appliance has no terminals, places or caption"_s);
+    row("two terminals",
+        load(u"lamp"_s,
+             [](QJsonObject &o) {
+                 QJsonArray terminals = o.value("terminals").toArray();
+                 terminals.removeLast();
+                 o["terminals"] = terminals;
+             }),
+        u"load lamp: terminals must be L, N and PE with matching roles"_s);
+    row("mismatched role",
+        load(u"lamp"_s,
+             [](QJsonObject &o) {
+                 QJsonArray terminals = o.value("terminals").toArray();
+                 QJsonObject first = terminals.at(0).toObject();
+                 first["role"] = "N";
+                 terminals.replace(0, first);
+                 o["terminals"] = terminals;
+             }),
+        u"load lamp: terminals must be L, N and PE with matching roles"_s);
+    row("missing caption", load(u"lamp"_s, [](QJsonObject &o) { o["caption"] = ""; }),
+        u"load lamp: missing caption"_s);
+    row("one place",
+        load(u"socket"_s,
+             [](QJsonObject &o) {
+                 QJsonArray places = o.value("places").toArray();
+                 places.removeLast();
+                 o["places"] = places;
+             }),
+        u"load socket: a socket needs two places"_s);
+    row(
+            "duplicate load", [](CatalogSources &s) { s.loads = appendCopy(s.loads, u"loads"_s); },
+            u"duplicate id lamp"_s);
+    row(
+            "enclosure without size",
+            [](CatalogSources &s) {
+                s.enclosures = patchedFirst(s.enclosures, u"enclosures"_s,
+                                            [](QJsonObject &e) { e["width"] = 0; });
+            },
+            u"enclosure-12: width and height must be positive"_s);
+}
+
+void TestCatalog::rejectsInvalidLoads()
+{
+    QFETCH(Edit, edit);
+    QFETCH(QString, expected);
+    CatalogSources sources = fixture();
+    edit(sources);
+    const CatalogLoad load = loadCatalog(sources);
+    QVERIFY2(load.errors.contains(expected),
+             qPrintable(u"expected \"%1\" in:\n%2"_s.arg(expected, load.errors.join(u'\n'))));
+}
+
+void TestCatalog::loadTypesMatchSpec()
+{
+    const Catalog &catalog = embeddedCatalog();
+    struct Expected
+    {
+        const char *id, *name, *caption;
+        int power;
+        bool plugsIn;
+        QSizeF size;
+        QList<QPointF> terminals; // L, N, PE
+    };
+    const QList<QPointF> noTerminals;
+    const std::array<Expected, 10> expected = { {
+            { "ceiling-lamp",
+              "Ceiling lamp",
+              "Lamp",
+              10,
+              false,
+              { 36, 36 },
+              { { 9, 4.5 }, { 18, 4.5 }, { 27, 4.5 } } },
+            { "socket",
+              "Double socket",
+              "Socket",
+              0,
+              false,
+              { 54, 27 },
+              { { 13.5, 4.5 }, { 27, 4.5 }, { 40.5, 4.5 } } },
+            { "kettle", "Kettle", "", 2000, true, { 36, 36 }, noTerminals },
+            { "washing-machine", "Washing machine", "", 2200, true, { 36, 36 }, noTerminals },
+            { "refrigerator", "Refrigerator", "", 150, true, { 36, 36 }, noTerminals },
+            { "tv", "TV", "", 120, true, { 36, 36 }, noTerminals },
+            { "microwave", "Microwave", "", 1200, true, { 36, 36 }, noTerminals },
+            { "air-conditioner", "Air conditioner", "", 1000, true, { 36, 36 }, noTerminals },
+            { "water-heater", "Water heater", "", 2000, true, { 36, 36 }, noTerminals },
+            { "cooktop",
+              "Electric cooktop",
+              "Cooktop",
+              7000,
+              false,
+              { 54, 36 },
+              { { 18, 4.5 }, { 27, 4.5 }, { 36, 4.5 } } },
+    } };
+    QCOMPARE(catalog.loads.size(), 10);
+    for (int i = 0; i < 10; ++i) {
+        const LoadType &l = catalog.loads.at(i);
+        const Expected &e = expected[i];
+        QCOMPARE(l.id, QString::fromLatin1(e.id));
+        QCOMPARE(l.name, QString::fromLatin1(e.name));
+        QCOMPARE(l.caption, QString::fromLatin1(e.caption));
+        QCOMPARE(l.power, e.power);
+        QCOMPARE(l.plugsIn, e.plugsIn);
+        QCOMPARE(l.picture, QString::fromLatin1(e.id) + u".svg"_s);
+        QCOMPARE(l.size, e.size);
+        QVERIFY(!l.description.isEmpty());
+        QCOMPARE(l.terminals.size(), e.terminals.size());
+        const std::array<Conductor, 3> roles = { Conductor::L, Conductor::N, Conductor::PE };
+        const std::array<const char *, 3> names = { "L", "N", "PE" };
+        for (int t = 0; t < e.terminals.size(); ++t) {
+            QCOMPARE(l.terminals.at(t).name, QString::fromLatin1(names[t]));
+            QCOMPARE(l.terminals.at(t).position, e.terminals.at(t));
+            QCOMPARE(l.terminals.at(t).role, std::optional(roles[t]));
+        }
+        const bool isSocket = l.id == u"socket";
+        const QList<QPointF> socketPlaces{ { 4.5, 40.5 }, { 49.5, 40.5 } };
+        QCOMPARE(l.places, isSocket ? socketPlaces : QList<QPointF>());
+    }
+}
+
+void TestCatalog::enclosureSizesMatchSpec()
+{
+    const Catalog &catalog = embeddedCatalog();
+    QCOMPARE(catalog.enclosures.size(), 3);
+    QCOMPARE(catalog.enclosures.at(0).size, QSizeF(280, 244));
+    QCOMPARE(catalog.enclosures.at(1).size, QSizeF(280, 368));
+    QCOMPARE(catalog.enclosures.at(2).size, QSizeF(280, 492));
+}
+
+void TestCatalog::loadStringsAreRegisteredForTranslation()
+{
+    const QStringList registered = catalogTranslationSources();
+    const auto check
+            = [&](const QString &text) { QVERIFY2(registered.contains(text), qPrintable(text)); };
+    check(u"Loads"_s);
+    for (const LoadType &l : embeddedCatalog().loads) {
+        check(l.name);
+        check(l.description);
+        if (!l.caption.isEmpty())
+            check(l.caption);
     }
 }
 

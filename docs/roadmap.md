@@ -19,7 +19,7 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
 | F04 | Component catalog and device pictures | ☑ |
 | F05 | Panel editor: enclosure, rails, placing devices | ☑ |
 | F06 | Wiring | ☑ |
-| F07 | Loads | ☐ |
+| F07 | Loads | ◐ |
 | F08 | Live simulation: supply, switching, currents | ☐ |
 | F09 | Protection and faults | ☐ |
 | F10 | Project files | ☐ |

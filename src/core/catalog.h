@@ -6,6 +6,7 @@
 #include <QJsonObject>
 #include <QList>
 #include <QPointF>
+#include <QSizeF>
 #include <QString>
 #include <QStringList>
 
@@ -63,6 +64,19 @@ struct EnclosureType
     int nBarTerminals = 0;
     int peBarTerminals = 0;
     QString picture;
+    QSizeF size; // the picture's view box
+};
+
+struct LoadType
+{
+    QString id, name, description;
+    QString caption; // wired loads: the caption word, e.g. "Lamp"; "" for plug-in
+    QString picture;
+    QSizeF size;                   // the picture's view box
+    int power = 0;                 // default W; 0 for the socket
+    bool plugsIn = false;          // a plug-in appliance: no terminals, goes into a socket
+    QList<TerminalSpec> terminals; // wired loads: L, N, PE with matching roles
+    QList<QPointF> places;         // the socket's two plug places; empty for other loads
 };
 
 struct Preset
@@ -88,13 +102,15 @@ struct Catalog
     QList<EnclosureType> enclosures;
     QList<Preset> presets;
     QList<Product> products;
+    QList<LoadType> loads;
     [[nodiscard]] const DeviceType *deviceType(QStringView id) const; // nullptr if absent
     [[nodiscard]] const SupplyType *supply(QStringView id) const;     // nullptr if absent
+    [[nodiscard]] const LoadType *loadType(QStringView id) const;     // nullptr if absent
 };
 
 struct CatalogSources
 {
-    QByteArray devices, enclosures, presets, products;
+    QByteArray devices, enclosures, presets, products, loads;
 };
 
 struct CatalogLoad

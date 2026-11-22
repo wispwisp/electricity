@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "enclosures": [
-    {"id": "enclosure-12", "modules": 12, "rows": 1, "nBarTerminals": 8, "peBarTerminals": 8, "picture": "enclosure-12.svg"},
-    {"id": "enclosure-24", "modules": 24, "rows": 2, "nBarTerminals": 12, "peBarTerminals": 12, "picture": "enclosure-24.svg"},
-    {"id": "enclosure-36", "modules": 36, "rows": 3, "nBarTerminals": 16, "peBarTerminals": 16, "picture": "enclosure-36.svg"}
+    {"id": "enclosure-12", "modules": 12, "rows": 1, "nBarTerminals": 8, "peBarTerminals": 8, "picture": "enclosure-12.svg", "width": 280, "height": 244},
+    {"id": "enclosure-24", "modules": 24, "rows": 2, "nBarTerminals": 12, "peBarTerminals": 12, "picture": "enclosure-24.svg", "width": 280, "height": 368},
+    {"id": "enclosure-36", "modules": 36, "rows": 3, "nBarTerminals": 16, "peBarTerminals": 16, "picture": "enclosure-36.svg", "width": 280, "height": 492}
   ]
 }

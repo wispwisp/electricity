@@ -89,12 +89,102 @@
         <translation>Включает и отключает линию. Сам отключает её при перегрузке или коротком замыкании.</translation>
     </message>
     <message>
+        <location filename="../src/core/catalogstrings.cpp" line="26"/>
+        <source>Loads</source>
+        <translation>Нагрузки</translation>
+    </message>
+    <message>
+        <location filename="../src/core/catalogstrings.cpp" line="26"/>
+        <source>Ceiling lamp</source>
+        <translation>Потолочный светильник</translation>
+    </message>
+    <message>
         <location filename="../src/core/catalogstrings.cpp" line="27"/>
+        <source>Lamp</source>
+        <translation>Светильник</translation>
+    </message>
+    <message>
+        <location filename="../src/core/catalogstrings.cpp" line="27"/>
+        <source>Double socket</source>
+        <translation>Двойная розетка</translation>
+    </message>
+    <message>
+        <location filename="../src/core/catalogstrings.cpp" line="28"/>
+        <source>Socket</source>
+        <translation>Розетка</translation>
+    </message>
+    <message>
+        <location filename="../src/core/catalogstrings.cpp" line="28"/>
+        <source>Kettle</source>
+        <translation>Чайник</translation>
+    </message>
+    <message>
+        <location filename="../src/core/catalogstrings.cpp" line="29"/>
+        <source>Washing machine</source>
+        <translation>Стиральная машина</translation>
+    </message>
+    <message>
+        <location filename="../src/core/catalogstrings.cpp" line="30"/>
+        <source>Refrigerator</source>
+        <translation>Холодильник</translation>
+    </message>
+    <message>
+        <location filename="../src/core/catalogstrings.cpp" line="30"/>
+        <source>TV</source>
+        <translation>Телевизор</translation>
+    </message>
+    <message>
+        <location filename="../src/core/catalogstrings.cpp" line="31"/>
+        <source>Microwave</source>
+        <translation>Микроволновая печь</translation>
+    </message>
+    <message>
+        <location filename="../src/core/catalogstrings.cpp" line="31"/>
+        <source>Air conditioner</source>
+        <translation>Кондиционер</translation>
+    </message>
+    <message>
+        <location filename="../src/core/catalogstrings.cpp" line="32"/>
+        <source>Water heater</source>
+        <translation>Водонагреватель</translation>
+    </message>
+    <message>
+        <location filename="../src/core/catalogstrings.cpp" line="33"/>
+        <source>Electric cooktop</source>
+        <translation>Электроплита</translation>
+    </message>
+    <message>
+        <location filename="../src/core/catalogstrings.cpp" line="33"/>
+        <source>Cooktop</source>
+        <translation>Плита</translation>
+    </message>
+    <message>
+        <location filename="../src/core/catalogstrings.cpp" line="35"/>
+        <source>An LED ceiling lamp. Wire it to a lighting line: L, N and PE.</source>
+        <translation>Светодиодный потолочный светильник. Подключается к линии освещения: L, N и PE.</translation>
+    </message>
+    <message>
+        <location filename="../src/core/catalogstrings.cpp" line="37"/>
+        <source>A double wall socket for up to two appliances. Wire it to a socket line: L, N and PE.</source>
+        <translation>Двойная настенная розетка, до двух приборов. Подключается к розеточной линии: L, N и PE.</translation>
+    </message>
+    <message>
+        <location filename="../src/core/catalogstrings.cpp" line="40"/>
+        <source>A 7 kW electric cooktop. It needs its own line: a C32 breaker and 6 mm² wire.</source>
+        <translation>Электроплита на 7 кВт. Ей нужна отдельная линия: автомат C32 и провод 6 mm².</translation>
+    </message>
+    <message>
+        <location filename="../src/core/catalogstrings.cpp" line="43"/>
+        <source>An appliance. Drop it onto a socket to plug it in.</source>
+        <translation>Бытовой прибор. Перетащите его на розетку, чтобы включить.</translation>
+    </message>
+    <message>
+        <location filename="../src/core/catalogstrings.cpp" line="44"/>
         <source>Turns the power off when current leaks to earth, for example through a person. Does not protect against overload.</source>
         <translation>Отключает питание при утечке тока на землю, например через человека. От перегрузки не защищает.</translation>
     </message>
     <message>
-        <location filename="../src/core/catalogstrings.cpp" line="30"/>
+        <location filename="../src/core/catalogstrings.cpp" line="47"/>
         <source>Breaker and RCD in one device: turns off on overload, short circuit and current leakage.</source>
         <translation>Автомат и УЗО в одном корпусе: отключается при перегрузке, коротком замыкании и утечке тока.</translation>
     </message>
@@ -102,42 +192,44 @@
 <context>
     <name>EditorScene</name>
     <message>
-        <location filename="../src/app/editorscene.cpp" line="207"/>
+        <location filename="../src/app/editorscene.cpp" line="208"/>
+        <location filename="../src/app/editorscene.cpp" line="457"/>
+        <location filename="../src/app/editorscene.cpp" line="470"/>
         <source>Click a terminal to start a wire.</source>
         <translation>Щёлкните клемму, чтобы начать провод.</translation>
     </message>
     <message>
-        <location filename="../src/app/editorscene.cpp" line="233"/>
+        <location filename="../src/app/editorscene.cpp" line="234"/>
         <source>Supply</source>
         <translation>Ввод</translation>
     </message>
     <message>
-        <location filename="../src/app/editorscene.cpp" line="420"/>
+        <location filename="../src/app/editorscene.cpp" line="436"/>
         <source>Click the second terminal. Esc cancels.</source>
         <translation>Щёлкните вторую клемму. Esc — отмена.</translation>
     </message>
     <message>
-        <location filename="../src/app/editorscene.cpp" line="445"/>
+        <location filename="../src/app/editorscene.cpp" line="462"/>
         <source>These terminals are already joined by a wire.</source>
         <translation>Эти клеммы уже соединены проводом.</translation>
     </message>
     <message>
-        <location filename="../src/app/editorscene.cpp" line="488"/>
+        <location filename="../src/app/editorscene.cpp" line="508"/>
         <source>This bar hole already has a wire.</source>
         <translation>В этом гнезде шины уже есть провод.</translation>
     </message>
     <message>
-        <location filename="../src/app/editorscene.cpp" line="489"/>
+        <location filename="../src/app/editorscene.cpp" line="509"/>
         <source>This terminal already has two wires.</source>
         <translation>К этой клемме уже подключены два провода.</translation>
     </message>
     <message>
-        <location filename="../src/app/editorscene.cpp" line="496"/>
+        <location filename="../src/app/editorscene.cpp" line="516"/>
         <source>Devices go on a DIN rail inside the enclosure.</source>
         <translation>Аппараты ставятся на DIN-рейку внутри щита.</translation>
     </message>
     <message>
-        <location filename="../src/app/editorscene.cpp" line="502"/>
+        <location filename="../src/app/editorscene.cpp" line="522"/>
         <source>No room here: another device is in the way.</source>
         <translation>Здесь нет места: мешает другой аппарат.</translation>
     </message>
@@ -145,89 +237,89 @@
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="243"/>
-        <location filename="../src/app/mainwindow.cpp" line="244"/>
+        <location filename="../src/app/mainwindow.cpp" line="257"/>
+        <location filename="../src/app/mainwindow.cpp" line="258"/>
         <source>Edit</source>
         <translation>Правка</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="245"/>
+        <location filename="../src/app/mainwindow.cpp" line="259"/>
         <source>Undo</source>
         <translation>Отменить</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="246"/>
+        <location filename="../src/app/mainwindow.cpp" line="260"/>
         <source>Redo</source>
         <translation>Повторить</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="247"/>
+        <location filename="../src/app/mainwindow.cpp" line="261"/>
         <source>Wire</source>
         <translation>Провод</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="248"/>
+        <location filename="../src/app/mainwindow.cpp" line="262"/>
         <source>Draw wires: click one terminal, then another.</source>
         <translation>Провода: щёлкните одну клемму, затем другую.</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="249"/>
+        <location filename="../src/app/mainwindow.cpp" line="263"/>
         <source>Section of new wires</source>
         <translation>Сечение новых проводов</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="254"/>
+        <location filename="../src/app/mainwindow.cpp" line="268"/>
         <source>Delete</source>
         <translation>Удалить</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="255"/>
+        <location filename="../src/app/mainwindow.cpp" line="269"/>
         <source>View</source>
         <translation>Вид</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="256"/>
+        <location filename="../src/app/mainwindow.cpp" line="270"/>
         <source>Fit to window</source>
         <translation>По размеру окна</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="257"/>
+        <location filename="../src/app/mainwindow.cpp" line="271"/>
         <source>Settings</source>
         <translation>Настройки</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="258"/>
+        <location filename="../src/app/mainwindow.cpp" line="272"/>
         <source>Theme</source>
         <translation>Тема</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="259"/>
+        <location filename="../src/app/mainwindow.cpp" line="273"/>
         <source>Dark</source>
         <translation>Тёмная</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="260"/>
+        <location filename="../src/app/mainwindow.cpp" line="274"/>
         <source>Light</source>
         <translation>Светлая</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="261"/>
+        <location filename="../src/app/mainwindow.cpp" line="275"/>
         <source>Language</source>
         <translation>Язык</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="262"/>
+        <location filename="../src/app/mainwindow.cpp" line="276"/>
         <source>Components</source>
         <translation>Компоненты</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="263"/>
+        <location filename="../src/app/mainwindow.cpp" line="277"/>
         <source>Properties</source>
         <translation>Свойства</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="65"/>
-        <location filename="../src/app/mainwindow.cpp" line="265"/>
+        <location filename="../src/app/mainwindow.cpp" line="70"/>
+        <location filename="../src/app/mainwindow.cpp" line="279"/>
         <source>Ready</source>
         <translation>Готово</translation>
     </message>
