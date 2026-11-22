@@ -500,7 +500,7 @@ void TestWiring::selectedWireKeepsItsColour()
                 ++corePixels;
                 QVERIFY2(colourDistance(drawn[px], core) <= 12, qPrintable(where));
             }
-            if (px > kLanePitch / 2 * kProfileZoom + 1) {
+            if (static_cast<qreal>(px) > kLanePitch / 2 * kProfileZoom + 1) {
                 QVERIFY2(colourDistance(drawn[px], plain[px]) <= 12, qPrintable(where));
             } else if (colourDistance(drawn[px], plain[px]) > 30) {
                 highlighted = highlighted || colourDistance(drawn[px], selection) <= 30;

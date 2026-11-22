@@ -222,8 +222,8 @@ int Project::wireCapacity(const QString &terminalId) const
 
 int Project::wireCount(const QString &terminalId) const
 {
-    return std::ranges::count_if(
-            m_wires, [&](const Wire &w) { return w.from == terminalId || w.to == terminalId; });
+    return static_cast<int>(std::ranges::count_if(
+            m_wires, [&](const Wire &w) { return w.from == terminalId || w.to == terminalId; }));
 }
 
 Conductor Project::conductorFor(const QString &from, const QString &to) const

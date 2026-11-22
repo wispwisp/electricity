@@ -42,7 +42,7 @@ private slots:
     void enclosureShrinkRefusedWithWiredBarHole();
 
 private:
-    Wire wire(const QString &from, const QString &to, double section = 2.5) const
+    [[nodiscard]] Wire wire(const QString &from, const QString &to, double section = 2.5) const
     {
         return Wire{ {}, from, to, section, m_project->conductorFor(from, to) };
     }
