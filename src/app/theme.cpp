@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "app/theme.h"
 
+#include "core/catalog.h"
+
 #include <QApplication>
 #include <QStyle>
 #include <QStyleFactory>
@@ -108,6 +110,29 @@ QColor refusedColor()
 QColor enclosureTextColor()
 {
     return { 214, 216, 220 };
+}
+
+QColor conductorColor(Conductor conductor)
+{
+    switch (conductor) {
+    case Conductor::L:
+        return { 0x8a, 0x4b, 0x24 };
+    case Conductor::N:
+        return { 0x2f, 0x6f, 0xd0 };
+    case Conductor::PE:
+        return { 0x2e, 0x9a, 0x46 };
+    }
+    return {};
+}
+
+QColor earthStripeColor()
+{
+    return { 0xe8, 0xcf, 0x2e };
+}
+
+QColor wireEdgeColor()
+{
+    return { 0x1c, 0x1e, 0x21 };
 }
 
 } // namespace Theme

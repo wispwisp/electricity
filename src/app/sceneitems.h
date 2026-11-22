@@ -1,10 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include <QColor>
 #include <QFont>
 #include <QGraphicsItem>
+#include <QPainterPath>
+#include <QPolygonF>
 #include <QString>
 
+#include <cstdint>
+#include <optional>
+
+enum class Conductor : std::uint8_t;
 struct Catalog;
 struct PlacedDevice;
 
@@ -23,12 +30,15 @@ private:
     QSizeF m_size;
 };
 
-// Text in the current palette's Text colour, read at paint time so it follows a theme switch.
+// Text in the current palette's Text colour, read at paint time so it follows a theme switch, or
+// in a fixed colour.
 class TextItem : public QGraphicsItem
 {
 public:
     explicit TextItem(int pixelSize, QGraphicsItem *parent = nullptr);
     void setText(const QString &text);
+    [[nodiscard]] QString text() const;
+    void setColor(const QColor &color);
 
     [[nodiscard]] QRectF boundingRect() const override;
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
@@ -36,32 +46,69 @@ public:
 private:
     QString m_text;
     QFont m_font;
+    std::optional<QColor> m_color;
 };
 
-// A placed device: its variant picture, the rating on its label and the designation above it.
-// The origin is the device's top-left corner.
+// A placed device: its variant picture and the rating on its label. The origin is the device's
+// top-left corner. Its designation is a separate top-level item over the band above the device, so
+// that it draws over the wires running up through it.
 class DeviceItem : public QGraphicsItem
 {
 public:
     static constexpr qreal PlacedZ = 1;
-    static constexpr qreal LiftedZ = 2; // the drag preview and a device being moved
+    static constexpr qreal LabelZ = 1.75; // designations
+    static constexpr qreal LiftedZ = 2;   // the drag preview and a device being moved
+    // Room above a device for its designation; "QF10" fits over one 18-unit module.
+    static constexpr qreal DesignationHeight = 9;
+    static constexpr int DesignationPixelSize = 6;
 
     DeviceItem(const Catalog &catalog, const QString &id);
+    ~DeviceItem() override;
     void setDevice(const PlacedDevice &device, const QString &designation);
     [[nodiscard]] QString designation() const;
     [[nodiscard]] QString rating() const;
     void setRefused(bool refused);
     [[nodiscard]] bool isRefused() const;
+    [[nodiscard]] QGraphicsItem *designationItem() const;
 
     [[nodiscard]] QRectF boundingRect() const override;
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
 
+protected:
+    QVariant itemChange(GraphicsItemChange change, const QVariant &value) override;
+
 private:
+    void placeDesignation();
+
     const Catalog &m_catalog;
     QString m_path;
     QSizeF m_size;
     QRectF m_label; // the picture's "label" element
-    QString m_designation;
+    TextItem *m_designationItem;
     QString m_rating;
     bool m_refused = false;
+};
+
+// A wire along its route, which is in scene coordinates: a dark edge, the conductor colour and, on
+// PE, yellow stripes.
+class WireItem : public QGraphicsItem
+{
+public:
+    static constexpr qreal WireZ = 1.5;
+
+    explicit WireItem(const QString &id);
+    void setWire(const QPolygonF &route, Conductor conductor, double section);
+    [[nodiscard]] QPolygonF route() const;
+    [[nodiscard]] Conductor conductor() const;
+
+    [[nodiscard]] QRectF boundingRect() const override;
+    // the route stroked at least 6 wide, for clicking
+    [[nodiscard]] QPainterPath shape() const override;
+    void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
+
+private:
+    QPolygonF m_route;
+    QPainterPath m_shape;
+    Conductor m_conductor{};
+    double m_section = 0;
 };

@@ -14,7 +14,9 @@ class QMenu;
 class Project;
 class QUndoStack;
 class TextItem;
+class WireItem;
 struct PlacedDevice;
+struct RouteEnd;
 
 struct RailSlot
 {
@@ -23,10 +25,11 @@ struct RailSlot
     friend bool operator==(const RailSlot &, const RailSlot &) = default;
 };
 
-// The panel: the supply block, the enclosure with its N and PE bars, and one item per placed
-// device, kept in sync with the project. Scene units are enclosure picture units; the enclosure
-// sits at (0, 0). One item is selected at a time: a device or the enclosure. Presets dropped from
-// the palette are placed, and devices are moved with the mouse, through the undo stack.
+// The panel: the supply block, the enclosure with its N and PE bars, one item per placed device and
+// one per wire, kept in sync with the project. Scene units are enclosure picture units; the
+// enclosure sits at (0, 0). One item is selected at a time: a device, a wire or the enclosure.
+// Presets dropped from the palette are placed, and devices are moved with the mouse, through the
+// undo stack.
 class EditorScene : public QGraphicsScene
 {
     Q_OBJECT
@@ -41,8 +44,12 @@ public:
     [[nodiscard]] std::optional<RailSlot> slotAt(QPointF scenePos, int modules) const;
     // supply, its text and the enclosure
     [[nodiscard]] QRectF panelRect() const;
+    // scene position of a terminal of the project, for a device at its slot in the model
+    [[nodiscard]] QPointF terminalPos(const QString &terminalId) const;
     // "" if none
     [[nodiscard]] QString selectedDeviceId() const;
+    // "" if none
+    [[nodiscard]] QString selectedWireId() const;
     [[nodiscard]] bool isEnclosureSelected() const;
     // Actions of the menu shown by a right-click on a device.
     void setDeviceContextActions(const QList<QAction *> &actions);
@@ -69,6 +76,13 @@ private:
     [[nodiscard]] QPointF railCentre(int row) const;
     void syncEnclosure();
     void syncDevices();
+    // Re-routes every wire, with a device being moved still at its slot in the model.
+    void syncWires();
+    // The terminal's position and the side its wires leave from.
+    [[nodiscard]] RouteEnd routeEnd(const QString &terminalId) const;
+    // What wires go around: device bodies with their designations, the supply with its letters,
+    // and the two bars as one block.
+    [[nodiscard]] QList<QRectF> routeObstacles() const;
     void addBar(const QString &barId, const QString &mountId, int terminals);
     void updateSceneRect();
     // Puts the device on the slot for a body centred on centre; false, with a hint, if it can't
@@ -89,8 +103,10 @@ private:
     PictureItem *m_enclosure;
     PictureItem *m_supply;
     TextItem *m_supplyText;
+    QList<TextItem *> m_supplyLetters; // in the order of the supply's terminals
     QList<PictureItem *> m_barCells;
     QHash<QString, DeviceItem *> m_devices;
+    QHash<QString, WireItem *> m_wires;
     DeviceItem *m_preview = nullptr; // while a preset is dragged over the scene
     QString m_movingId;              // the device under a left press, "" if none
     QPointF m_grabOffset;            // press point minus the device body centre

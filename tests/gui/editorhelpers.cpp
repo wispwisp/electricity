@@ -3,6 +3,7 @@
 
 #include "app/palettewidget.h"
 #include "core/catalog.h"
+#include "core/project.h"
 
 #include <QAbstractItemView>
 #include <QApplication>
@@ -45,6 +46,40 @@ const Preset &preset(const QString &id)
             return p;
     }
     qFatal("unknown preset %s", qPrintable(id));
+}
+
+void addTutorialDevices(Project &project)
+{
+    struct Placed
+    {
+        const char *preset;
+        int module;
+    };
+    for (const Placed &device : { Placed{ "breaker-2p-c40", 0 }, Placed{ "rcd-2p-40-30", 2 },
+                                  Placed{ "breaker-1p-c10", 4 }, Placed{ "breaker-1p-c16", 5 },
+                                  Placed{ "breaker-1p-c16", 6 } })
+        QVERIFY(!project.addDevice(deviceFromPreset(preset(device.preset), 0, device.module))
+                         .isEmpty());
+}
+
+void addTutorialWires(Project &project)
+{
+    struct Ends
+    {
+        const char *from;
+        const char *to;
+        double section;
+    };
+    for (const Ends &ends :
+         { Ends{ "supply:L", "d1:1", 10 }, Ends{ "supply:N", "d1:3", 10 },
+           Ends{ "d1:2", "d2:1", 10 }, Ends{ "d1:4", "d2:N1", 10 }, Ends{ "d2:2", "d3:1", 6 },
+           Ends{ "d3:1", "d4:1", 6 }, Ends{ "d4:1", "d5:1", 6 }, Ends{ "d2:N2", "nbar:1", 10 },
+           Ends{ "supply:PE", "pebar:1", 10 } }) {
+        const QString from = QString::fromLatin1(ends.from);
+        const QString to = QString::fromLatin1(ends.to);
+        QVERIFY(!project.addWire(Wire{ {}, from, to, ends.section, project.conductorFor(from, to) })
+                         .isEmpty());
+    }
 }
 
 QGraphicsItem *sceneItem(QGraphicsScene *scene, const QString &id)

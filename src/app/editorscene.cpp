@@ -6,6 +6,7 @@
 #include "app/sceneitems.h"
 #include "app/svgpixmap.h"
 #include "core/project.h"
+#include "core/wirerouter.h"
 
 #include <QApplication>
 #include <QGraphicsSceneDragDropEvent>
@@ -26,6 +27,8 @@ constexpr qreal kModuleHeight = 90;
 constexpr qreal kSupplyGap = 12; // between the supply block and the enclosure
 constexpr qreal kSupplyTextGap = 6;
 constexpr int kSupplyTextPixelSize = 10;
+// A supply letter starts this far right of its terminal, beside the wire leaving it straight down.
+constexpr qreal kSupplyLetterOffset = 2.5;
 constexpr qreal kSceneMargin = 1000; // room to pan around the panel
 constexpr qreal kPreviewOpacity = 0.6;
 
@@ -45,6 +48,13 @@ const Preset *draggedPreset(const Catalog &catalog, const QMimeData *data)
                                       &Preset::id);
     return it == catalog.presets.end() ? nullptr : &*it;
 }
+
+// nullptr if absent
+const TerminalSpec *findTerminal(const QList<TerminalSpec> &terminals, const QString &name)
+{
+    const auto it = std::ranges::find(terminals, name, &TerminalSpec::name);
+    return it == terminals.end() ? nullptr : &*it;
+}
 } // namespace
 
 EditorScene::EditorScene(Project &project, QUndoStack &undoStack, QObject *parent)
@@ -53,15 +63,22 @@ EditorScene::EditorScene(Project &project, QUndoStack &undoStack, QObject *paren
     , m_undoStack(undoStack)
     , m_enclosure(new PictureItem(picturePath(project.enclosure().picture),
                                   QStringLiteral("enclosure")))
-    , m_supply(new PictureItem(picturePath(QStringLiteral("supply-1p.svg")),
-                               QStringLiteral("supply")))
+    , m_supply(new PictureItem(picturePath(project.supply().picture), QStringLiteral("supply")))
     , m_supplyText(new TextItem(kSupplyTextPixelSize))
 {
     m_enclosure->setFlag(QGraphicsItem::ItemIsSelectable);
     addItem(m_enclosure);
     addItem(m_supply);
     addItem(m_supplyText);
+    for (const TerminalSpec &terminal : project.supply().terminals) {
+        auto *letter = new TextItem(DeviceItem::DesignationPixelSize);
+        letter->setData(IdKey, QStringLiteral("supplyLetter"));
+        letter->setText(terminal.name); // a conductor code, not translated
+        addItem(letter);
+        m_supplyLetters << letter;
+    }
     connect(&m_project, &Project::changed, this, &EditorScene::syncDevices);
+    connect(&m_project, &Project::changed, this, &EditorScene::syncWires);
     connect(&m_project, &Project::enclosureChanged, this, &EditorScene::syncEnclosure);
     syncEnclosure();
     syncDevices();
@@ -113,10 +130,24 @@ QRectF EditorScene::panelRect() const
             | m_enclosure->sceneBoundingRect();
 }
 
+QPointF EditorScene::terminalPos(const QString &terminalId) const
+{
+    return routeEnd(terminalId).point;
+}
+
 QString EditorScene::selectedDeviceId() const
 {
     for (const QGraphicsItem *item : selectedItems()) {
         if (dynamic_cast<const DeviceItem *>(item))
+            return item->data(IdKey).toString();
+    }
+    return {};
+}
+
+QString EditorScene::selectedWireId() const
+{
+    for (const QGraphicsItem *item : selectedItems()) {
+        if (dynamic_cast<const WireItem *>(item))
             return item->data(IdKey).toString();
     }
     return {};
@@ -134,10 +165,13 @@ void EditorScene::retranslate()
 }
 
 // ~QGraphicsScene deletes the selected items and would emit selectionChanged to listeners that
-// call back into this already destroyed EditorScene.
+// call back into this already destroyed EditorScene. Device items go first: each deletes its
+// designation item, which ~QGraphicsScene would otherwise delete in any order.
 EditorScene::~EditorScene()
 {
     blockSignals(true);
+    qDeleteAll(m_devices);
+    removePreview();
 }
 
 void EditorScene::setDeviceContextActions(const QList<QAction *> &actions)
@@ -375,7 +409,13 @@ void EditorScene::syncEnclosure()
     const QRectF supply = m_supply->sceneBoundingRect();
     m_supplyText->setPos(supply.right() + kSupplyTextGap,
                          supply.center().y() - m_supplyText->boundingRect().height() / 2);
+    const QList<TerminalSpec> &terminals = m_project.supply().terminals;
+    for (qsizetype i = 0; i < m_supplyLetters.size(); ++i) {
+        m_supplyLetters[i]->setPos(supply.left() + terminals[i].position.x() + kSupplyLetterOffset,
+                                   supply.bottom());
+    }
     updateSceneRect();
+    syncWires();
 }
 
 void EditorScene::addBar(const QString &barId, const QString &mountId, int terminals)
@@ -405,6 +445,72 @@ void EditorScene::syncDevices()
         m_devices.insert(device.id, item);
     }
     qDeleteAll(previous);
+}
+
+void EditorScene::syncWires()
+{
+    const QList<Wire> &wires = m_project.wires();
+    QList<RouteRequest> requests;
+    for (const Wire &wire : wires)
+        requests << RouteRequest{ routeEnd(wire.from), routeEnd(wire.to) };
+    const QList<QList<QPointF>> routes
+            = routeWires(routeObstacles(), enclosureElement(QStringLiteral("interior")), requests);
+    QHash<QString, WireItem *> previous = std::exchange(m_wires, {});
+    for (qsizetype i = 0; i < wires.size(); ++i) {
+        WireItem *item = previous.take(wires[i].id);
+        if (!item) {
+            item = new WireItem(wires[i].id);
+            addItem(item);
+        }
+        item->setWire(QPolygonF(routes[i]), wires[i].conductor, wires[i].section);
+        m_wires.insert(wires[i].id, item);
+    }
+    qDeleteAll(previous);
+}
+
+RouteEnd EditorScene::routeEnd(const QString &terminalId) const
+{
+    const QString object = terminalObject(terminalId);
+    const QString name = terminalName(terminalId);
+    const QList<BarType> &bars = m_project.catalog().bars;
+    if (object == QStringLiteral("supply")) {
+        if (const TerminalSpec *terminal = findTerminal(m_project.supply().terminals, name))
+            return { m_supply->pos() + terminal->position, Exit::Down };
+    } else if (const auto bar = std::ranges::find(bars, object, &BarType::id); bar != bars.end()) {
+        const QRectF mount = enclosureElement(object + QStringLiteral("-mount"));
+        const QPointF hole(bar->pitch * (name.toInt() - 1) + bar->terminal.x(), bar->terminal.y());
+        // The N bar sits above the PE bar, and each is wired from the side away from the other.
+        return { mount.topLeft() + hole, object == QStringLiteral("nbar") ? Exit::Up : Exit::Down };
+    } else if (const PlacedDevice *device = m_project.device(object)) {
+        const DeviceType *type = m_project.catalog().deviceType(device->type);
+        const DeviceVariant *variant = type ? type->variant(device->poles) : nullptr;
+        Q_ASSERT(variant); // the project only holds valid devices
+        if (const TerminalSpec *terminal = findTerminal(variant->terminals, name)) {
+            return { slotRect(device->row, device->module, variant->modules).topLeft()
+                             + terminal->position,
+                     terminal->position.y() < kModuleHeight / 2 ? Exit::Up : Exit::Down };
+        }
+    }
+    return { {}, Exit::Down };
+}
+
+QList<QRectF> EditorScene::routeObstacles() const
+{
+    QList<QRectF> obstacles;
+    for (const PlacedDevice &device : m_project.devices()) {
+        obstacles << slotRect(device.row, device.module, m_project.moduleWidth(device))
+                             .adjusted(0, -DeviceItem::DesignationHeight, 0, 0);
+    }
+    QRectF supply = m_supply->sceneBoundingRect();
+    for (const TextItem *letter : std::as_const(m_supplyLetters))
+        supply |= letter->sceneBoundingRect();
+    obstacles << supply;
+    // One block, so that no wire runs between the bars.
+    QRectF bars;
+    for (const PictureItem *cell : std::as_const(m_barCells))
+        bars |= cell->sceneBoundingRect();
+    obstacles << bars;
+    return obstacles;
 }
 
 void EditorScene::updateSceneRect()

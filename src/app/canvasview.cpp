@@ -27,6 +27,7 @@ CanvasView::CanvasView(EditorScene *scene, QWidget *parent)
     setResizeAnchor(AnchorViewCenter);
     setAcceptDrops(true);
     viewport()->setAcceptDrops(true);
+    viewport()->setMouseTracking(true); // the scene sees moves without a button, for hover
 }
 
 void CanvasView::fitToPanel()

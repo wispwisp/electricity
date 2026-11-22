@@ -8,6 +8,7 @@
 #include <Qt>
 
 class PaletteWidget;
+class Project;
 class QComboBox;
 class QGraphicsItem;
 class QGraphicsScene;
@@ -21,6 +22,12 @@ struct Preset;
 QTreeWidgetItem *presetItem(QTreeWidget *tree, const QString &id);
 // A preset of the embedded catalog; aborts if there is none with that id.
 const Preset &preset(const QString &id);
+// The tutorial panel (ADR 0016) on the model: d1 QF1 2P C40 (0,0), d2 QD1 (0,2),
+// d3 QF2 C10 (0,4), d4 QF3 C16 (0,5), d5 QF4 C16 (0,6).
+void addTutorialDevices(Project &project);
+// Its wires, in this order: supply:L→d1:1 10, supply:N→d1:3 10, d1:2→d2:1 10, d1:4→d2:N1 10,
+// d2:2→d3:1 6, d3:1→d4:1 6, d4:1→d5:1 6, d2:N2→nbar:1 10, supply:PE→pebar:1 10.
+void addTutorialWires(Project &project);
 // The first scene item whose data(0) is id, or nullptr; and how many there are.
 QGraphicsItem *sceneItem(QGraphicsScene *scene, const QString &id);
 int countItems(QGraphicsScene *scene, const QString &id);

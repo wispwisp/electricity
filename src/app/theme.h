@@ -5,6 +5,8 @@
 
 #include <cstdint>
 
+enum class Conductor : std::uint8_t;
+
 namespace Theme {
 
 enum class Mode : std::uint8_t { Dark, Light };
@@ -22,5 +24,10 @@ QColor selectionColor();
 QColor refusedColor();
 // Designations on the enclosure's dark interior.
 QColor enclosureTextColor();
+// Wires, as on the supply picture (ADR 0013): the conductor colour, yellow stripes on PE, and a
+// dark edge.
+QColor conductorColor(Conductor conductor);
+QColor earthStripeColor();
+QColor wireEdgeColor();
 
 } // namespace Theme

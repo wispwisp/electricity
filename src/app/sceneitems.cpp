@@ -8,16 +8,30 @@
 
 #include <QApplication>
 #include <QFontMetricsF>
+#include <QGraphicsScene>
 #include <QPainter>
+#include <QPainterPathStroker>
 #include <QSvgRenderer>
+
+#include <algorithm>
+#include <cmath>
 
 namespace {
 constexpr qreal kSelectionWidth = 2;
-// Room above a device for its designation; "QF10" fits over one 18-unit module.
-constexpr qreal kDesignationHeight = 9;
-constexpr int kDesignationPixelSize = 6;
 constexpr int kRatingPixelSize = 5;
 constexpr int kRefusedAlpha = 150;
+constexpr qreal kWireEdgeWidth = 0.8;      // the dark edge, 0.4 on each side of the core
+constexpr qreal kWireSelectionWidth = 2.4; // the selection colour, 1.2 outside the edge
+constexpr qreal kWireHitWidth = 6;
+constexpr qreal kEarthStripeLength = 2.2; // as on the supply picture
+
+// Grows with the section like a conductor's diameter, from 1.8 at 1.5 mm² to 3.2 at 16 mm², so
+// that with its edge the thickest wire is 4 wide and wires on neighbouring 4.5-unit lanes keep
+// apart.
+qreal wireCoreWidth(double section)
+{
+    return 1.2 + 0.5 * std::sqrt(section);
+}
 
 void drawOutline(QPainter *painter, const QRectF &rect, const QColor &color)
 {
@@ -74,6 +88,17 @@ void TextItem::setText(const QString &text)
     m_text = text;
 }
 
+QString TextItem::text() const
+{
+    return m_text;
+}
+
+void TextItem::setColor(const QColor &color)
+{
+    m_color = color;
+    update();
+}
+
 QRectF TextItem::boundingRect() const
 {
     const QFontMetricsF metrics(m_font);
@@ -83,16 +108,25 @@ QRectF TextItem::boundingRect() const
 void TextItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWidget *)
 {
     painter->setFont(m_font);
-    painter->setPen(QApplication::palette().color(QPalette::Text));
+    painter->setPen(m_color.value_or(QApplication::palette().color(QPalette::Text)));
     painter->drawText(boundingRect(), Qt::AlignLeft | Qt::AlignVCenter, m_text);
 }
 
 DeviceItem::DeviceItem(const Catalog &catalog, const QString &id)
     : m_catalog(catalog)
+    , m_designationItem(new TextItem(DesignationPixelSize))
 {
     setData(EditorScene::IdKey, id);
-    setFlag(ItemIsSelectable);
+    setFlags(ItemIsSelectable | ItemSendsGeometryChanges);
     setZValue(PlacedZ);
+    m_designationItem->setData(EditorScene::IdKey, QStringLiteral("designation"));
+    m_designationItem->setColor(Theme::enclosureTextColor());
+    m_designationItem->setZValue(LabelZ);
+}
+
+DeviceItem::~DeviceItem()
+{
+    delete m_designationItem;
 }
 
 void DeviceItem::setDevice(const PlacedDevice &device, const QString &designation)
@@ -109,14 +143,15 @@ void DeviceItem::setDevice(const PlacedDevice &device, const QString &designatio
         const QString label = QStringLiteral("label");
         m_label = renderer.transformForElement(label).mapRect(renderer.boundsOnElement(label));
     }
-    m_designation = designation;
+    m_designationItem->setText(designation);
+    placeDesignation();
     m_rating = ratingText(device);
     update();
 }
 
 QString DeviceItem::designation() const
 {
-    return m_designation;
+    return m_designationItem->text();
 }
 
 QString DeviceItem::rating() const
@@ -135,9 +170,14 @@ bool DeviceItem::isRefused() const
     return m_refused;
 }
 
+QGraphicsItem *DeviceItem::designationItem() const
+{
+    return m_designationItem;
+}
+
 QRectF DeviceItem::boundingRect() const
 {
-    return { 0, -kDesignationHeight, m_size.width(), m_size.height() + kDesignationHeight };
+    return { 0, -DesignationHeight, m_size.width(), m_size.height() + DesignationHeight };
 }
 
 void DeviceItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWidget *)
@@ -148,10 +188,6 @@ void DeviceItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWid
     painter->setFont(pixelFont(kRatingPixelSize));
     painter->setPen(Qt::black); // printed on the white label
     painter->drawText(m_label, Qt::AlignCenter, m_rating);
-    painter->setFont(pixelFont(kDesignationPixelSize));
-    painter->setPen(Theme::enclosureTextColor());
-    painter->drawText(QRectF(0, -kDesignationHeight, m_size.width(), kDesignationHeight - 1),
-                      Qt::AlignHCenter | Qt::AlignBottom, m_designation);
 
     if (isSelected())
         drawOutline(painter, body, Theme::selectionColor());
@@ -162,5 +198,90 @@ void DeviceItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWid
         tint.setAlpha(kRefusedAlpha);
         painter->fillRect(body, tint);
         drawOutline(painter, body, Theme::refusedColor());
+    }
+}
+
+QVariant DeviceItem::itemChange(GraphicsItemChange change, const QVariant &value)
+{
+    if (change == ItemPositionHasChanged) {
+        placeDesignation();
+    } else if (change == ItemSceneHasChanged) {
+        if (auto *newScene = value.value<QGraphicsScene *>())
+            newScene->addItem(m_designationItem);
+    }
+    return QGraphicsItem::itemChange(change, value);
+}
+
+void DeviceItem::placeDesignation()
+{
+    const QRectF text = m_designationItem->boundingRect();
+    m_designationItem->setPos(pos()
+                              + QPointF((m_size.width() - text.width()) / 2,
+                                        -(DesignationHeight + text.height()) / 2));
+}
+
+WireItem::WireItem(const QString &id)
+{
+    setData(EditorScene::IdKey, id);
+    setFlag(ItemIsSelectable);
+    setZValue(WireZ);
+}
+
+void WireItem::setWire(const QPolygonF &route, Conductor conductor, double section)
+{
+    prepareGeometryChange();
+    m_route = route;
+    m_conductor = conductor;
+    m_section = section;
+    QPainterPath path;
+    path.addPolygon(m_route);
+    QPainterPathStroker stroker;
+    stroker.setWidth(std::max(kWireHitWidth,
+                              wireCoreWidth(m_section) + kWireEdgeWidth + kWireSelectionWidth));
+    stroker.setCapStyle(Qt::RoundCap);
+    stroker.setJoinStyle(Qt::RoundJoin);
+    m_shape = stroker.createStroke(path);
+}
+
+QPolygonF WireItem::route() const
+{
+    return m_route;
+}
+
+Conductor WireItem::conductor() const
+{
+    return m_conductor;
+}
+
+// The shape is at least as wide as anything painted.
+QRectF WireItem::boundingRect() const
+{
+    return m_shape.boundingRect();
+}
+
+QPainterPath WireItem::shape() const
+{
+    return m_shape;
+}
+
+void WireItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWidget *)
+{
+    const qreal core = wireCoreWidth(m_section);
+    const auto stroke = [&](const QColor &color, qreal width) {
+        painter->setPen(QPen(color, width, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+        painter->drawPolyline(m_route);
+    };
+    painter->setBrush(Qt::NoBrush);
+    if (isSelected())
+        stroke(Theme::selectionColor(), core + kWireEdgeWidth + kWireSelectionWidth);
+    stroke(Theme::wireEdgeColor(), core + kWireEdgeWidth);
+    stroke(Theme::conductorColor(m_conductor), core);
+    if (m_conductor == Conductor::PE) {
+        QPen stripes(Theme::earthStripeColor(), core, Qt::CustomDashLine, Qt::FlatCap,
+                     Qt::RoundJoin);
+        // Dash lengths are in pen widths.
+        stripes.setDashPattern({ kEarthStripeLength / core, kEarthStripeLength / core });
+        painter->setPen(stripes);
+        painter->drawPolyline(m_route);
     }
 }
