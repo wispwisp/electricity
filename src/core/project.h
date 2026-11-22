@@ -6,6 +6,8 @@
 #include <QJsonObject>
 #include <QList>
 #include <QObject>
+#include <QPointF>
+#include <QRectF>
 #include <QString>
 #include <QStringList>
 
@@ -61,6 +63,31 @@ enum class WireCheck : std::uint8_t {
 [[nodiscard]] QString terminalId(const QString &objectId, const QString &terminal); // "d1:N1"
 [[nodiscard]] QString terminalObject(const QString &terminalId);                    // "d1"
 [[nodiscard]] QString terminalName(const QString &terminalId);                      // "N1"
+
+inline constexpr int MaxLoadPower = 15000;     // W
+inline constexpr double LoadCaptionHeight = 9; // the band under a wired load's picture
+
+struct PlacedLoad
+{
+    QString id;       // stable "l<n>"; empty until added
+    QString type;     // catalog load type id
+    QPointF position; // top-left of the picture, scene units; unused while plugged in
+    int power = 0;    // W; 0 for a socket
+    QString socket;   // the socket a plug-in appliance is plugged into, "" if none
+    int place = 0;    // 1 or 2 while plugged in, else 0
+    friend bool operator==(const PlacedLoad &, const PlacedLoad &) = default;
+};
+
+enum class LoadPlacement : std::uint8_t {
+    Fits,
+    OnEnclosure, // the outline overlaps the enclosure
+    Overlaps,    // the outline overlaps another load's outline
+    PlaceTaken,  // the plug place already holds an appliance
+    Invalid      // unknown type, type changed, power out of range, a plug into something that
+                 // isn't a socket or by a load that doesn't plug in, place not 1 or 2
+};
+
+[[nodiscard]] PlacedLoad loadFromType(const LoadType &type, QPointF position); // default power
 
 class Project : public QObject
 {
@@ -123,6 +150,25 @@ public:
     // replaces the wire with the same id
     bool updateWire(const Wire &wire);
 
+    [[nodiscard]] const QList<PlacedLoad> &loads() const;       // insertion order
+    [[nodiscard]] const PlacedLoad *load(QStringView id) const; // nullptr if absent
+    // 1-based among the loads of its type in loads() order; 0 if absent
+    [[nodiscard]] int loadNumber(QStringView id) const;
+    // the picture's top-left: its position, or hanging from its socket's place
+    [[nodiscard]] QPointF loadPosition(const PlacedLoad &load) const;
+    [[nodiscard]] QRectF loadOutline(const PlacedLoad &load) const;
+    // scene rect of a socket's plug place (1 or 2)
+    [[nodiscard]] QRectF plugPlaceRect(const PlacedLoad &socket, int place) const;
+    // ids of the appliances plugged into the socket, by place
+    [[nodiscard]] QStringList pluggedInto(QStringView socketId) const;
+    // a load with the same id is ignored, so a move can be checked
+    [[nodiscard]] LoadPlacement loadPlacement(const PlacedLoad &load) const;
+    // same id and index rules as addDevice; returns the id, "" if refused
+    QString addLoad(PlacedLoad load, qsizetype index = -1);
+    // removes its wires; a socket's appliances stay where they hung, unplugged
+    bool removeLoad(QStringView id);
+    bool updateLoad(const PlacedLoad &load);
+
 signals:
     void changed();          // after every successful mutation
     void enclosureChanged(); // after changed(), when the enclosure changed
@@ -134,6 +180,8 @@ private:
     const EnclosureType *m_enclosure;
     QList<PlacedDevice> m_devices;
     QList<Wire> m_wires;
+    QList<PlacedLoad> m_loads;
     int m_nextId = 1;
     int m_nextWireId = 1;
+    int m_nextLoadId = 1;
 };

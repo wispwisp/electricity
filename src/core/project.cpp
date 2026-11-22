@@ -29,6 +29,9 @@ const TerminalSpec *findTerminal(const QList<TerminalSpec> &terminals, const QSt
     return it == terminals.end() ? nullptr : &*it;
 }
 
+// The largest plug-in appliance: a plug place's rect hangs from the place point.
+constexpr QSizeF PlugPlaceSize{ 36, 36 };
+
 } // namespace
 
 QString terminalId(const QString &objectId, const QString &terminal)
@@ -186,6 +189,13 @@ QStringList Project::terminalIds() const
         for (const TerminalSpec &t : variant->terminals)
             ids << terminalId(d.id, t.name);
     }
+    for (const PlacedLoad &l : m_loads) {
+        const LoadType *type = m_catalog.loadType(l.type);
+        if (!type)
+            continue;
+        for (const TerminalSpec &t : type->terminals)
+            ids << terminalId(l.id, t.name);
+    }
     return ids;
 }
 
@@ -205,6 +215,11 @@ std::optional<Conductor> Project::terminalRole(const QString &terminalId) const
     if (isBarObject(object)) {
         const auto it = std::ranges::find(m_catalog.bars, object, &BarType::id);
         return it == m_catalog.bars.end() ? std::nullopt : std::optional(it->role);
+    }
+    if (const PlacedLoad *l = load(object)) {
+        const LoadType *loadType = m_catalog.loadType(l->type);
+        const TerminalSpec *t = loadType ? findTerminal(loadType->terminals, name) : nullptr;
+        return t ? t->role : std::nullopt;
     }
     const PlacedDevice *d = device(object);
     const DeviceType *type = d ? m_catalog.deviceType(d->type) : nullptr;
@@ -405,6 +420,164 @@ bool Project::updateWire(const Wire &wire)
     if (it == m_wires.end() || wireCheck(wire) != WireCheck::Ok)
         return false;
     *it = wire;
+    emit changed();
+    return true;
+}
+
+PlacedLoad loadFromType(const LoadType &type, QPointF position)
+{
+    return PlacedLoad{ {}, type.id, position, type.power, {}, 0 };
+}
+
+const QList<PlacedLoad> &Project::loads() const
+{
+    return m_loads;
+}
+
+const PlacedLoad *Project::load(QStringView id) const
+{
+    const auto it = std::ranges::find(m_loads, id, &PlacedLoad::id);
+    return it == m_loads.end() ? nullptr : &*it;
+}
+
+int Project::loadNumber(QStringView id) const
+{
+    const PlacedLoad *target = load(id);
+    if (!target)
+        return 0;
+    int number = 0;
+    for (const PlacedLoad &l : m_loads) {
+        if (l.type == target->type)
+            ++number;
+        if (l.id == id)
+            break;
+    }
+    return number;
+}
+
+QPointF Project::loadPosition(const PlacedLoad &load) const
+{
+    const PlacedLoad *socket = this->load(load.socket);
+    const LoadType *socketType = socket ? m_catalog.loadType(socket->type) : nullptr;
+    const LoadType *type = m_catalog.loadType(load.type);
+    if (load.socket.isEmpty() || !type || !socketType || load.place < 1
+        || load.place > socketType->places.size())
+        return load.position;
+    return socket->position + socketType->places[load.place - 1]
+            - QPointF(type->size.width() / 2, 0);
+}
+
+QRectF Project::plugPlaceRect(const PlacedLoad &socket, int place) const
+{
+    const LoadType *type = m_catalog.loadType(socket.type);
+    if (!type || place < 1 || place > type->places.size())
+        return {};
+    const QPointF point = socket.position + type->places[place - 1];
+    return QRectF(QPointF(point.x() - PlugPlaceSize.width() / 2, point.y()), PlugPlaceSize);
+}
+
+QRectF Project::loadOutline(const PlacedLoad &load) const
+{
+    const LoadType *type = m_catalog.loadType(load.type);
+    if (!type)
+        return {};
+    QRectF outline(loadPosition(load), type->size);
+    if (!type->caption.isEmpty())
+        outline = outline.united(
+                QRectF(outline.bottomLeft(), QSizeF(type->size.width(), LoadCaptionHeight)));
+    for (int place = 1; place <= type->places.size(); ++place)
+        outline = outline.united(plugPlaceRect(load, place));
+    return outline;
+}
+
+QStringList Project::pluggedInto(QStringView socketId) const
+{
+    QStringList ids[2];
+    for (const PlacedLoad &l : m_loads) {
+        if (l.socket == socketId && (l.place == 1 || l.place == 2))
+            ids[l.place - 1] << l.id;
+    }
+    return ids[0] + ids[1];
+}
+
+LoadPlacement Project::loadPlacement(const PlacedLoad &load) const
+{
+    const LoadType *type = m_catalog.loadType(load.type);
+    if (!type || load.power < (type->places.isEmpty() ? 1 : 0)
+        || load.power > (type->places.isEmpty() ? MaxLoadPower : 0))
+        return LoadPlacement::Invalid;
+    if (!load.socket.isEmpty()) {
+        const PlacedLoad *socket = this->load(load.socket);
+        const LoadType *socketType = socket ? m_catalog.loadType(socket->type) : nullptr;
+        if (!type->plugsIn || !socketType || socketType->places.isEmpty() || load.place < 1
+            || load.place > 2)
+            return LoadPlacement::Invalid;
+        const bool taken = std::ranges::any_of(m_loads, [&](const PlacedLoad &l) {
+            return l.id != load.id && l.socket == load.socket && l.place == load.place;
+        });
+        return taken ? LoadPlacement::PlaceTaken : LoadPlacement::Fits;
+    }
+    const QRectF outline = loadOutline(load);
+    if (outline.intersects(QRectF(QPointF(0, 0), m_enclosure->size)))
+        return LoadPlacement::OnEnclosure;
+    const bool overlaps = std::ranges::any_of(m_loads, [&](const PlacedLoad &l) {
+        return l.id != load.id && l.socket.isEmpty() && outline.intersects(loadOutline(l));
+    });
+    return overlaps ? LoadPlacement::Overlaps : LoadPlacement::Fits;
+}
+
+QString Project::addLoad(PlacedLoad load, qsizetype index)
+{
+    if (index < -1 || index > m_loads.size())
+        return {};
+    if (loadPlacement(load) != LoadPlacement::Fits)
+        return {};
+    if (load.id.isEmpty()) {
+        do
+            load.id = u"l%1"_s.arg(m_nextLoadId++);
+        while (this->load(load.id));
+    } else if (this->load(load.id)) {
+        return {};
+    } else if (load.id.startsWith(u'l')) {
+        // A kept "l<n>" (a restored or loaded load) must never be handed out again.
+        bool ok = false;
+        const int n = load.id.sliced(1).toInt(&ok);
+        if (ok)
+            m_nextLoadId = std::max(m_nextLoadId, n + 1);
+    }
+    if (index == -1)
+        index = m_loads.size();
+    m_loads.insert(index, load);
+    emit changed();
+    return load.id;
+}
+
+bool Project::removeLoad(QStringView id)
+{
+    const auto it = std::ranges::find(m_loads, id, &PlacedLoad::id);
+    if (it == m_loads.end())
+        return false;
+    for (PlacedLoad &l : m_loads) {
+        if (l.socket == id) {
+            l.position = loadPosition(l);
+            l.socket.clear();
+            l.place = 0;
+        }
+    }
+    m_loads.erase(it);
+    erase_if(m_wires, [&](const Wire &w) {
+        return terminalObject(w.from) == id || terminalObject(w.to) == id;
+    });
+    emit changed();
+    return true;
+}
+
+bool Project::updateLoad(const PlacedLoad &load)
+{
+    const auto it = std::ranges::find(m_loads, load.id, &PlacedLoad::id);
+    if (it == m_loads.end() || it->type != load.type || loadPlacement(load) != LoadPlacement::Fits)
+        return false;
+    *it = load;
     emit changed();
     return true;
 }
