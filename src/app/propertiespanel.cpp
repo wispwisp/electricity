@@ -3,16 +3,20 @@
 
 #include "app/editcommands.h"
 #include "app/editorscene.h"
+#include "app/language.h"
 #include "app/sectiontext.h"
 #include "core/catalog.h"
 #include "core/project.h"
 
 #include <QComboBox>
 #include <QCoreApplication>
+#include <QDoubleSpinBox>
 #include <QEvent>
 #include <QFormLayout>
 #include <QJsonArray>
 #include <QLabel>
+#include <QLocale>
+#include <QSpinBox>
 #include <QUndoStack>
 #include <QVBoxLayout>
 
@@ -87,6 +91,36 @@ PropertiesPanel::PropertiesPanel(Project &project, QUndoStack &undoStack, Editor
     m_deviceForm->addRow(m_residualCaption, m_residual);
     layout->addWidget(m_deviceBox);
 
+    m_loadBox = new QWidget(this);
+    m_loadBox->setObjectName(QStringLiteral("loadBox"));
+    auto *loadLayout = new QVBoxLayout(m_loadBox);
+    loadLayout->setContentsMargins(0, 0, 0, 0);
+    m_loadName = namedLabel("loadNameLabel", m_loadBox);
+    m_loadName->setFont(bold);
+    m_loadType = namedLabel("loadTypeLabel", m_loadBox);
+    m_loadType->setWordWrap(true);
+    loadLayout->addWidget(m_loadName);
+    loadLayout->addWidget(m_loadType);
+    m_loadForm = new QFormLayout;
+    m_loadForm->setRowWrapPolicy(QFormLayout::WrapAllRows);
+    loadLayout->addLayout(m_loadForm);
+    m_powerCaption = new QLabel(m_loadBox);
+    m_power = new QSpinBox(m_loadBox);
+    m_power->setObjectName(QStringLiteral("powerSpin"));
+    m_power->setRange(1, MaxLoadPower);
+    m_power->setKeyboardTracking(false);
+    m_loadForm->addRow(m_powerCaption, m_power);
+    // Wrapped labels go below the forms: inside a QFormLayout one squeezes the rows above it.
+    m_plugStatus = namedLabel("plugStatusLabel", m_loadBox);
+    m_plugStatus->setWordWrap(true);
+    loadLayout->addWidget(m_plugStatus);
+    m_socketContentsCaption = new QLabel(m_loadBox);
+    m_socketContents = namedLabel("socketContentsLabel", m_loadBox);
+    m_socketContents->setWordWrap(true);
+    loadLayout->addWidget(m_socketContentsCaption);
+    loadLayout->addWidget(m_socketContents);
+    layout->addWidget(m_loadBox);
+
     m_wireBox = new QWidget(this);
     auto *wireLayout = new QVBoxLayout(m_wireBox);
     wireLayout->setContentsMargins(0, 0, 0, 0);
@@ -96,12 +130,23 @@ PropertiesPanel::PropertiesPanel(Project &project, QUndoStack &undoStack, Editor
     m_wireEnds->setWordWrap(true);
     wireLayout->addWidget(m_wireTitle);
     wireLayout->addWidget(m_wireEnds);
-    auto *wireForm = new QFormLayout;
-    wireForm->setRowWrapPolicy(QFormLayout::WrapAllRows);
-    wireLayout->addLayout(wireForm);
+    m_wireForm = new QFormLayout;
+    m_wireForm->setRowWrapPolicy(QFormLayout::WrapAllRows);
+    wireLayout->addLayout(m_wireForm);
     m_sectionCaption = new QLabel(m_wireBox);
     m_section = namedCombo("sectionCombo", m_wireBox);
-    wireForm->addRow(m_sectionCaption, m_section);
+    m_wireForm->addRow(m_sectionCaption, m_section);
+    m_lengthCaption = new QLabel(m_wireBox);
+    m_length = new QDoubleSpinBox(m_wireBox);
+    m_length->setObjectName(QStringLiteral("lengthSpin"));
+    m_length->setDecimals(1);
+    m_length->setRange(0.5, MaxWireLength);
+    m_length->setSingleStep(0.5);
+    m_length->setKeyboardTracking(false);
+    m_wireForm->addRow(m_lengthCaption, m_length);
+    m_cableNote = namedLabel("cableNoteLabel", m_wireBox);
+    m_cableNote->setWordWrap(true);
+    wireLayout->addWidget(m_cableNote);
     layout->addWidget(m_wireBox);
 
     m_enclosureBox = new QWidget(this);
@@ -133,6 +178,8 @@ PropertiesPanel::PropertiesPanel(Project &project, QUndoStack &undoStack, Editor
     });
     connect(m_size, &QComboBox::activated, this, &PropertiesPanel::changeSize);
     connect(m_section, &QComboBox::activated, this, &PropertiesPanel::changeSection);
+    connect(m_power, &QSpinBox::valueChanged, this, &PropertiesPanel::changePower);
+    connect(m_length, &QDoubleSpinBox::valueChanged, this, &PropertiesPanel::changeLength);
     connect(&m_scene, &QGraphicsScene::selectionChanged, this, &PropertiesPanel::refresh);
     connect(&m_project, &Project::changed, this, &PropertiesPanel::refresh);
     retranslate();
@@ -151,6 +198,13 @@ void PropertiesPanel::retranslate()
     m_enclosureTitle->setText(tr("Enclosure"));
     m_wireTitle->setText(tr("Wire"));
     m_sectionCaption->setText(tr("Section"));
+    m_lengthCaption->setText(tr("Length"));
+    m_length->setSuffix(tr(" m"));
+    m_length->setLocale(QLocale(languageCode(currentLanguage()))); // "15,0 м", as sectionText()
+    m_cableNote->setText(tr("Applies to the whole cable: every wire between the same two places."));
+    m_powerCaption->setText(tr("Power"));
+    m_power->setSuffix(tr(" W"));
+    m_socketContentsCaption->setText(tr("Plugged in"));
     m_ratingCaption->setText(tr("Rating"));
     m_polesCaption->setText(tr("Poles"));
     m_curveCaption->setText(tr("Curve"));
@@ -165,11 +219,16 @@ void PropertiesPanel::refresh()
     const PlacedDevice *device = m_project.device(m_scene.selectedDeviceId());
     const DeviceType *type = device ? m_project.catalog().deviceType(device->type) : nullptr;
     const Wire *wire = m_project.wire(m_scene.selectedWireId());
-    const bool enclosure = !type && !wire && m_scene.isEnclosureSelected();
-    m_hint->setVisible(!type && !wire && !enclosure);
+    const PlacedLoad *load = m_project.load(m_scene.selectedLoadId());
+    const bool enclosure = !type && !wire && !load && m_scene.isEnclosureSelected();
+    m_hint->setVisible(!type && !wire && !load && !enclosure);
     m_deviceBox->setVisible(type);
+    m_loadBox->setVisible(load);
     m_wireBox->setVisible(wire);
     m_enclosureBox->setVisible(enclosure);
+    // Only now: hiding a field that has the focus sends its typed value, which goes to these.
+    m_loadId.clear();
+    m_wireId.clear();
 
     if (type) {
         m_designation->setText(m_project.designation(device->id));
@@ -197,7 +256,33 @@ void PropertiesPanel::refresh()
         m_residual->setText(
                 QStringLiteral("%1 mA").arg(device->parameters["residualCurrent"].toInt()));
         m_deviceForm->setRowVisible(m_residual, hasResidual);
+    } else if (load) {
+        m_loadId = load->id;
+        const LoadType *loadType = m_project.catalog().loadType(load->type);
+        m_loadName->setText(loadName(*load));
+        m_loadType->setText(catalogText(loadType->name));
+        m_loadType->setVisible(!loadType->plugsIn); // an appliance's name is already its type name
+        const bool isSocket = !loadType->places.isEmpty();
+        m_loadForm->setRowVisible(m_power, !isSocket);
+        const QSignalBlocker powerBlocker(m_power);
+        m_power->setValue(load->power);
+
+        m_plugStatus->setVisible(loadType->plugsIn);
+        const PlacedLoad *socket = m_project.load(load->socket);
+        m_plugStatus->setText(socket ? tr("Plugged into %1").arg(loadName(*socket))
+                                     : tr("Not plugged in"));
+        m_socketContentsCaption->setVisible(isSocket);
+        m_socketContents->setVisible(isSocket);
+        QStringList appliances;
+        for (const QString &id : m_project.pluggedInto(load->id)) {
+            const PlacedLoad *appliance = m_project.load(id);
+            appliances
+                    << tr("%1, %2 W").arg(loadName(*appliance), QString::number(appliance->power));
+        }
+        m_socketContents->setText(appliances.isEmpty() ? tr("Nothing plugged in")
+                                                       : appliances.join(QLatin1Char('\n')));
     } else if (wire) {
+        m_wireId = wire->id;
         m_wireEnds->setText(terminalText(wire->from) + QStringLiteral(" \u2192 ")
                             + terminalText(wire->to));
         const QSignalBlocker sectionBlocker(m_section);
@@ -205,6 +290,13 @@ void PropertiesPanel::refresh()
         for (double value : WireSections)
             m_section->addItem(sectionText(value), value);
         m_section->setCurrentIndex(m_section->findData(wire->section));
+
+        const bool toLoad = m_project.load(terminalObject(wire->from))
+                || m_project.load(terminalObject(wire->to));
+        m_wireForm->setRowVisible(m_length, toLoad);
+        m_cableNote->setVisible(toLoad);
+        const QSignalBlocker lengthBlocker(m_length);
+        m_length->setValue(wire->length);
     } else if (enclosure) {
         const QSignalBlocker sizeBlocker(m_size);
         m_size->setCurrentIndex(m_size->findData(m_project.enclosure().id));
@@ -221,9 +313,17 @@ QString PropertiesPanel::terminalText(const QString &terminalId) const
         name = tr("N bar");
     else if (object == QLatin1String("pebar"))
         name = tr("PE bar");
+    else if (const PlacedLoad *load = m_project.load(object))
+        name = loadName(*load);
     else
         name = m_project.designation(object);
     return name + QLatin1Char(' ') + terminalName(terminalId);
+}
+
+QString PropertiesPanel::loadName(const PlacedLoad &load) const
+{
+    const LoadType *type = m_project.catalog().loadType(load.type);
+    return type->plugsIn ? catalogText(type->name) : loadCaption(m_project, load, *type);
 }
 
 void PropertiesPanel::editDevice(const std::function<void(PlacedDevice &)> &change)
@@ -254,6 +354,8 @@ void PropertiesPanel::changeSize(int index)
         m_undoStack.push(new SetEnclosureCommand(m_project, id));
     else if (!m_project.keepsBarWires(id))
         emit hint(tr("Remove the wires from the bar holes that would be removed first."));
+    else if (!m_project.keepsLoadsClear(id))
+        emit hint(tr("Move the loads below the enclosure first: they would run into other loads."));
     else
         emit hint(tr("Move or delete the devices on the rows that would be removed first."));
     refresh();
@@ -268,5 +370,27 @@ void PropertiesPanel::changeSection(int index)
     after.section = m_section->itemData(index).toDouble();
     if (after != *current)
         m_undoStack.push(new UpdateWireCommand(m_project, after));
+    refresh();
+}
+
+void PropertiesPanel::changePower(int power)
+{
+    const PlacedLoad *current = m_project.load(m_loadId);
+    if (!current)
+        return;
+    PlacedLoad after = *current;
+    after.power = power;
+    if (after != *current && m_project.loadPlacement(after) == LoadPlacement::Fits)
+        m_undoStack.push(new UpdateLoadCommand(m_project, after));
+    refresh();
+}
+
+void PropertiesPanel::changeLength(double length)
+{
+    const Wire *current = m_project.wire(m_wireId);
+    if (!current)
+        return;
+    if (current->length != length)
+        m_undoStack.push(new SetCableLengthCommand(m_project, m_wireId, length));
     refresh();
 }

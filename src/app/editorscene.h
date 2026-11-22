@@ -32,6 +32,10 @@ struct RailSlot
     friend bool operator==(const RailSlot &, const RailSlot &) = default;
 };
 
+// The translated catalog caption and the load's number, "Lamp 1"; "" for a plug-in appliance.
+[[nodiscard]] QString loadCaption(const Project &project, const PlacedLoad &load,
+                                  const LoadType &type);
+
 // The panel: the supply block, the enclosure with its N and PE bars, one item per placed device,
 // one per load and one per wire, kept in sync with the project. Scene units are enclosure picture
 // units; the enclosure sits at (0, 0). One item is selected at a time: a device, a load, a wire or

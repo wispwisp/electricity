@@ -7,14 +7,18 @@
 
 class EditorScene;
 class QComboBox;
+class QDoubleSpinBox;
 class QFormLayout;
 class QLabel;
+class QSpinBox;
 class QUndoStack;
 class Project;
 struct PlacedDevice;
+struct PlacedLoad;
 
-// Shows and edits the selected device (rating, poles), wire (section) or the enclosure (size);
-// edits go through the undo stack, and one that doesn't fit is refused with a hint.
+// Shows and edits the selected device (rating, poles), load (power), wire (section, and the length
+// of a cable to a load) or the enclosure (size); edits go through the undo stack, and one that
+// doesn't fit is refused with a hint.
 class PropertiesPanel : public QWidget
 {
     Q_OBJECT
@@ -34,7 +38,11 @@ private:
     void editDevice(const std::function<void(PlacedDevice &)> &change);
     void changeSize(int index);
     void changeSection(int index);
+    void changePower(int power);
+    void changeLength(double length);
     [[nodiscard]] QString terminalText(const QString &terminalId) const;
+    // the caption with its number, "Lamp 1", or a plug-in appliance's name
+    [[nodiscard]] QString loadName(const PlacedLoad &load) const;
 
     Project &m_project;
     QUndoStack &m_undoStack;
@@ -53,11 +61,29 @@ private:
     QLabel *m_curve;
     QLabel *m_residualCaption;
     QLabel *m_residual;
+    // The load and the wire whose values refresh() last filled in. A typed value arrives when its
+    // field loses the focus: around a click that selects something else, or when a selection
+    // change hides the field. So edits go to these rather than to the selection.
+    QString m_loadId;
+    QString m_wireId;
+    QWidget *m_loadBox;
+    QLabel *m_loadName;
+    QLabel *m_loadType;
+    QFormLayout *m_loadForm;
+    QLabel *m_powerCaption;
+    QSpinBox *m_power;
+    QLabel *m_plugStatus;
+    QLabel *m_socketContentsCaption;
+    QLabel *m_socketContents;
     QWidget *m_wireBox;
     QLabel *m_wireTitle;
     QLabel *m_wireEnds;
+    QFormLayout *m_wireForm;
     QLabel *m_sectionCaption;
     QComboBox *m_section;
+    QLabel *m_lengthCaption;
+    QDoubleSpinBox *m_length;
+    QLabel *m_cableNote;
     QWidget *m_enclosureBox;
     QLabel *m_enclosureTitle;
     QLabel *m_sizeCaption;

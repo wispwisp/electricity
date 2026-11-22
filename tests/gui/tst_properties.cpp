@@ -15,13 +15,18 @@
 #include <QAction>
 #include <QComboBox>
 #include <QDockWidget>
+#include <QDoubleSpinBox>
 #include <QGraphicsItem>
 #include <QLabel>
+#include <QLineF>
 #include <QMenu>
+#include <QSpinBox>
 #include <QStatusBar>
 #include <QTest>
+#include <QToolBar>
 #include <QUndoStack>
 
+#include <algorithm>
 #include <memory>
 
 class TestProperties : public QObject
@@ -44,6 +49,14 @@ private slots:
     void refusesPoleChangeThatOrphansWires();
     void refusesShrinkThatOrphansBarWires();
     void wirePropertiesTranslated();
+    void showsLampPowerAndEditsIt();
+    void showsApplianceAndWhereItIsPlugged();
+    void showsWhatASocketHas();
+    void wireToLoadShowsLengthAndEditsCable();
+    void editFinishedByClickingAnotherObject();
+    void refusesShrinkWhenLoadsWouldCollide();
+    void panelFollowsUndoOfSelectedLoad();
+    void loadPropertiesTranslated();
 
 private:
     [[nodiscard]] QPoint at(int row, int module) const;
@@ -54,6 +67,22 @@ private:
     void selectEnclosure();
     void selectWire(const QString &id);
     [[nodiscard]] static QStringList items(const QComboBox *combo);
+    // The area around the enclosure, where loads go.
+    void zoomOut();
+    QString addLoad(const QString &type, QPointF position);
+    // Lamp 1 (0, 270) and Socket 1 (90, 270) with a kettle in place 1 and a microwave in place 2;
+    // zooms out to them.
+    void addLoads();
+    // The tutorial panel, Lamp 1's cable (QF2 2, N bar 2, PE bar 2) and QF3 2 → Socket 1 L.
+    void addLoadWires();
+    void clickLoad(const QString &id);
+    // Clicks the midpoint of the wire's longest segment, which must select it.
+    void clickWire(const QString &id);
+    // Clicks into the field and replaces its number with text, without Enter.
+    void typeInto(QAbstractSpinBox *spin, const QString &text);
+    void clickUndo();
+    [[nodiscard]] bool showsLabel(const QString &text) const;
+    void chooseLanguage(const char *code);
     template<typename T>
     T *named(const char *name) const
     {
@@ -64,6 +93,9 @@ private:
     CanvasView *canvas = nullptr;
     EditorScene *scene = nullptr;
     PaletteWidget *palette = nullptr;
+    QString lamp, socket, kettle, microwave;
+    QStringList lampWires; // L, N, PE
+    QString socketWire;
 };
 
 QPoint TestProperties::at(int row, int module) const
@@ -429,6 +461,353 @@ void TestProperties::wirePropertiesTranslated()
 
     clickMenuBarItem(*window, languageMenu);
     clickMenuItem(languageMenu, named<QAction>("languageAction_en"));
+}
+
+void TestProperties::zoomOut()
+{
+    canvas->setTransform(QTransform::fromScale(0.6, 0.6));
+    canvas->centerOn(QPointF(140, 300));
+}
+
+QString TestProperties::addLoad(const QString &type, QPointF position)
+{
+    return window->project().addLoad(
+            loadFromType(*window->project().catalog().loadType(type), position));
+}
+
+void TestProperties::addLoads()
+{
+    Project &project = window->project();
+    lamp = addLoad("ceiling-lamp", QPointF(0, 270));
+    socket = addLoad("socket", QPointF(90, 270));
+    const auto plugIn = [&](const QString &type, int place) {
+        PlacedLoad appliance = loadFromType(*project.catalog().loadType(type), QPointF());
+        appliance.socket = socket;
+        appliance.place = place;
+        return project.addLoad(appliance);
+    };
+    kettle = plugIn("kettle", 1);
+    microwave = plugIn("microwave", 2);
+    QVERIFY(!lamp.isEmpty() && !socket.isEmpty() && !kettle.isEmpty() && !microwave.isEmpty());
+    zoomOut();
+}
+
+void TestProperties::addLoadWires()
+{
+    Project &project = window->project();
+    addTutorialDevices(project);
+    addTutorialWires(project);
+    const auto addWire = [&](const QString &from, const QString &to) {
+        Wire wire{ {}, from, to, 1.5, project.conductorFor(from, to) };
+        wire.length = project.newWireLength(from, to);
+        return project.addWire(wire);
+    };
+    lampWires = { addWire("d3:2", lamp + ":L"), addWire("nbar:2", lamp + ":N"),
+                  addWire("pebar:2", lamp + ":PE") };
+    socketWire = addWire("d4:2", socket + ":L");
+    QVERIFY(!lampWires.contains(QString()) && !socketWire.isEmpty());
+}
+
+void TestProperties::clickLoad(const QString &id)
+{
+    const PlacedLoad *load = window->project().load(id);
+    QVERIFY(load);
+    const QSizeF size = window->project().catalog().loadType(load->type)->size;
+    QTest::mouseClick(
+            canvas->viewport(), Qt::LeftButton, {},
+            viewportPoint(canvas, QRectF(window->project().loadPosition(*load), size).center()));
+    QCOMPARE(scene->selectedLoadId(), id);
+}
+
+void TestProperties::clickWire(const QString &id)
+{
+    auto *item = dynamic_cast<WireItem *>(sceneItem(scene, id));
+    QVERIFY(item);
+    const QPolygonF route = item->route();
+    QLineF longest;
+    for (qsizetype i = 1; i < route.size(); ++i) {
+        if (QLineF(route[i - 1], route[i]).length() > longest.length())
+            longest = QLineF(route[i - 1], route[i]);
+    }
+    QTest::mouseClick(canvas->viewport(), Qt::LeftButton, {},
+                      viewportPoint(canvas, longest.center()));
+    QCOMPARE(scene->selectedWireId(), id);
+}
+
+void TestProperties::typeInto(QAbstractSpinBox *spin, const QString &text)
+{
+    QTest::mouseClick(spin, Qt::LeftButton, {}, QPoint(spin->width() / 4, spin->height() / 2));
+    QVERIFY(spin->hasFocus());
+    QTest::keyClick(spin, Qt::Key_A, Qt::ControlModifier);
+    QTest::keyClicks(spin, text);
+}
+
+// The field keeps the focus after Enter, and with it Ctrl+Z, so this undoes like a user would.
+void TestProperties::clickUndo()
+{
+    QTest::mouseClick(named<QToolBar>("editToolBar")->widgetForAction(named<QAction>("undoAction")),
+                      Qt::LeftButton);
+}
+
+bool TestProperties::showsLabel(const QString &text) const
+{
+    const QList<QLabel *> labels = named<QWidget>("propertiesPanel")->findChildren<QLabel *>();
+    return std::ranges::any_of(labels, [&](const QLabel *label) {
+        return label->isVisible() && label->text() == text;
+    });
+}
+
+void TestProperties::chooseLanguage(const char *code)
+{
+    auto *languageMenu = named<QMenu>("languageMenu");
+    clickMenuBarItem(*window, languageMenu);
+    clickMenuItem(languageMenu,
+                  window->findChild<QAction *>(QStringLiteral("languageAction_%1").arg(code)));
+}
+
+void TestProperties::showsLampPowerAndEditsIt()
+{
+    addLoads();
+    clickLoad(lamp);
+    QVERIFY(named<QWidget>("loadBox")->isVisible());
+    QVERIFY(!named<QLabel>("propertiesHint")->isVisible());
+    QCOMPARE(named<QLabel>("loadNameLabel")->text(), QStringLiteral("Lamp 1"));
+    QCOMPARE(named<QLabel>("loadTypeLabel")->text(), QStringLiteral("Ceiling lamp"));
+    QVERIFY(showsLabel("Power"));
+    auto *power = named<QSpinBox>("powerSpin");
+    QVERIFY(power->isVisible());
+    QCOMPARE(power->value(), 10);
+    QCOMPARE(power->text(), QStringLiteral("10 W"));
+    QCOMPARE(power->minimum(), 1);
+    QCOMPARE(power->maximum(), MaxLoadPower);
+    QVERIFY(!named<QLabel>("plugStatusLabel")->isVisible());
+    QVERIFY(!named<QLabel>("socketContentsLabel")->isVisible());
+
+    const int undoCount = window->undoStack().count();
+    typeInto(power, "15");
+    QCOMPARE(window->project().load(lamp)->power, 10); // no keyboard tracking
+    QTest::keyClick(power, Qt::Key_Return);
+    QCOMPARE(window->project().load(lamp)->power, 15);
+    QCOMPARE(window->undoStack().count(), undoCount + 1);
+    typeInto(power, "15");
+    QTest::keyClick(power, Qt::Key_Return);
+    QCOMPARE(window->undoStack().count(), undoCount + 1);
+
+    clickUndo();
+    QCOMPARE(window->project().load(lamp)->power, 10);
+    QCOMPARE(power->value(), 10);
+}
+
+void TestProperties::showsApplianceAndWhereItIsPlugged()
+{
+    addLoads();
+    clickLoad(kettle);
+    QCOMPARE(named<QLabel>("loadNameLabel")->text(), QStringLiteral("Kettle"));
+    QVERIFY(!named<QLabel>("loadTypeLabel")->isVisible()); // it would repeat the name
+    QCOMPARE(named<QSpinBox>("powerSpin")->value(), 2000);
+    auto *status = named<QLabel>("plugStatusLabel");
+    QVERIFY(status->isVisible());
+    QCOMPARE(status->text(), QStringLiteral("Plugged into Socket 1"));
+    QVERIFY(!named<QLabel>("socketContentsLabel")->isVisible());
+
+    Project &project = window->project();
+    PlacedLoad unplugged = *project.load(kettle);
+    unplugged.position = QPointF(198, 270);
+    unplugged.socket.clear();
+    unplugged.place = 0;
+    QVERIFY(project.updateLoad(unplugged));
+    QCOMPARE(scene->selectedLoadId(), kettle);
+    QCOMPARE(status->text(), QStringLiteral("Not plugged in"));
+}
+
+void TestProperties::showsWhatASocketHas()
+{
+    addLoads();
+    clickLoad(socket);
+    QCOMPARE(named<QLabel>("loadNameLabel")->text(), QStringLiteral("Socket 1"));
+    QCOMPARE(named<QLabel>("loadTypeLabel")->text(), QStringLiteral("Double socket"));
+    QVERIFY(showsLabel("Plugged in"));
+    auto *contents = named<QLabel>("socketContentsLabel");
+    QVERIFY(contents->isVisible());
+    QCOMPARE(contents->text(), QStringLiteral("Kettle, 2000 W\nMicrowave, 1200 W"));
+    QVERIFY(!named<QSpinBox>("powerSpin")->isVisible());
+    QVERIFY(!named<QLabel>("plugStatusLabel")->isVisible());
+
+    const QString empty = addLoad("socket", QPointF(198, 270));
+    QVERIFY(!empty.isEmpty());
+    clickLoad(empty);
+    QCOMPARE(named<QLabel>("loadNameLabel")->text(), QStringLiteral("Socket 2"));
+    QCOMPARE(contents->text(), QStringLiteral("Nothing plugged in"));
+}
+
+void TestProperties::wireToLoadShowsLengthAndEditsCable()
+{
+    addLoads();
+    addLoadWires();
+    selectWire(lampWires[0]);
+    QCOMPARE(named<QLabel>("wireEndsLabel")->text(), QStringLiteral("QF2 2 \u2192 Lamp 1 L"));
+    QVERIFY(showsLabel("Length"));
+    auto *length = named<QDoubleSpinBox>("lengthSpin");
+    QVERIFY(length->isVisible());
+    QCOMPARE(length->value(), LoadWireLength);
+    QCOMPARE(length->text(), QStringLiteral("15.0 m"));
+    QCOMPARE(length->minimum(), 0.5);
+    QCOMPARE(length->maximum(), MaxWireLength);
+    QCOMPARE(length->singleStep(), 0.5);
+    auto *note = named<QLabel>("cableNoteLabel");
+    QVERIFY(note->isVisible());
+    QCOMPARE(note->text(),
+             QStringLiteral("Applies to the whole cable: every wire between the same two places."));
+
+    Project &project = window->project();
+    const int undoCount = window->undoStack().count();
+    typeInto(length, "8");
+    QTest::keyClick(length, Qt::Key_Return);
+    for (const QString &id : lampWires)
+        QCOMPARE(project.wire(id)->length, 8.0);
+    QCOMPARE(project.wire(socketWire)->length, LoadWireLength);
+    QCOMPARE(window->undoStack().count(), undoCount + 1);
+    typeInto(length, "8");
+    QTest::keyClick(length, Qt::Key_Return);
+    QCOMPARE(window->undoStack().count(), undoCount + 1);
+
+    clickUndo();
+    for (const QString &id : lampWires)
+        QCOMPARE(project.wire(id)->length, LoadWireLength);
+    QCOMPARE(length->value(), LoadWireLength);
+
+    selectWire("w1");
+    QVERIFY(named<QComboBox>("sectionCombo")->isVisible());
+    QVERIFY(!length->isVisible());
+    QVERIFY(!note->isVisible());
+}
+
+// The field reports a typed value when it loses the focus to the canvas, around the click that
+// selects another object; the value belongs to the object it was typed for.
+void TestProperties::editFinishedByClickingAnotherObject()
+{
+    addLoads();
+    addLoadWires();
+    Project &project = window->project();
+    clickLoad(kettle);
+    auto *power = named<QSpinBox>("powerSpin");
+    typeInto(power, "2200");
+    clickLoad(lamp);
+    QCOMPARE(project.load(kettle)->power, 2200);
+    QCOMPARE(project.load(lamp)->power, 10);
+    QCOMPARE(named<QLabel>("loadNameLabel")->text(), QStringLiteral("Lamp 1"));
+    QCOMPARE(power->value(), 10);
+
+    selectWire(lampWires[0]);
+    auto *length = named<QDoubleSpinBox>("lengthSpin");
+    typeInto(length, "8");
+    clickWire(socketWire);
+    for (const QString &id : lampWires)
+        QCOMPARE(project.wire(id)->length, 8.0);
+    QCOMPARE(project.wire(socketWire)->length, LoadWireLength);
+    QCOMPARE(length->value(), LoadWireLength);
+
+    // The selection can also change first, without a click: hiding the field then takes its focus,
+    // and the value still goes to the object it was typed for.
+    clickLoad(kettle);
+    typeInto(power, "1800");
+    selectWire(socketWire);
+    QCOMPARE(project.load(kettle)->power, 1800);
+    typeInto(length, "6");
+    scene->clearSelection();
+    sceneItem(scene, kettle)->setSelected(true);
+    QCOMPARE(project.wire(socketWire)->length, 6.0);
+    for (const QString &id : lampWires)
+        QCOMPARE(project.wire(id)->length, 8.0);
+    QCOMPARE(power->value(), 1800);
+}
+
+void TestProperties::refusesShrinkWhenLoadsWouldCollide()
+{
+    Project &project = window->project();
+    QVERIFY(project.setEnclosure(QStringLiteral("enclosure-24")));
+    QVERIFY(!addLoad("ceiling-lamp", QPointF(300, 300)).isEmpty());
+    QVERIFY(!addLoad("ceiling-lamp", QPointF(300, 400)).isEmpty());
+    selectEnclosure();
+    auto *size = named<QComboBox>("enclosureSizeCombo");
+    const int undoCount = window->undoStack().count();
+    chooseComboItem(size, "12");
+    QCOMPARE(window->statusBar()->currentMessage(),
+             QStringLiteral("Move the loads below the enclosure first: they would run into other "
+                            "loads."));
+    QCOMPARE(project.enclosure().id, QStringLiteral("enclosure-24"));
+    QCOMPARE(size->currentText(), QStringLiteral("24"));
+    QCOMPARE(window->undoStack().count(), undoCount);
+}
+
+void TestProperties::panelFollowsUndoOfSelectedLoad()
+{
+    zoomOut();
+    dropLoad(canvas, palette, "ceiling-lamp", viewportPoint(canvas, QPointF(60, 300)));
+    QCOMPARE(window->project().loads().size(), 1);
+    QCOMPARE(named<QLabel>("loadNameLabel")->text(), QStringLiteral("Lamp 1"));
+    QVERIFY(named<QWidget>("loadBox")->isVisible());
+    QTest::keyClick(window.get(), Qt::Key_Z, Qt::ControlModifier);
+    QVERIFY(window->project().loads().isEmpty());
+    auto *hint = named<QLabel>("propertiesHint");
+    QVERIFY(hint->isVisible());
+    QCOMPARE(hint->text(), QStringLiteral("Select a device on the panel to see its properties."));
+    QVERIFY(!named<QWidget>("loadBox")->isVisible());
+}
+
+void TestProperties::loadPropertiesTranslated()
+{
+    addLoads();
+    addLoadWires();
+    clickLoad(kettle);
+    chooseLanguage("ru");
+    QCOMPARE(named<QLabel>("loadNameLabel")->text(), QStringLiteral("Чайник"));
+    QVERIFY(showsLabel("Мощность"));
+    QCOMPARE(named<QSpinBox>("powerSpin")->text(), QStringLiteral("2000 Вт"));
+    QCOMPARE(named<QLabel>("plugStatusLabel")->text(), QStringLiteral("Подключён к: Розетка 1"));
+    settleAndCheckFit();
+    QVERIFY(saveScreenshot(*window, "f07", "properties-load-ru"));
+
+    clickLoad(socket);
+    QCOMPARE(named<QLabel>("loadNameLabel")->text(), QStringLiteral("Розетка 1"));
+    QCOMPARE(named<QLabel>("loadTypeLabel")->text(), QStringLiteral("Двойная розетка"));
+    QVERIFY(showsLabel("Включено"));
+    QCOMPARE(named<QLabel>("socketContentsLabel")->text(),
+             QStringLiteral("Чайник, 2000 Вт\nМикроволновая печь, 1200 Вт"));
+    settleAndCheckFit();
+    QVERIFY(saveScreenshot(*window, "f07", "properties-socket"));
+
+    selectWire(lampWires[0]);
+    QCOMPARE(named<QLabel>("wireEndsLabel")->text(), QStringLiteral("QF2 2 \u2192 Светильник 1 L"));
+    QVERIFY(showsLabel("Длина"));
+    QCOMPARE(named<QDoubleSpinBox>("lengthSpin")->text(), QStringLiteral("15,0 м"));
+    QCOMPARE(named<QLabel>("cableNoteLabel")->text(),
+             QStringLiteral("Применяется ко всему кабелю: ко всем проводам между теми же двумя "
+                            "местами."));
+    settleAndCheckFit();
+    QVERIFY(saveScreenshot(*window, "f07", "properties-wire-length"));
+
+    chooseLanguage("kk");
+    QCOMPARE(named<QLabel>("wireEndsLabel")->text(), QStringLiteral("QF2 2 \u2192 Шам 1 L"));
+    QVERIFY(showsLabel("Ұзындық"));
+    QCOMPARE(named<QDoubleSpinBox>("lengthSpin")->text(), QStringLiteral("15,0 м"));
+    QCOMPARE(named<QLabel>("cableNoteLabel")->text(),
+             QStringLiteral("Бүкіл кабельге қолданылады: сол екі орын арасындағы әр сымға."));
+    settleAndCheckFit();
+    clickLoad(socket);
+    QVERIFY(showsLabel("Қосылғандар"));
+    QCOMPARE(named<QLabel>("loadTypeLabel")->text(), QStringLiteral("Қос розетка"));
+    QCOMPARE(named<QLabel>("socketContentsLabel")->text(),
+             QStringLiteral("Шәйнек, 2000 Вт\nМикротолқынды пеш, 1200 Вт"));
+    settleAndCheckFit();
+    clickLoad(kettle);
+    QCOMPARE(named<QLabel>("loadNameLabel")->text(), QStringLiteral("Шәйнек"));
+    QVERIFY(showsLabel("Қуат"));
+    QCOMPARE(named<QLabel>("plugStatusLabel")->text(), QStringLiteral("Қосылған жері: Розетка 1"));
+    settleAndCheckFit();
+    QVERIFY(saveScreenshot(*window, "f07", "properties-load-kk"));
+
+    chooseLanguage("en");
 }
 
 QTEST_MAIN(TestProperties)

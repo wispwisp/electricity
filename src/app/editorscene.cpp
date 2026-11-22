@@ -77,7 +77,8 @@ const TerminalSpec *findTerminal(const QList<TerminalSpec> &terminals, const QSt
     return it == terminals.end() ? nullptr : &*it;
 }
 
-// The translated catalog caption and the load's number, "Lamp 1"; "" for a plug-in appliance.
+} // namespace
+
 QString loadCaption(const Project &project, const PlacedLoad &load, const LoadType &type)
 {
     if (type.caption.isEmpty())
@@ -85,7 +86,6 @@ QString loadCaption(const Project &project, const PlacedLoad &load, const LoadTy
     return QCoreApplication::translate("Catalog", type.caption.toUtf8().constData())
             + QLatin1Char(' ') + QString::number(project.loadNumber(load.id));
 }
-} // namespace
 
 EditorScene::EditorScene(Project &project, QUndoStack &undoStack, QObject *parent)
     : QGraphicsScene(parent)
