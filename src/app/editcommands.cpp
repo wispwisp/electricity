@@ -204,16 +204,18 @@ RemoveLoadCommand::RemoveLoadCommand(Project &project, const QString &id)
 void RemoveLoadCommand::undo()
 {
     // The appliances hang unplugged where the socket was, so the socket does not fit until they
-    // are lifted out; all of them are re-added in their original order.
+    // are lifted out. It goes back first, since an appliance can only be plugged into an existing
+    // socket, then the appliances, each at its original index.
     for (const PlacedLoad &appliance : m_appliances)
         m_project.removeLoad(appliance.id);
-    QList<std::pair<qsizetype, PlacedLoad>> restored{ { m_index, m_load } };
-    for (qsizetype i = 0; i < m_appliances.size(); ++i)
-        restored.append({ m_applianceIndices[i], m_appliances[i] });
-    std::ranges::sort(restored, {}, &std::pair<qsizetype, PlacedLoad>::first);
-    for (const auto &[index, load] : restored) {
-        [[maybe_unused]] const QString id = m_project.addLoad(load, index);
-        Q_ASSERT(id == load.id);
+    const qsizetype before = std::ranges::count_if(m_applianceIndices,
+                                                   [this](qsizetype i) { return i < m_index; });
+    [[maybe_unused]] const QString id = m_project.addLoad(m_load, m_index - before);
+    Q_ASSERT(id == m_load.id);
+    for (qsizetype i = 0; i < m_appliances.size(); ++i) {
+        [[maybe_unused]] const QString applianceId
+                = m_project.addLoad(m_appliances[i], m_applianceIndices[i]);
+        Q_ASSERT(applianceId == m_appliances[i].id);
     }
     for (qsizetype i = 0; i < m_wires.size(); ++i) {
         [[maybe_unused]] const QString wireId = m_project.addWire(m_wires[i], m_wireIndices[i]);
@@ -227,10 +229,11 @@ void RemoveLoadCommand::redo()
             - m_project.loads().begin();
     m_appliances.clear();
     m_applianceIndices.clear();
-    for (const QString &id : m_project.pluggedInto(m_load.id)) {
-        m_appliances.append(*m_project.load(id));
-        m_applianceIndices.append(std::ranges::find(m_project.loads(), id, &PlacedLoad::id)
-                                  - m_project.loads().begin());
+    for (const PlacedLoad &load : m_project.loads()) { // loads() order, so indices ascend
+        if (load.socket == m_load.id) {
+            m_appliances.append(load);
+            m_applianceIndices.append(&load - m_project.loads().constData());
+        }
     }
     m_wires.clear();
     m_wireIndices.clear();

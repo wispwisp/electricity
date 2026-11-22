@@ -44,6 +44,7 @@ private slots:
     void removeDeviceRestoresItsWires();
     void addLoadUndoRedoKeepsId();
     void removeSocketRestoresWiresAndPlugs();
+    void removeSocketRestoresApplianceAddedBeforeIt();
     void updateLoadUndoRestoresPlugAndPower();
     void setCableLengthUndoRestoresEachWire();
     void setEnclosureUndoMovesLoadsBack();
@@ -317,6 +318,31 @@ void TestEditCommands::removeSocketRestoresWiresAndPlugs()
     stack.undo();
     QCOMPARE(project.loads(), loadsBefore);
     QCOMPARE(project.wires(), wiresBefore);
+}
+
+void TestEditCommands::removeSocketRestoresApplianceAddedBeforeIt()
+{
+    Project project(embeddedCatalog());
+    QUndoStack stack;
+    stack.push(new AddLoadCommand(project, loadOf("kettle", { 200, 260 })));
+    stack.push(new AddLoadCommand(project, loadOf("socket", { 0, 260 })));
+    PlacedLoad kettle = *project.load(u"l1");
+    kettle.socket = u"l2"_s;
+    kettle.place = 1;
+    stack.push(new UpdateLoadCommand(project, kettle));
+    const QList<PlacedLoad> before = project.loads();
+    QCOMPARE(before[0].id, u"l1"_s);
+
+    stack.push(new RemoveLoadCommand(project, u"l2"_s));
+    QCOMPARE(project.loads().size(), 1);
+    QVERIFY(project.load(u"l1")->socket.isEmpty());
+
+    stack.undo();
+    QCOMPARE(project.loads(), before);
+
+    stack.redo();
+    QCOMPARE(project.loads().size(), 1);
+    QVERIFY(project.load(u"l1")->socket.isEmpty());
 }
 
 void TestEditCommands::updateLoadUndoRestoresPlugAndPower()
