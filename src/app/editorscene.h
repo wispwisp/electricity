@@ -62,6 +62,8 @@ public:
     [[nodiscard]] double wireSection() const;
     // terminal id of the wire in progress, "" if none
     [[nodiscard]] QString wireStart() const;
+    // Esc with the tool on: cancels the wire in progress, or with none turns the tool off.
+    void escapeWireTool();
     // Actions of the menu shown by a right-click on a device or a wire.
     void setDeviceContextActions(const QList<QAction *> &actions);
     // the "Supply" text

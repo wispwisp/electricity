@@ -336,18 +336,17 @@ void EditorScene::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event)
     pressDevice(event);
 }
 
-// With the wire tool on, Esc cancels a wire in progress, otherwise it turns the tool off. With the
-// tool off, Esc cancels a move.
+void EditorScene::escapeWireTool()
+{
+    if (m_wireStart.isEmpty())
+        setWireMode(false);
+    else
+        cancelWire();
+}
+
+// Esc cancels a move. With the wire tool on, the window's Esc shortcut takes Esc instead.
 void EditorScene::keyPressEvent(QKeyEvent *event)
 {
-    if (event->key() == Qt::Key_Escape && m_wireMode) {
-        if (m_wireStart.isEmpty())
-            setWireMode(false);
-        else
-            cancelWire();
-        event->accept();
-        return;
-    }
     if (event->key() != Qt::Key_Escape || m_movingId.isEmpty()) {
         QGraphicsScene::keyPressEvent(event);
         return;

@@ -13,7 +13,9 @@
 #include "screenshot.h"
 #include "testsettings.h"
 
+#include <QAbstractItemView>
 #include <QAction>
+#include <QApplication>
 #include <QComboBox>
 #include <QGraphicsEllipseItem>
 #include <QGraphicsLineItem>
@@ -108,6 +110,9 @@ private slots:
     void drawsWiresWithTheTool();
     void refusesFullTerminalsAndDuplicates();
     void escCancelsThenTurnsToolOff();
+    void escAfterToolbarSection();
+    void escAfterPropertiesSection();
+    void escAfterWireButton();
     void secondClickOnStartAndRightClickCancel();
     void doubleClickStartsAWire();
     void doubleClickFinishesAWire();
@@ -141,6 +146,8 @@ private:
     [[nodiscard]] QString message() const;
     [[nodiscard]] QGraphicsEllipseItem *highlight() const;
     [[nodiscard]] QGraphicsLineItem *preview() const;
+    // Sends Esc where the user's key press goes: to the focus widget.
+    void pressEscape();
 
     std::unique_ptr<MainWindow> window;
     CanvasView *canvas = nullptr;
@@ -256,6 +263,13 @@ QGraphicsEllipseItem *TestWiring::highlight() const
 QGraphicsLineItem *TestWiring::preview() const
 {
     return qgraphicsitem_cast<QGraphicsLineItem *>(sceneItem(scene, "wirePreview"));
+}
+
+void TestWiring::pressEscape()
+{
+    QWidget *focus = QApplication::focusWidget();
+    QVERIFY(focus);
+    QTest::keyClick(focus, Qt::Key_Escape);
 }
 
 void TestWiring::initTestCase()
@@ -626,6 +640,79 @@ void TestWiring::escCancelsThenTurnsToolOff()
     QVERIFY(scene->wireStart().isEmpty());
     QVERIFY(!preview()->isVisible());
     QVERIFY(window->project().wires().isEmpty());
+}
+
+// Esc reaches the tool with the focus left on the drop-down, without a click on the canvas first.
+// In the open drop-down, Esc only closes it.
+void TestWiring::escAfterToolbarSection()
+{
+    addToolDevices();
+    clickWireButton();
+    QVERIFY(scene->isWireMode());
+    clickTerminal("supply:L");
+    QCOMPARE(scene->wireStart(), QStringLiteral("supply:L"));
+    auto *combo = named<QComboBox>("wireSectionCombo");
+    QVERIFY(combo);
+    QTest::mouseClick(combo, Qt::LeftButton);
+    QTRY_VERIFY(combo->view()->isVisible());
+    pressEscape();
+    QTRY_VERIFY(!combo->view()->isVisible());
+    QCOMPARE(scene->wireStart(), QStringLiteral("supply:L"));
+
+    chooseComboItem(combo, combo->itemText(combo->findData(10.0)));
+    QCOMPARE(scene->wireSection(), 10.0);
+    QTRY_VERIFY(!combo->view()->isVisible());
+    QCOMPARE(QApplication::focusWidget(), combo);
+    pressEscape();
+    QVERIFY(scene->wireStart().isEmpty());
+    QVERIFY(scene->isWireMode());
+    pressEscape();
+    QVERIFY(!scene->isWireMode());
+    QVERIFY(!named<QAction>("wireAction")->isChecked());
+    QCOMPARE(scene->wireSection(), 10.0);
+}
+
+// Fixing a new wire's section in the properties panel, with the next wire already started.
+void TestWiring::escAfterPropertiesSection()
+{
+    addToolDevices();
+    clickWireButton();
+    QVERIFY(scene->isWireMode());
+    clickTerminal("supply:L");
+    clickTerminal("d1:1");
+    QCOMPARE(scene->selectedWireId(), QStringLiteral("w1"));
+    clickTerminal("supply:N");
+    QCOMPARE(scene->wireStart(), QStringLiteral("supply:N"));
+    auto *section = named<QComboBox>("sectionCombo");
+    QVERIFY(section);
+    QVERIFY(section->isVisible());
+    chooseComboItem(section, QStringLiteral("10 mm\u00b2"));
+    QCOMPARE(window->project().wire(QStringLiteral("w1"))->section, 10.0);
+    QTRY_VERIFY(!section->view()->isVisible());
+    QCOMPARE(QApplication::focusWidget(), section);
+    QCOMPARE(scene->wireStart(), QStringLiteral("supply:N"));
+    pressEscape();
+    QVERIFY(scene->wireStart().isEmpty());
+    QVERIFY(scene->isWireMode());
+    pressEscape();
+    QVERIFY(!scene->isWireMode());
+    QCOMPARE(window->project().wires().size(), 1);
+}
+
+// The Wire button doesn't move the focus, which stays where it was, here on the drop-down.
+void TestWiring::escAfterWireButton()
+{
+    addToolDevices();
+    auto *combo = named<QComboBox>("wireSectionCombo");
+    QVERIFY(combo);
+    chooseComboItem(combo, combo->itemText(combo->findData(6.0)));
+    QTRY_VERIFY(!combo->view()->isVisible());
+    clickWireButton();
+    QVERIFY(scene->isWireMode());
+    QVERIFY(QApplication::focusWidget() != canvas);
+    pressEscape();
+    QVERIFY(!scene->isWireMode());
+    QVERIFY(!named<QAction>("wireAction")->isChecked());
 }
 
 void TestWiring::secondClickOnStartAndRightClickCancel()

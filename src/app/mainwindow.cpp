@@ -104,6 +104,15 @@ MainWindow::MainWindow(QWidget *parent)
     m_wireAction->setCheckable(true);
     connect(m_wireAction, &QAction::toggled, m_scene, &EditorScene::setWireMode);
     connect(m_scene, &EditorScene::wireModeChanged, m_wireAction, &QAction::setChecked);
+    // A window shortcut, so that Esc reaches the tool wherever the focus is, on a section drop-down
+    // say. Only while the tool is on, so that otherwise Esc still cancels a device move.
+    auto *wireEscapeAction = new QAction(this);
+    wireEscapeAction->setObjectName(QStringLiteral("wireEscapeAction"));
+    wireEscapeAction->setShortcut(Qt::Key_Escape);
+    wireEscapeAction->setEnabled(false);
+    addAction(wireEscapeAction);
+    connect(m_scene, &EditorScene::wireModeChanged, wireEscapeAction, &QAction::setEnabled);
+    connect(wireEscapeAction, &QAction::triggered, m_scene, &EditorScene::escapeWireTool);
     m_wireSectionCombo = new QComboBox(this);
     m_wireSectionCombo->setObjectName(QStringLiteral("wireSectionCombo"));
     m_wireSectionCombo->setSizeAdjustPolicy(QComboBox::AdjustToContents);

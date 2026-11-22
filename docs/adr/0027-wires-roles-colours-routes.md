@@ -28,6 +28,9 @@ This refines 0007, 0013 and 0023.
 - Deleting a device deletes its wires, in one undo step.
 - A pole change or an enclosure change that would leave a wire on a missing
   terminal (a device terminal, or a bar hole) is refused.
+- The wire tool's Esc is a window shortcut, enabled only while the tool is on,
+  so it works wherever the focus is; open menus and drop-downs still take Esc
+  first, and with the tool off Esc still cancels a device move.
 
 ## Rejected alternatives
 
