@@ -551,6 +551,26 @@ QRectF Project::loadOutline(const PlacedLoad &load) const
     return outline;
 }
 
+QRectF Project::entryLane(const PlacedLoad &load) const
+{
+    const LoadType *type = m_catalog.loadType(load.type);
+    if (!type || type->terminals.isEmpty())
+        return {};
+    const QPointF position = loadPosition(load);
+    return { QPointF(position.x(), position.y() - LoadEntryLaneHeight),
+             QSizeF(type->size.width(), LoadEntryLaneHeight) };
+}
+
+// Wires enter load terminals from above, from the first free grid node. A load in the lane would
+// leave none there, and the stub would run up through it.
+bool Project::collides(const PlacedLoad &load, qreal dy, const PlacedLoad &other) const
+{
+    const QRectF outline = loadOutline(load).translated(0, dy);
+    const QRectF otherOutline = loadOutline(other);
+    return outline.intersects(otherOutline) || outline.intersects(entryLane(other))
+            || entryLane(load).translated(0, dy).intersects(otherOutline);
+}
+
 // The set is not the same for a change and its reverse: after a shrink, a load beside the enclosure
 // that stayed can reach below the new bottom edge. So an undo moves the loads its change moved.
 QStringList Project::loadsBelowEnclosure() const
@@ -577,10 +597,8 @@ bool Project::keepsLoadsClear(QStringView enclosureId, const QStringList &movedL
     for (const PlacedLoad &stays : m_loads) {
         if (movedLoadIds.contains(stays.id) || !stays.socket.isEmpty())
             continue;
-        const QRectF outline = loadOutline(stays);
         if (std::ranges::any_of(m_loads, [&](const PlacedLoad &moved) {
-                return movedLoadIds.contains(moved.id)
-                        && loadOutline(moved).translated(0, shift).intersects(outline);
+                return movedLoadIds.contains(moved.id) && collides(moved, shift, stays);
             }))
             return false;
     }
@@ -618,7 +636,7 @@ LoadPlacement Project::loadPlacement(const PlacedLoad &load) const
     if (outline.intersects(QRectF(QPointF(0, 0), m_enclosure->size)))
         return LoadPlacement::OnEnclosure;
     const bool overlaps = std::ranges::any_of(m_loads, [&](const PlacedLoad &l) {
-        return l.id != load.id && l.socket.isEmpty() && outline.intersects(loadOutline(l));
+        return l.id != load.id && l.socket.isEmpty() && collides(load, 0, l);
     });
     return overlaps ? LoadPlacement::Overlaps : LoadPlacement::Fits;
 }

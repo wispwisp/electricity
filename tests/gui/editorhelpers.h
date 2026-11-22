@@ -43,6 +43,8 @@ bool fullyVisible(QGraphicsView *view, const QRectF &sceneRect);
 // For orthogonal routes, where a segment's bounding rect is the segment itself. The first and the
 // last segment are the stubs into the route's own terminals and are skipped.
 bool crossesInside(const QPolygonF &route, const QRectF &rect);
+// Whether the last segment, the stub into the route's end terminal, runs inside the rect.
+bool stubCrossesInside(const QPolygonF &route, const QRectF &rect);
 // Offscreen drags end at once (ADR 0025), so these send the canvas viewport the events Qt delivers
 // while a preset is dragged from the palette: enter and move at viewportPos, with the palette's own
 // drag data, the copy action and the left button.

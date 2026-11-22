@@ -40,6 +40,7 @@ private slots:
     void cleanup();
     void drawsLoadsFromTheModel();
     void loadWiresEnterFromAboveAndAvoidLoads();
+    void wiresIntoALoadUnderAnotherRunBetweenThem();
     void selectsAndDeletesLoadWithUndo();
     void captionsFollowLanguage();
     void fitAndRoutingWithFarLoads();
@@ -311,6 +312,42 @@ void TestLoading::loadWiresEnterFromAboveAndAvoidLoads()
     }
     QVERIFY(saveScreenshot(*window, "f07", "wired-loads"));
     saveCloseUp("wired-loads-closeup");
+}
+
+// A lamp dragged down from over another one is refused until there is room above it for its wires
+// to come in, so the wire dropped there doesn't run through the lamp above.
+void TestLoading::wiresIntoALoadUnderAnotherRunBetweenThem()
+{
+    lamp = addLoad("ceiling-lamp", QPointF(0, 270));
+    QVERIFY(!lamp.isEmpty());
+    const Project &project = window->project();
+    auto *palette = named<PaletteWidget>("paletteTree");
+    const QPointF half(18, 18);
+    QPointF topLeft(0, 306); // over the lamp's caption
+    for (;; topLeft.ry() += 4.5) {
+        QVERIFY(topLeft.y() < 360);
+        dragLoadOver(canvas, palette, "ceiling-lamp", viewportPoint(canvas, topLeft + half));
+        QVERIFY(loadItem("loadPreview"));
+        if (!loadItem("loadPreview")->isRefused())
+            break;
+    }
+    drop("ceiling-lamp", topLeft + half);
+    QCOMPARE(project.loads().size(), 2);
+    const QString under = project.loads().last().id;
+
+    clickWireButton();
+    clickTerminal("d3:2");
+    clickTerminal(under + ":L");
+    const Wire wire = project.wires().last();
+    QCOMPARE(wire.to, under + ":L");
+    const QPolygonF route = wireItem(wire.id)->route();
+    QCOMPARE(route.last(), scene->terminalPos(under + ":L"));
+    const QRectF above = project.loadOutline(*project.load(lamp));
+    QVERIFY(!stubCrossesInside(route, above));
+    QVERIFY(!crossesInside(route, above));
+    QCOMPARE(project.load(under)->position, QPointF(0, 324));
+    QVERIFY(saveScreenshot(*window, "f07", "entry-lane"));
+    saveCloseUp("entry-lane-closeup");
 }
 
 void TestLoading::selectsAndDeletesLoadWithUndo()

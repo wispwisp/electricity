@@ -53,6 +53,15 @@ void dragItemOver(QGraphicsView *view, PaletteWidget *palette, QTreeWidgetItem *
     QApplication::sendEvent(view->viewport(), &move);
 }
 
+// For an orthogonal segment, whose bounding rect is the segment itself.
+bool segmentInside(QPointF from, QPointF to, const QRectF &rect)
+{
+    const QRectF inside = rect.adjusted(0.5, 0.5, -0.5, -0.5);
+    const QRectF segment = QRectF(from, to).normalized();
+    return segment.left() < inside.right() && segment.right() > inside.left()
+            && segment.top() < inside.bottom() && segment.bottom() > inside.top();
+}
+
 void dropDragged(QGraphicsView *view, QPoint viewportPos)
 {
     QDropEvent drop(viewportPos, Qt::CopyAction, dragData, Qt::LeftButton, Qt::NoModifier);
@@ -162,14 +171,16 @@ bool fullyVisible(QGraphicsView *view, const QRectF &sceneRect)
 
 bool crossesInside(const QPolygonF &route, const QRectF &rect)
 {
-    const QRectF inside = rect.adjusted(0.5, 0.5, -0.5, -0.5);
     for (qsizetype i = 2; i + 1 < route.size(); ++i) {
-        const QRectF segment = QRectF(route[i - 1], route[i]).normalized();
-        if (segment.left() < inside.right() && segment.right() > inside.left()
-            && segment.top() < inside.bottom() && segment.bottom() > inside.top())
+        if (segmentInside(route[i - 1], route[i], rect))
             return true;
     }
     return false;
+}
+
+bool stubCrossesInside(const QPolygonF &route, const QRectF &rect)
+{
+    return route.size() >= 2 && segmentInside(route[route.size() - 2], route.last(), rect);
 }
 
 void dragPresetOver(QGraphicsView *view, PaletteWidget *palette, const QString &presetId,

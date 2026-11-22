@@ -28,6 +28,9 @@ This refines 0007, 0009, 0010 and 0023.
   intersection.
 - A socket's outline reserves both plug places, so nothing else stands where an
   appliance would hang. Plugged appliances take part only in the plug rules.
+- A wired load keeps a 9-unit entry lane above its picture free of other loads,
+  so a wire into it doesn't run through a load just above. The lane is a
+  placement rule, not a routing obstacle.
 - Deleting a socket unplugs its appliances, which stay where they hung.
 - A cable is the wires whose ends lie on the same two sides, a side being a
   load or the panel; one side must be a load. A new wire with a load end starts

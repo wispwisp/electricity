@@ -61,6 +61,7 @@ private slots:
     void shrinkingMovesThemBackUp();
     void shrinkRefusedWhenLoadsWouldCollide();
     void shrinkMovesLoadsBelowPastLoadsBeside();
+    void shrinkRefusedWhenALoadWouldBlockAnEntryLane();
     void setEnclosureMovesExactlyTheGivenLoads();
     void newWireLengthDependsOnEnds();
     void cableGroupsWiresBySides();
@@ -165,6 +166,16 @@ void TestLoads::placement_data()
     QTest::newRow("onto lamp") << load("ceiling-lamp", { 310, 9 }) << LoadPlacement::Overlaps;
     QTest::newRow("onto plug place")
             << load("ceiling-lamp", { -9, 345 }) << LoadPlacement::Overlaps;
+    // A wired load keeps a lane above its picture free for its wires to come in.
+    QTest::newRow("lamp directly under a lamp (gap 0)")
+            << load("ceiling-lamp", { 300, 45 }) << LoadPlacement::Overlaps;
+    QTest::newRow("lamp under a lamp, gap 4.5")
+            << load("ceiling-lamp", { 300, 49.5 }) << LoadPlacement::Overlaps;
+    QTest::newRow("lamp under a lamp, gap 9")
+            << load("ceiling-lamp", { 300, 54 }) << LoadPlacement::Fits;
+    QTest::newRow("kettle directly above a lamp")
+            << load("kettle", { 300, -36 }) << LoadPlacement::Overlaps;
+    QTest::newRow("kettle 9 above a lamp") << load("kettle", { 300, -45 }) << LoadPlacement::Fits;
     PlacedLoad unknown = load("ceiling-lamp", { 400, 0 });
     unknown.type = u"nope"_s;
     QTest::newRow("unknown type") << unknown << LoadPlacement::Invalid;
@@ -346,6 +357,20 @@ void TestLoads::shrinkMovesLoadsBelowPastLoadsBeside()
     QCOMPARE(spy.count(), 1);
     QCOMPARE(m_project->load(u"l1")->position, QPointF(300, 300));
     QCOMPARE(m_project->load(u"l2")->position, QPointF(300, 356));
+}
+
+void TestLoads::shrinkRefusedWhenALoadWouldBlockAnEntryLane()
+{
+    QVERIFY(m_project->setEnclosure(u"enclosure-24"_s));
+    m_project->addLoad(load("ceiling-lamp", { 300, 300 }));
+    m_project->addLoad(load("ceiling-lamp", { 300, 469 })); // just under the first after the shrink
+    QVERIFY(!m_project->keepsLoadsClear(u"enclosure-12"_s));
+
+    QVERIFY(m_project->removeLoad(u"l2"));
+    m_project->addLoad(load("ceiling-lamp", { 400, 360 })); // beside, stays
+    m_project->addLoad(load("kettle", { 400, 440 }));       // into the lamp's lane after the shrink
+    QCOMPARE(m_project->loadsBelowEnclosure(), QStringList{ u"l4"_s });
+    QVERIFY(!m_project->keepsLoadsClear(u"enclosure-12"_s));
 }
 
 // After a shrink the lamp beside is below the bottom edge too; going back moves only the lamp the

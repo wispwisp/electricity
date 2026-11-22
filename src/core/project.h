@@ -69,6 +69,8 @@ enum class WireCheck : std::uint8_t {
 
 inline constexpr int MaxLoadPower = 15000;     // W
 inline constexpr double LoadCaptionHeight = 9; // the band under a wired load's picture
+// The band above a wired load's picture that its wires come in by, kept free of other loads.
+inline constexpr double LoadEntryLaneHeight = 9;
 
 struct PlacedLoad
 {
@@ -84,7 +86,7 @@ struct PlacedLoad
 enum class LoadPlacement : std::uint8_t {
     Fits,
     OnEnclosure, // the outline overlaps the enclosure
-    Overlaps,    // the outline overlaps another load's outline
+    Overlaps,    // the outline overlaps another load's outline, or one is in the other's entry lane
     PlaceTaken,  // the plug place already holds an appliance
     Invalid      // unknown type, type changed, power out of range, a plug into something that
                  // isn't a socket or by a load that doesn't plug in, place not 1 or 2
@@ -187,7 +189,7 @@ public:
     // loads() order: the loads that follow the edge when the enclosure changes size
     [[nodiscard]] QStringList loadsBelowEnclosure() const;
     // false if moving the loads below the enclosure with its bottom edge would put one onto a load
-    // that stays, or the enclosure is unknown
+    // that stays (or the two into each other's entry lane), or the enclosure is unknown
     [[nodiscard]] bool keepsLoadsClear(QStringView enclosureId) const;
     // the same, moving exactly these loads
     [[nodiscard]] bool keepsLoadsClear(QStringView enclosureId,
@@ -199,6 +201,10 @@ signals:
 
 private:
     [[nodiscard]] const EnclosureType *findEnclosure(QAnyStringView id) const;
+    // the band above a wired load's picture, kept free of other loads; empty for a plug-in
+    [[nodiscard]] QRectF entryLane(const PlacedLoad &load) const;
+    // whether the load, moved down by dy, and the other overlap or one is in the other's entry lane
+    [[nodiscard]] bool collides(const PlacedLoad &load, qreal dy, const PlacedLoad &other) const;
     // fitsEnclosure(), moving exactly these loads with the bottom edge
     [[nodiscard]] bool fitsEnclosure(QStringView enclosureId,
                                      const QStringList &movedLoadIds) const;
