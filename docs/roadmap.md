@@ -19,7 +19,7 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
 | F04 | Component catalog and device pictures | ☑ |
 | F05 | Panel editor: enclosure, rails, placing devices | ☑ |
 | F06 | Wiring | ☑ |
-| F07 | Loads | ◐ |
+| F07 | Loads | ☑ |
 | F08 | Live simulation: supply, switching, currents | ☐ |
 | F09 | Protection and faults | ☐ |
 | F10 | Project files | ☐ |
@@ -171,6 +171,7 @@ currents, lamps light up ([0008](adr/0008-simulation-engine.md)).
 - App: click device handle to switch; click lamp/appliance to switch on/off;
   current labels on devices and wires (toggle); lamps glow when energized;
   simulation timer and time-speed control (paused, ×1, ×10, ×60).
+- Loads: a plugged appliance draws its power between its socket's L and N; an unplugged one draws nothing.
 
 **Scenario test:** build the tutorial panel from a fixture, flip QF1, QD1,
 QF2, switch on a lamp; assert current ≈ 10 W / 230 V on QF2 and the lamp
@@ -204,6 +205,7 @@ thermal threshold is 1.3·32 ≈ 41.6 A). Screenshots per case.
 
 - Loading: add a load/replace call to `Project` that sets the device-id counter past every `d<n>` in the file, so ids are never reused ([0024](adr/0024-placed-devices-and-designations.md)).
 - `Project::placement()` accepts only parameters that exactly match the type's allowed keys, so a parameter added to the catalog later (F12, F16) needs a per-version migration that fills it in for older files.
+- Loads: save `loads` with type, position, power, socket and place; set the load id counter past every `l<n>` in the file; migrate power when a load type's default changes.
 
 **Scenario test:** build a small panel, save to a temp file, New, Open it
 back, assert model equality; modify and close → prompt shown. Fixture-based
@@ -219,6 +221,7 @@ step ([0017](adr/0017-tutorial-engine.md)).
   setup fixtures), all 13 steps, texts translated to ru/kk/en.
 - Help → Tutorial to restart; Skip.
 - Allow filter: since F05, edits enter from four places (palette drop and device move in `EditorScene`, delete in `MainWindow`, edits in `PropertiesPanel`); put one gate in front of all of them.
+- Allow filter: load drops and moves in `EditorScene` and load edits in `PropertiesPanel` also go through the filter.
 
 **Scenario test:** walk the whole tutorial by real clicks and drags, asserting
 each step's completion; screenshot every step in Russian; spot-check

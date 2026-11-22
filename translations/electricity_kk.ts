@@ -193,8 +193,8 @@
     <name>EditorScene</name>
     <message>
         <location filename="../src/app/editorscene.cpp" line="242"/>
-        <location filename="../src/app/editorscene.cpp" line="539"/>
-        <location filename="../src/app/editorscene.cpp" line="552"/>
+        <location filename="../src/app/editorscene.cpp" line="540"/>
+        <location filename="../src/app/editorscene.cpp" line="553"/>
         <source>Click a terminal to start a wire.</source>
         <translation>Сымды бастау үшін клемманы басыңыз.</translation>
     </message>
@@ -209,42 +209,42 @@
         <translation>Екінші клемманы басыңыз. Esc — болдырмау.</translation>
     </message>
     <message>
-        <location filename="../src/app/editorscene.cpp" line="544"/>
+        <location filename="../src/app/editorscene.cpp" line="545"/>
         <source>These terminals are already joined by a wire.</source>
         <translation>Бұл клеммалар сыммен жалғанған.</translation>
     </message>
     <message>
-        <location filename="../src/app/editorscene.cpp" line="590"/>
+        <location filename="../src/app/editorscene.cpp" line="591"/>
         <source>This bar hole already has a wire.</source>
         <translation>Шинаның бұл ұясында сым бар.</translation>
     </message>
     <message>
-        <location filename="../src/app/editorscene.cpp" line="591"/>
+        <location filename="../src/app/editorscene.cpp" line="592"/>
         <source>This terminal already has two wires.</source>
         <translation>Бұл клеммаға екі сым қосылып қойған.</translation>
     </message>
     <message>
-        <location filename="../src/app/editorscene.cpp" line="598"/>
+        <location filename="../src/app/editorscene.cpp" line="599"/>
         <source>Devices go on a DIN rail inside the enclosure.</source>
         <translation>Аппараттар қалқан ішіндегі DIN-рейкаға орнатылады.</translation>
     </message>
     <message>
-        <location filename="../src/app/editorscene.cpp" line="604"/>
+        <location filename="../src/app/editorscene.cpp" line="605"/>
         <source>No room here: another device is in the way.</source>
         <translation>Мұнда орын жоқ: басқа аппарат кедергі жасайды.</translation>
     </message>
     <message>
-        <location filename="../src/app/editorscene.cpp" line="672"/>
+        <location filename="../src/app/editorscene.cpp" line="673"/>
         <source>Loads go outside the enclosure.</source>
         <translation>Жүктемелер қалқаннан тыс орналасады.</translation>
     </message>
     <message>
-        <location filename="../src/app/editorscene.cpp" line="675"/>
+        <location filename="../src/app/editorscene.cpp" line="676"/>
         <source>No room here: something is in the way.</source>
         <translation>Мұнда орын жоқ: бірдеңе кедергі жасайды.</translation>
     </message>
     <message>
-        <location filename="../src/app/editorscene.cpp" line="678"/>
+        <location filename="../src/app/editorscene.cpp" line="679"/>
         <source>This socket already has two appliances.</source>
         <translation>Бұл розеткаға екі құрылғы қосылып қойған.</translation>
     </message>
@@ -355,137 +355,137 @@
 <context>
     <name>PropertiesPanel</name>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="197"/>
+        <location filename="../src/app/propertiespanel.cpp" line="203"/>
         <source>Select a device on the panel to see its properties.</source>
         <translation>Қасиеттерін көру үшін қалқандағы аппаратты таңдаңыз.</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="198"/>
+        <location filename="../src/app/propertiespanel.cpp" line="204"/>
         <source>Enclosure</source>
         <translation>Қалқан корпусы</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="199"/>
+        <location filename="../src/app/propertiespanel.cpp" line="205"/>
         <source>Wire</source>
         <translation>Сым</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="200"/>
+        <location filename="../src/app/propertiespanel.cpp" line="206"/>
         <source>Section</source>
         <translation>Қима</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="201"/>
+        <location filename="../src/app/propertiespanel.cpp" line="207"/>
         <source>Length</source>
         <translation>Ұзындық</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="202"/>
+        <location filename="../src/app/propertiespanel.cpp" line="208"/>
         <source> m</source>
         <translation> м</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="204"/>
+        <location filename="../src/app/propertiespanel.cpp" line="210"/>
         <source>Applies to the whole cable: every wire between the same two places.</source>
         <translation>Бүкіл кабельге қолданылады: сол екі орын арасындағы әр сымға.</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="205"/>
+        <location filename="../src/app/propertiespanel.cpp" line="211"/>
         <source>Power</source>
         <translation>Қуат</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="206"/>
+        <location filename="../src/app/propertiespanel.cpp" line="212"/>
         <source> W</source>
         <translation> Вт</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="207"/>
+        <location filename="../src/app/propertiespanel.cpp" line="213"/>
         <source>Plugged in</source>
         <translation>Қосылғандар</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="208"/>
+        <location filename="../src/app/propertiespanel.cpp" line="214"/>
         <source>Rating</source>
         <translation>Номинал</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="209"/>
+        <location filename="../src/app/propertiespanel.cpp" line="215"/>
         <source>Poles</source>
         <translation>Полюстер</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="210"/>
+        <location filename="../src/app/propertiespanel.cpp" line="216"/>
         <source>Curve</source>
         <translation>Сипаттама</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="211"/>
+        <location filename="../src/app/propertiespanel.cpp" line="217"/>
         <source>Residual current</source>
         <translation>Ағу тогы</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="212"/>
+        <location filename="../src/app/propertiespanel.cpp" line="218"/>
         <source>Size, modules</source>
         <translation>Өлшемі, модуль</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="272"/>
+        <location filename="../src/app/propertiespanel.cpp" line="278"/>
         <source>Plugged into %1</source>
         <translation>Қосылған жері: %1</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="273"/>
+        <location filename="../src/app/propertiespanel.cpp" line="279"/>
         <source>Not plugged in</source>
         <translation>Розеткаға қосылмаған</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="280"/>
+        <location filename="../src/app/propertiespanel.cpp" line="286"/>
         <source>%1, %2 W</source>
         <translation>%1, %2 Вт</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="282"/>
+        <location filename="../src/app/propertiespanel.cpp" line="288"/>
         <source>Nothing plugged in</source>
         <translation>Ештеңе қосылмаған</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="311"/>
+        <location filename="../src/app/propertiespanel.cpp" line="317"/>
         <source>Supply</source>
         <translation>Кіріс</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="313"/>
+        <location filename="../src/app/propertiespanel.cpp" line="319"/>
         <source>N bar</source>
         <translation>N шинасы</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="315"/>
+        <location filename="../src/app/propertiespanel.cpp" line="321"/>
         <source>PE bar</source>
         <translation>PE шинасы</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="340"/>
+        <location filename="../src/app/propertiespanel.cpp" line="346"/>
         <source>Remove the wires from terminals %1 first.</source>
         <translation>Алдымен %1 клеммаларынан сымдарды ажыратыңыз.</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="344"/>
+        <location filename="../src/app/propertiespanel.cpp" line="350"/>
         <source>Not enough room next to the device for more poles.</source>
         <translation>Аппараттың жанында қосымша полюстерге орын жетпейді.</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="356"/>
+        <location filename="../src/app/propertiespanel.cpp" line="362"/>
         <source>Remove the wires from the bar holes that would be removed first.</source>
         <translation>Алдымен алынып тасталатын шина ұяларынан сымдарды ажыратыңыз.</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="358"/>
+        <location filename="../src/app/propertiespanel.cpp" line="364"/>
         <source>Move the loads below the enclosure first: they would run into other loads.</source>
         <translation>Алдымен қалқан астындағы жүктемелерді жылжытыңыз: олар басқа жүктемелерге соғылады.</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="360"/>
+        <location filename="../src/app/propertiespanel.cpp" line="366"/>
         <source>Move or delete the devices on the rows that would be removed first.</source>
         <translation>Алдымен алынып тасталатын қатарлардағы аппараттарды жылжытыңыз немесе жойыңыз.</translation>
     </message>
