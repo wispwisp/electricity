@@ -4,6 +4,7 @@
 #include <QJsonArray>
 
 #include <algorithm>
+#include <array>
 
 using namespace Qt::StringLiterals;
 
@@ -426,7 +427,7 @@ bool Project::updateWire(const Wire &wire)
 
 PlacedLoad loadFromType(const LoadType &type, QPointF position)
 {
-    return PlacedLoad{ {}, type.id, position, type.power, {}, 0 };
+    return { {}, type.id, position, type.power, {}, 0 };
 }
 
 const QList<PlacedLoad> &Project::loads() const
@@ -473,7 +474,7 @@ QRectF Project::plugPlaceRect(const PlacedLoad &socket, int place) const
     if (!type || place < 1 || place > type->places.size())
         return {};
     const QPointF point = socket.position + type->places[place - 1];
-    return QRectF(QPointF(point.x() - PlugPlaceSize.width() / 2, point.y()), PlugPlaceSize);
+    return { QPointF(point.x() - PlugPlaceSize.width() / 2, point.y()), PlugPlaceSize };
 }
 
 QRectF Project::loadOutline(const PlacedLoad &load) const
@@ -492,7 +493,7 @@ QRectF Project::loadOutline(const PlacedLoad &load) const
 
 QStringList Project::pluggedInto(QStringView socketId) const
 {
-    QStringList ids[2];
+    std::array<QStringList, 2> ids;
     for (const PlacedLoad &l : m_loads) {
         if (l.socket == socketId && (l.place == 1 || l.place == 2))
             ids[l.place - 1] << l.id;
