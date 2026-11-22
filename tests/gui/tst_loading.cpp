@@ -50,6 +50,9 @@ private:
     [[nodiscard]] QPoint onPicture(const QString &id) const;
     // Saves the canvas zoomed in on the lamp and the socket, then restores the view.
     void saveCloseUp(const QString &step);
+    // Every caption, as painted, lies within its load's outline, which is all that wires keep
+    // clear of.
+    void checkCaptionsFitOutlines();
     template<typename T>
     T *named(const char *name) const
     {
@@ -132,6 +135,25 @@ void TestLoading::saveCloseUp(const QString &step)
     QVERIFY(saveScreenshot(*canvas, "f07", step));
     canvas->setTransform(transform);
     canvas->centerOn(centre);
+}
+
+void TestLoading::checkCaptionsFitOutlines()
+{
+    constexpr qreal tolerance = 0.01;
+    for (const PlacedLoad &load : window->project().loads()) {
+        const LoadItem *item = loadItem(load.id);
+        QVERIFY2(item, qPrintable(load.id));
+        if (item->caption().isEmpty())
+            continue;
+        const QRectF caption = item->mapRectToScene(item->captionRect());
+        const QRectF outline = window->project().loadOutline(load);
+        QVERIFY2(caption.width() > 0 && caption.left() >= outline.left() - tolerance
+                         && caption.right() <= outline.right() + tolerance,
+                 qPrintable(QStringLiteral("%1: \"%2\" is %3 wide, its outline %4")
+                                    .arg(load.id, item->caption())
+                                    .arg(caption.width())
+                                    .arg(outline.width())));
+    }
 }
 
 void TestLoading::initTestCase()
@@ -272,6 +294,7 @@ void TestLoading::captionsFollowLanguage()
     QHash<QString, QPointF> positions;
     for (const PlacedLoad &load : window->project().loads())
         positions.insert(load.id, loadItem(load.id)->pos());
+    checkCaptionsFitOutlines();
 
     auto *languageMenu = named<QMenu>("languageMenu");
     clickMenuBarItem(*window, languageMenu);
@@ -279,12 +302,14 @@ void TestLoading::captionsFollowLanguage()
     QCOMPARE(loadItem(lamp)->caption(), QStringLiteral("Светильник 1"));
     QCOMPARE(loadItem(socket)->caption(), QStringLiteral("Розетка 1"));
     QCOMPARE(loadItem(kettle)->caption(), QString());
+    checkCaptionsFitOutlines();
     QVERIFY(saveScreenshot(*window, "f07", "captions-ru"));
     saveCloseUp("captions-ru-closeup");
 
     clickMenuBarItem(*window, languageMenu);
     clickMenuItem(languageMenu, named<QAction>("languageAction_kk"));
     QCOMPARE(loadItem(lamp)->caption(), QStringLiteral("Шам 1"));
+    checkCaptionsFitOutlines();
     QVERIFY(saveScreenshot(*window, "f07", "captions-kk"));
     saveCloseUp("captions-kk-closeup");
 

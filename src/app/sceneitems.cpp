@@ -35,6 +35,7 @@ const QColor kCordColor(0x1c, 0x1e, 0x21);
 // A light edge, as the pictures' outlines, so that the dark cord shows on the dark canvas.
 constexpr qreal kCordEdgeWidth = 0.8; // 0.4 on each side of the core
 const QColor kCordEdgeColor(0xe6, 0xe8, 0xeb);
+constexpr qreal kMinCaptionScale = 4.0 / DeviceItem::DesignationPixelSize; // as 4-pixel text
 
 // Grows with the section like a conductor's diameter, from 1.8 at 1.5 mm² to 3.2 at 16 mm², so
 // that with its edge the thickest wire is 4 wide and wires on neighbouring 4.5-unit lanes keep
@@ -256,6 +257,7 @@ void LoadItem::setLoad(const PlacedLoad &load, const QString &caption,
             ? QRectF()
             : QRectF(0, m_size.height(), m_size.width(), LoadCaptionHeight);
     m_caption = caption;
+    fitCaption();
     m_emptyPlaces = emptyPlaces;
     m_cords = cords;
 }
@@ -288,7 +290,7 @@ bool LoadItem::isRefused() const
 
 QRectF LoadItem::boundingRect() const
 {
-    QRectF rect = QRectF(QPointF(0, 0), m_size) | m_band | captionRect();
+    QRectF rect = QRectF(QPointF(0, 0), m_size) | m_band;
     for (const QRectF &place : m_emptyPlaces)
         rect |= place;
     const qreal margin = (kCordWidth + kCordEdgeWidth) / 2;
@@ -311,10 +313,16 @@ void LoadItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWidge
     const QRectF picture(QPointF(0, 0), m_size);
     svgRenderer(m_path).render(painter, picture);
 
-    if (!m_caption.isEmpty()) {
+    if (!m_shownCaption.isEmpty()) {
+        painter->save();
+        painter->translate(m_band.center());
+        painter->scale(m_captionScale, m_captionScale);
         painter->setFont(m_font);
         painter->setPen(QApplication::palette().color(QPalette::Text));
-        painter->drawText(captionRect(), Qt::AlignCenter, m_caption);
+        const QSizeF band = m_band.size() / m_captionScale;
+        painter->drawText(QRectF(QPointF(-band.width() / 2, -band.height() / 2), band),
+                          Qt::AlignCenter, m_shownCaption);
+        painter->restore();
     }
     painter->setBrush(Qt::NoBrush);
     painter->setPen(
@@ -335,11 +343,26 @@ void LoadItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWidge
 
 QRectF LoadItem::captionRect() const
 {
-    if (m_caption.isEmpty() || m_band.isEmpty())
+    if (m_shownCaption.isEmpty())
         return {};
-    const qreal width
-            = std::max(m_band.width(), QFontMetricsF(m_font).horizontalAdvance(m_caption));
+    const qreal width = QFontMetricsF(m_font).horizontalAdvance(m_shownCaption) * m_captionScale;
     return { m_band.center().x() - width / 2, m_band.top(), width, m_band.height() };
+}
+
+// Wires keep clear of the load's outline only, so a caption wider than the band shrinks to fit it,
+// down to kMinCaptionScale, and beyond that is elided.
+void LoadItem::fitCaption()
+{
+    m_shownCaption.clear();
+    m_captionScale = 1;
+    if (m_caption.isEmpty() || m_band.isEmpty())
+        return;
+    const QFontMetricsF metrics(m_font);
+    const qreal room = m_band.width();
+    m_shownCaption = metrics.elidedText(m_caption, Qt::ElideRight, room / kMinCaptionScale);
+    const qreal width = metrics.horizontalAdvance(m_shownCaption);
+    if (width > room)
+        m_captionScale = room / width;
 }
 
 WireItem::WireItem(const QString &id)

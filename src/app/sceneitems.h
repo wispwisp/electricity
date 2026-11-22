@@ -109,16 +109,17 @@ public:
     [[nodiscard]] QList<QLineF> cords() const;
     void setRefused(bool refused);
     [[nodiscard]] bool isRefused() const;
+    // the caption as painted, centred in the caption band and never wider than it
+    [[nodiscard]] QRectF captionRect() const;
 
-    // what it paints: the picture, the caption band and caption, the empty places and the cords
+    // what it paints: the picture, the caption band, the empty places and the cords
     [[nodiscard]] QRectF boundingRect() const override;
     // the picture and the caption band, so that an empty plug place doesn't take clicks
     [[nodiscard]] QPainterPath shape() const override;
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
 
 private:
-    // the caption band, widened on both sides for a caption wider than the picture
-    [[nodiscard]] QRectF captionRect() const;
+    void fitCaption();
 
     const Catalog &m_catalog;
     QString m_path;
@@ -126,6 +127,8 @@ private:
     QRectF m_band; // under the picture of a wired load, else empty
     QFont m_font;
     QString m_caption;
+    QString m_shownCaption; // m_caption, elided if it can't fit even at the smallest scale
+    qreal m_captionScale = 1;
     QList<QRectF> m_emptyPlaces;
     QList<QLineF> m_cords;
     bool m_refused = false;
