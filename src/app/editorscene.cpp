@@ -321,6 +321,11 @@ void EditorScene::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
 
 void EditorScene::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event)
 {
+    if (m_wireMode && event->button() == Qt::LeftButton) {
+        // The press of the first click has already acted.
+        event->accept();
+        return;
+    }
     if (m_wireMode && pressWireTool(event))
         return;
     dropSelectionModifiers(event);

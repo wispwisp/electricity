@@ -109,6 +109,8 @@ private slots:
     void refusesFullTerminalsAndDuplicates();
     void escCancelsThenTurnsToolOff();
     void secondClickOnStartAndRightClickCancel();
+    void doubleClickStartsAWire();
+    void doubleClickFinishesAWire();
     void clicksElsewhereDoNothing();
     void paletteDropKeepsToolOn();
     void undoCancelsWireFromRemovedTerminal();
@@ -132,6 +134,8 @@ private:
     // Clicks the toolbar's Wire button.
     void clickWireButton();
     void clickTerminal(const QString &id);
+    // What Qt delivers for a double-click: press, release, double-click, release.
+    void doubleClickTerminal(const QString &id);
     void hover(QPointF scenePos);
     [[nodiscard]] QPoint at(int row, int module, int modules) const;
     [[nodiscard]] QString message() const;
@@ -215,6 +219,15 @@ void TestWiring::clickTerminal(const QString &id)
 {
     QTest::mouseClick(canvas->viewport(), Qt::LeftButton, {},
                       viewportPoint(canvas, scene->terminalPos(id)));
+}
+
+void TestWiring::doubleClickTerminal(const QString &id)
+{
+    const QPoint pos = viewportPoint(canvas, scene->terminalPos(id));
+    QTest::mousePress(canvas->viewport(), Qt::LeftButton, {}, pos);
+    QTest::mouseRelease(canvas->viewport(), Qt::LeftButton, {}, pos);
+    QTest::mouseDClick(canvas->viewport(), Qt::LeftButton, {}, pos);
+    QTest::mouseRelease(canvas->viewport(), Qt::LeftButton, {}, pos);
 }
 
 // A move to where the pointer already is would not arrive, so the pointer steps aside first.
@@ -634,6 +647,45 @@ void TestWiring::secondClickOnStartAndRightClickCancel()
     QVERIFY(scene->isWireMode());
     QVERIFY(window->project().wires().isEmpty());
     QCOMPARE(window->undoStack().count(), 0);
+}
+
+// A double-click acts as one click.
+void TestWiring::doubleClickStartsAWire()
+{
+    addToolDevices();
+    clickWireButton();
+    QVERIFY(scene->isWireMode());
+    doubleClickTerminal("supply:L");
+    QCOMPARE(scene->wireStart(), QStringLiteral("supply:L"));
+    QCOMPARE(message(), QStringLiteral("Click the second terminal. Esc cancels."));
+    QVERIFY(window->project().wires().isEmpty());
+    QCOMPARE(window->undoStack().count(), 0);
+}
+
+void TestWiring::doubleClickFinishesAWire()
+{
+    addToolDevices();
+    Project &project = window->project();
+    clickWireButton();
+    QVERIFY(scene->isWireMode());
+    clickTerminal("supply:L");
+    doubleClickTerminal("d1:1");
+    QCOMPARE(project.wires(), (QList<Wire>{ Wire{ "w1", "supply:L", "d1:1", 2.5, Conductor::L } }));
+    QVERIFY(scene->wireStart().isEmpty());
+    clickTerminal("d2:1");
+    QCOMPARE(scene->wireStart(), QStringLiteral("d2:1"));
+    QCOMPARE(project.wires().size(), 1);
+    clickTerminal("d2:1");
+    QVERIFY(scene->wireStart().isEmpty());
+
+    // On a bar hole, which takes one wire, the double-click doesn't report the new wire as full.
+    clickTerminal("supply:PE");
+    doubleClickTerminal("pebar:1");
+    QCOMPARE(project.wires().size(), 2);
+    QCOMPARE(project.wires().last().to, QStringLiteral("pebar:1"));
+    QVERIFY(scene->wireStart().isEmpty());
+    QVERIFY(message() != QStringLiteral("This bar hole already has a wire."));
+    QCOMPARE(window->undoStack().count(), 2);
 }
 
 void TestWiring::clicksElsewhereDoNothing()
