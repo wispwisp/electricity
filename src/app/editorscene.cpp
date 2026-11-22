@@ -320,7 +320,7 @@ void EditorScene::mousePressEvent(QGraphicsSceneMouseEvent *event)
     if (event->button() == Qt::LeftButton)
         cancelMove(); // one still marked lost its release (to a popup, say)
     QGraphicsScene::mousePressEvent(event);
-    pressDevice(event);
+    pressItem(event);
 }
 
 void EditorScene::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
@@ -337,13 +337,18 @@ void EditorScene::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
         && (event->screenPos() - m_pressScreenPos).manhattanLength()
                 < QApplication::startDragDistance())
         return;
+    const QPointF centre = event->scenePos() - m_grabOffset;
+    if (const PlacedLoad *load = m_project.load(m_movingId)) {
+        m_moving = true;
+        moveLoadItem(*load, centre);
+        return;
+    }
     const PlacedDevice *device = m_project.device(m_movingId);
     DeviceItem *item = m_devices.value(m_movingId);
     if (!device || !item)
         return;
     m_moving = true;
     item->setZValue(DeviceItem::LiftedZ);
-    const QPointF centre = event->scenePos() - m_grabOffset;
     const int modules = m_project.moduleWidth(*device);
     if (const std::optional<RailSlot> slot = slotAt(centre, modules)) {
         snapItem(item, *device, *slot);
@@ -378,7 +383,7 @@ void EditorScene::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event)
         cancelMove();
     QGraphicsScene::mouseDoubleClickEvent(event);
     // The press of a quick second drag arrives as a double click.
-    pressDevice(event);
+    pressItem(event);
 }
 
 void EditorScene::escapeWireTool()
@@ -401,45 +406,88 @@ void EditorScene::keyPressEvent(QKeyEvent *event)
 }
 
 // Other buttons pressed during a move leave it running.
-void EditorScene::pressDevice(QGraphicsSceneMouseEvent *event)
+void EditorScene::pressItem(QGraphicsSceneMouseEvent *event)
 {
     if (event->button() != Qt::LeftButton)
         return;
-    const auto *item = dynamic_cast<DeviceItem *>(mouseGrabberItem());
-    const PlacedDevice *device = item ? m_project.device(item->data(IdKey).toString()) : nullptr;
-    if (!device)
+    const QGraphicsItem *item = mouseGrabberItem();
+    const QString id = item ? item->data(IdKey).toString() : QString();
+    const PlacedDevice *device
+            = dynamic_cast<const DeviceItem *>(item) ? m_project.device(id) : nullptr;
+    const PlacedLoad *load = dynamic_cast<const LoadItem *>(item) ? m_project.load(id) : nullptr;
+    if (device) {
+        m_grabOffset = event->scenePos()
+                - slotRect(device->row, device->module, m_project.moduleWidth(*device)).center();
+    } else if (load) {
+        const LoadType *type = m_project.catalog().loadType(load->type);
+        Q_ASSERT(type); // the project only holds valid loads
+        m_grabOffset
+                = event->scenePos() - QRectF(m_project.loadPosition(*load), type->size).center();
+    } else {
         return;
-    m_movingId = device->id;
-    m_grabOffset = event->scenePos()
-            - slotRect(device->row, device->module, m_project.moduleWidth(*device)).center();
+    }
+    m_movingId = id;
     m_pressScreenPos = event->screenPos();
+}
+
+void EditorScene::moveLoadItem(const PlacedLoad &load, QPointF centre)
+{
+    PlacedLoad moved = load;
+    const bool fits = loadTarget(moved, centre) == LoadPlacement::Fits;
+    const QPointF shift = m_project.loadPosition(moved) - m_project.loadPosition(load);
+    for (const PlacedLoad &l : m_project.loads()) {
+        LoadItem *item = m_loads.value(l.id);
+        if ((l.id != load.id && l.socket != load.id) || !item)
+            continue;
+        item->setZValue(LoadItem::LiftedZ);
+        item->setPos(m_project.loadPosition(l) + shift);
+        item->setRefused(!fits);
+    }
 }
 
 void EditorScene::finishMove(QPointF centre)
 {
     const PlacedDevice *device = m_project.device(m_movingId);
-    if (!device)
-        return;
-    // Back where the model has it; a move that fits then syncs it to the new slot.
+    const PlacedLoad *load = m_project.load(m_movingId);
+    // Back where the model has it; a move that fits then syncs it to the new place.
     cancelMove();
-    PlacedDevice moved = *device;
-    if (placeAt(moved, centre) && moved != *device)
-        m_undoStack.push(new UpdateDeviceCommand(m_project, moved));
+    if (device) {
+        PlacedDevice moved = *device;
+        if (placeAt(moved, centre) && moved != *device)
+            m_undoStack.push(new UpdateDeviceCommand(m_project, moved));
+    } else if (load) {
+        PlacedLoad moved = *load;
+        if (placeLoadAt(moved, centre) && moved != *load)
+            m_undoStack.push(new UpdateLoadCommand(m_project, moved));
+    }
 }
 
 void EditorScene::cancelMove()
 {
-    const PlacedDevice *device = m_project.device(m_movingId);
-    DeviceItem *item = m_devices.value(m_movingId);
+    const QString id = std::exchange(m_movingId, {});
     m_moving = false;
-    m_movingId.clear();
-    if (!device || !item)
+    if (id.isEmpty())
         return;
-    item->setZValue(DeviceItem::PlacedZ);
-    item->setRefused(false);
-    item->setPos(slotRect(device->row, device->module, m_project.moduleWidth(*device)).topLeft());
-    if (mouseGrabberItem() == item)
-        item->ungrabMouse();
+    const PlacedDevice *device = m_project.device(id);
+    if (DeviceItem *item = m_devices.value(id); device && item) {
+        item->setZValue(DeviceItem::PlacedZ);
+        item->setRefused(false);
+        item->setPos(
+                slotRect(device->row, device->module, m_project.moduleWidth(*device)).topLeft());
+    }
+    // Every load, not only the moved one: a socket's appliances move with it, and an undo during
+    // the move may have unplugged one.
+    for (const PlacedLoad &load : m_project.loads()) {
+        LoadItem *item = m_loads.value(load.id);
+        if (!item)
+            continue;
+        item->setZValue(LoadItem::PlacedZ);
+        item->setRefused(false);
+        item->setPos(m_project.loadPosition(load));
+    }
+    QGraphicsItem *grabber = mouseGrabberItem();
+    if (grabber && (grabber == m_devices.value(id) || grabber == m_loads.value(id)))
+        grabber->ungrabMouse();
 }
 
 bool EditorScene::pressWireTool(QGraphicsSceneMouseEvent *event)
@@ -572,6 +620,9 @@ LoadPlacement EditorScene::loadTarget(PlacedLoad &load, QPointF cursor) const
     const LoadType *type = m_project.catalog().loadType(load.type);
     if (!type)
         return LoadPlacement::Invalid;
+    if (const PlacedLoad *own = m_project.load(load.socket);
+        own && m_project.loadOutline(*own).contains(cursor))
+        return LoadPlacement::Fits;
     PlacedLoad plugged = load; // keeps its position, which is unused while plugged in
     const QPointF topLeft = cursor - QPointF(type->size.width(), type->size.height()) / 2;
     load.position = QPointF(std::round(topLeft.x() / kLoadGrid) * kLoadGrid,

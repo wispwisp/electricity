@@ -15,6 +15,7 @@
 #include "testsettings.h"
 
 #include <QAction>
+#include <QApplication>
 #include <QElapsedTimer>
 #include <QHash>
 #include <QMenu>
@@ -22,6 +23,7 @@
 #include <QTest>
 #include <QToolBar>
 #include <QUndoStack>
+#include <QWindow>
 
 #include <algorithm>
 #include <memory>
@@ -44,6 +46,14 @@ private slots:
     void dropsApplianceOntoSocket();
     void dragPreviewShowsRefusal();
     void loadDropKeepsWireToolOn();
+    void movesLoadByDragging();
+    void refusedMoveGoesBack();
+    void unplugsAndReplugsByDragging();
+    void dropOnOwnSocketIsNoEdit();
+    void movingSocketCarriesAppliances();
+    void escCancelsLoadMove();
+    void nextPressEndsALoadMoveThatLostItsRelease();
+    void noLoadMovesUnderWireTool();
 
 private:
     [[nodiscard]] LoadItem *loadItem(const QString &id) const;
@@ -553,6 +563,224 @@ void TestLoading::loadDropKeepsWireToolOn()
     QCOMPARE(window->project().loads().size(), 1);
     QVERIFY(scene->isWireMode());
     QVERIFY(wireAction->isChecked());
+}
+
+// Drags press on the middle of a picture and release where the middle of the picture should go,
+// so the snapped top-left is exact.
+void TestLoading::movesLoadByDragging()
+{
+    addLoads();
+    const Project &project = window->project();
+    mouseDrag(canvas->viewport(), onPicture(lamp), viewportPoint(canvas, QPointF(18, 378)));
+    QCOMPARE(project.load(lamp)->position, QPointF(0, 360));
+    QCOMPARE(window->undoStack().count(), 1);
+    QCOMPARE(loadItem(lamp)->pos(), QPointF(0, 360));
+    QCOMPARE(loadItem(lamp)->zValue(), LoadItem::PlacedZ);
+    QCOMPARE(scene->selectedLoadId(), lamp);
+    QVERIFY(saveScreenshot(*window, "f07", "moved"));
+
+    QTest::keyClick(window.get(), Qt::Key_Z, Qt::ControlModifier);
+    QCOMPARE(project.load(lamp)->position, QPointF(0, 270));
+    QCOMPARE(loadItem(lamp)->pos(), QPointF(0, 270));
+}
+
+void TestLoading::refusedMoveGoesBack()
+{
+    addLoads();
+    const Project &project = window->project();
+    LoadItem *item = loadItem(lamp);
+    QWidget *viewport = canvas->viewport();
+    const QPoint onEnclosure
+            = viewportPoint(canvas, QRectF(QPointF(0, 0), project.enclosure().size).center());
+    QTest::mousePress(viewport, Qt::LeftButton, {}, onPicture(lamp));
+    QTest::mouseMove(viewport, onEnclosure);
+    QVERIFY(item->isRefused());
+    QCOMPARE(item->zValue(), LoadItem::LiftedZ);
+    QVERIFY(QRectF(QPointF(0, 0), project.enclosure().size)
+                    .contains(item->sceneBoundingRect().center()));
+    QVERIFY(saveScreenshot(*window, "f07", "moving-refused"));
+
+    clearMessage();
+    QTest::mouseRelease(viewport, Qt::LeftButton, {}, onEnclosure);
+    QCOMPARE(project.load(lamp)->position, QPointF(0, 270));
+    QCOMPARE(window->undoStack().count(), 0);
+    QCOMPARE(message(), QStringLiteral("Loads go outside the enclosure."));
+    QCOMPARE(item->pos(), QPointF(0, 270));
+    QVERIFY(!item->isRefused());
+    QCOMPARE(item->zValue(), LoadItem::PlacedZ);
+}
+
+// Top-lefts lie on the 4.5 grid: the kettle goes to (301.5, 301.5), not (300, 300).
+void TestLoading::unplugsAndReplugsByDragging()
+{
+    Project &project = window->project();
+    socket = addLoad("socket", QPointF(90, 270));
+    QVERIFY(!socket.isEmpty());
+    PlacedLoad plugged = loadFromType(*project.catalog().loadType(u"kettle"), QPointF());
+    plugged.socket = socket;
+    plugged.place = 1;
+    kettle = project.addLoad(plugged);
+    QVERIFY(!kettle.isEmpty());
+    const QString second = addLoad("socket", QPointF(189, 270));
+    QVERIFY(!second.isEmpty());
+    const PlacedLoad before = *project.load(kettle);
+    QWidget *viewport = canvas->viewport();
+
+    mouseDrag(viewport, onPicture(kettle), viewportPoint(canvas, QPointF(319.5, 319.5)));
+    QCOMPARE(project.load(kettle)->socket, QString());
+    QCOMPARE(project.load(kettle)->place, 0);
+    QCOMPARE(project.load(kettle)->position, QPointF(301.5, 301.5));
+    QCOMPARE(loadItem(kettle)->pos(), QPointF(301.5, 301.5));
+    QCOMPARE(window->undoStack().count(), 1);
+    QVERIFY(project.pluggedInto(socket).isEmpty());
+
+    // Over the second socket it hangs in the place it would go into.
+    const QPoint onPlace
+            = viewportPoint(canvas, project.plugPlaceRect(*project.load(second), 2).center());
+    QTest::mousePress(viewport, Qt::LeftButton, {}, onPicture(kettle));
+    QTest::mouseMove(viewport, onPlace);
+    QCOMPARE(loadItem(kettle)->pos(), QPointF(220.5, 310.5));
+    QVERIFY(!loadItem(kettle)->isRefused());
+    QTest::mouseRelease(viewport, Qt::LeftButton, {}, onPlace);
+    QCOMPARE(project.load(kettle)->socket, second);
+    QCOMPARE(project.load(kettle)->place, 2);
+    QCOMPARE(project.pluggedInto(second), QStringList{ kettle });
+    QCOMPARE(loadItem(kettle)->pos(), QPointF(220.5, 310.5));
+    QCOMPARE(window->undoStack().count(), 2);
+    QVERIFY(saveScreenshot(*window, "f07", "replugged"));
+
+    QTest::keyClick(window.get(), Qt::Key_Z, Qt::ControlModifier);
+    QTest::keyClick(window.get(), Qt::Key_Z, Qt::ControlModifier);
+    QCOMPARE(*project.load(kettle), before);
+    QCOMPARE(loadItem(kettle)->pos(), QPointF(76.5, 310.5));
+}
+
+// Over its own socket a plugged appliance stays in its place, also while it moves.
+void TestLoading::dropOnOwnSocketIsNoEdit()
+{
+    addLoads();
+    const Project &project = window->project();
+    const QList<PlacedLoad> loads = project.loads();
+    const int commands = window->undoStack().count();
+    QWidget *viewport = canvas->viewport();
+    const QPoint onPlace
+            = viewportPoint(canvas, project.plugPlaceRect(*project.load(socket), 2).center());
+    QVERIFY((onPlace - onPicture(kettle)).manhattanLength() > QApplication::startDragDistance());
+
+    QTest::mousePress(viewport, Qt::LeftButton, {}, onPicture(kettle));
+    QTest::mouseMove(viewport, onPlace);
+    QCOMPARE(loadItem(kettle)->pos(), QPointF(76.5, 310.5));
+    QVERIFY(!loadItem(kettle)->isRefused());
+    QTest::mouseRelease(viewport, Qt::LeftButton, {}, onPlace);
+    QCOMPARE(window->undoStack().count(), commands);
+    QCOMPARE(project.load(kettle)->place, 1);
+    QCOMPARE(project.loads(), loads);
+    QCOMPARE(loadItem(kettle)->pos(), QPointF(76.5, 310.5));
+}
+
+void TestLoading::movingSocketCarriesAppliances()
+{
+    addLoads();
+    addLoadWires();
+    const Project &project = window->project();
+    QWidget *viewport = canvas->viewport();
+    const QPoint below = viewportPoint(canvas, QPointF(117, 373.5));
+
+    QTest::mousePress(viewport, Qt::LeftButton, {}, onPicture(socket));
+    QTest::mouseMove(viewport, below);
+    QCOMPARE(loadItem(socket)->pos(), QPointF(90, 360));
+    QCOMPARE(loadItem(kettle)->pos(), QPointF(76.5, 400.5));
+    QCOMPARE(loadItem(kettle)->zValue(), LoadItem::LiftedZ);
+    QVERIFY(saveScreenshot(*window, "f07", "socket-moving"));
+    QTest::mouseRelease(viewport, Qt::LeftButton, {}, below);
+
+    QCOMPARE(project.load(socket)->position, QPointF(90, 360));
+    QCOMPARE(project.load(kettle)->socket, socket);
+    QCOMPARE(project.load(kettle)->place, 1);
+    QCOMPARE(window->undoStack().count(), 1);
+    QCOMPARE(loadItem(socket)->pos(), QPointF(90, 360));
+    QCOMPARE(loadItem(kettle)->pos(), project.loadPosition(*project.load(kettle)));
+    QCOMPARE(loadItem(kettle)->pos(), QPointF(76.5, 400.5));
+    QCOMPARE(loadItem(kettle)->zValue(), LoadItem::PlacedZ);
+    QCOMPARE(scene->terminalPos(socket + ":L"), QPointF(103.5, 364.5));
+    QCOMPARE(wireItem(loadWires.last())->route().last(), scene->terminalPos(socket + ":L"));
+    QVERIFY(saveScreenshot(*window, "f07", "socket-moved"));
+}
+
+void TestLoading::escCancelsLoadMove()
+{
+    addLoads();
+    const Project &project = window->project();
+    const QList<PlacedLoad> loads = project.loads();
+    QWidget *viewport = canvas->viewport();
+    QTest::mousePress(viewport, Qt::LeftButton, {}, onPicture(socket));
+    QTest::mouseMove(viewport, viewportPoint(canvas, QPointF(117, 373.5)));
+    QCOMPARE(loadItem(socket)->pos(), QPointF(90, 360));
+    QCOMPARE(QApplication::focusWidget(), canvas);
+    QTest::keyClick(QApplication::focusWidget(), Qt::Key_Escape);
+    for (const PlacedLoad &load : loads) {
+        QCOMPARE(loadItem(load.id)->pos(), project.loadPosition(load));
+        QCOMPARE(loadItem(load.id)->zValue(), LoadItem::PlacedZ);
+        QVERIFY(!loadItem(load.id)->isRefused());
+    }
+
+    // The rest of the drag no longer moves the socket.
+    const QPoint further = viewportPoint(canvas, QPointF(117, 418.5));
+    QTest::mouseMove(viewport, further);
+    QCOMPARE(loadItem(socket)->pos(), QPointF(90, 270));
+    QTest::mouseRelease(viewport, Qt::LeftButton, {}, further);
+    QCOMPARE(project.loads(), loads);
+    QCOMPARE(window->undoStack().count(), 0);
+    QCOMPARE(loadItem(socket)->pos(), QPointF(90, 270));
+    QCOMPARE(loadItem(kettle)->pos(), QPointF(76.5, 310.5));
+}
+
+// A popup opened mid-move takes the left release. The next press ends that move: the socket and
+// its appliance go back, and the press doesn't drag them along.
+void TestLoading::nextPressEndsALoadMoveThatLostItsRelease()
+{
+    addLoads();
+    const Project &project = window->project();
+    const QList<PlacedLoad> loads = project.loads();
+    QWindow *handle = window->windowHandle();
+    const auto windowPoint = [this](QPoint viewportPos) {
+        return canvas->viewport()->mapTo(window.get(), viewportPos);
+    };
+    const QPoint below = windowPoint(viewportPoint(canvas, QPointF(117, 373.5)));
+    QTest::mousePress(handle, Qt::LeftButton, {}, windowPoint(onPicture(socket)));
+    QTest::mouseMove(handle, below);
+    QCOMPARE(loadItem(socket)->pos(), QPointF(90, 360));
+    auto *menu = named<QMenu>("editMenu");
+    QVERIFY(menu);
+    menu->popup(window->mapToGlobal(QPoint(0, 0)));
+    QTRY_VERIFY(menu->isVisible());
+    QTest::mouseRelease(handle, Qt::LeftButton, {}, below);
+    QTest::keyClick(handle, Qt::Key_Escape);
+    QTRY_VERIFY(!menu->isVisible());
+
+    const QPoint empty = viewportPoint(canvas, QPointF(200, 450));
+    mouseDrag(canvas->viewport(), empty, empty + QPoint(30, 0));
+    for (const PlacedLoad &load : loads) {
+        QCOMPARE(loadItem(load.id)->pos(), project.loadPosition(load));
+        QCOMPARE(loadItem(load.id)->zValue(), LoadItem::PlacedZ);
+        QVERIFY(!loadItem(load.id)->isRefused());
+    }
+    QCOMPARE(project.loads(), loads);
+    QCOMPARE(window->undoStack().count(), 0);
+}
+
+void TestLoading::noLoadMovesUnderWireTool()
+{
+    addLoads();
+    auto *wireAction = named<QAction>("wireAction");
+    QVERIFY(wireAction);
+    QTest::mouseClick(named<QToolBar>("editToolBar")->widgetForAction(wireAction), Qt::LeftButton);
+    QVERIFY(scene->isWireMode());
+    mouseDrag(canvas->viewport(), onPicture(lamp), viewportPoint(canvas, QPointF(18, 378)));
+    QCOMPARE(window->project().load(lamp)->position, QPointF(0, 270));
+    QCOMPARE(loadItem(lamp)->pos(), QPointF(0, 270));
+    QCOMPARE(loadItem(lamp)->zValue(), LoadItem::PlacedZ);
+    QCOMPARE(window->undoStack().count(), 0);
 }
 
 QTEST_MAIN(TestLoading)

@@ -36,8 +36,8 @@ struct RailSlot
 // one per load and one per wire, kept in sync with the project. Scene units are enclosure picture
 // units; the enclosure sits at (0, 0). One item is selected at a time: a device, a load, a wire or
 // the enclosure.
-// Presets and loads dropped from the palette are placed, devices are moved with the mouse, and
-// wires are drawn with the wire tool, through the undo stack.
+// Presets and loads dropped from the palette are placed, devices and loads are moved with the
+// mouse, and wires are drawn with the wire tool, through the undo stack.
 class EditorScene : public QGraphicsScene
 {
     Q_OBJECT
@@ -117,14 +117,19 @@ private:
     void snapItem(DeviceItem *item, PlacedDevice device, RailSlot slot);
     // Where the load goes for a drop with the cursor at cursor: an appliance over a socket into its
     // free place nearest the cursor (socket and place), any other load with its picture centred on
-    // the cursor and snapped to the grid (position). Returns why it can't go there, or Fits.
+    // the cursor and snapped to the grid (position). A plugged appliance over its own socket stays
+    // in its place. Returns why it can't go there, or Fits.
     [[nodiscard]] LoadPlacement loadTarget(PlacedLoad &load, QPointF cursor) const;
     // The same; false, with a hint, if the load can't go there.
     bool placeLoadAt(PlacedLoad &load, QPointF cursor);
     // Shows the load where a drop at cursor would put it, tinted if it can't go there.
     void previewLoad(const LoadType &type, QPointF cursor);
-    // A left press on a device may become a move.
-    void pressDevice(QGraphicsSceneMouseEvent *event);
+    // A left press on a device or a load may become a move.
+    void pressItem(QGraphicsSceneMouseEvent *event);
+    // Shows the load being moved where a release with its picture centred on centre would put it,
+    // tinted if it can't go there; a socket carries its appliances.
+    void moveLoadItem(const PlacedLoad &load, QPointF centre);
+    // Ends a move with the device body or the load picture centred on centre.
     void finishMove(QPointF centre);
     // Ends a move without changing the model: the item goes back to where the model has it, and
     // the mouse grab of a move whose release never arrived is dropped.
@@ -156,8 +161,8 @@ private:
     QHash<QString, WireItem *> m_wires;
     DeviceItem *m_preview = nullptr;   // while a preset is dragged over the scene
     LoadItem *m_loadPreview = nullptr; // while a load is dragged over the scene
-    QString m_movingId;                // the device under a left press, "" if none
-    QPointF m_grabOffset;              // press point minus the device body centre
+    QString m_movingId;                // the device or load under a left press, "" if none
+    QPointF m_grabOffset; // press point minus the device body centre or the load picture centre
     QList<QAction *> m_contextActions;
     QMenu *m_contextMenu = nullptr;
     QPoint m_pressScreenPos;
