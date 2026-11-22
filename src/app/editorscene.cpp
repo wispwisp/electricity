@@ -10,6 +10,7 @@
 #include "core/wirerouter.h"
 
 #include <QApplication>
+#include <QCoreApplication>
 #include <QGraphicsEllipseItem>
 #include <QGraphicsLineItem>
 #include <QGraphicsSceneDragDropEvent>
@@ -64,6 +65,15 @@ const TerminalSpec *findTerminal(const QList<TerminalSpec> &terminals, const QSt
     const auto it = std::ranges::find(terminals, name, &TerminalSpec::name);
     return it == terminals.end() ? nullptr : &*it;
 }
+
+// The translated catalog caption and the load's number, "Lamp 1"; "" for a plug-in appliance.
+QString loadCaption(const Project &project, const PlacedLoad &load, const LoadType &type)
+{
+    if (type.caption.isEmpty())
+        return {};
+    return QCoreApplication::translate("Catalog", type.caption.toUtf8().constData())
+            + QLatin1Char(' ') + QString::number(project.loadNumber(load.id));
+}
 } // namespace
 
 EditorScene::EditorScene(Project &project, QUndoStack &undoStack, QObject *parent)
@@ -99,6 +109,7 @@ EditorScene::EditorScene(Project &project, QUndoStack &undoStack, QObject *paren
     addOverlay(m_terminalHighlight, QStringLiteral("terminalHighlight"));
     addOverlay(m_wirePreview, QStringLiteral("wirePreview"));
     connect(&m_project, &Project::changed, this, &EditorScene::syncDevices);
+    connect(&m_project, &Project::changed, this, &EditorScene::syncLoads);
     connect(&m_project, &Project::changed, this, &EditorScene::syncWires);
     connect(&m_project, &Project::changed, this, &EditorScene::syncWireTool);
     connect(&m_project, &Project::enclosureChanged, this, &EditorScene::syncEnclosure);
@@ -148,8 +159,11 @@ std::optional<RailSlot> EditorScene::slotAt(QPointF scenePos, int modules) const
 
 QRectF EditorScene::panelRect() const
 {
-    return m_supply->sceneBoundingRect() | m_supplyText->sceneBoundingRect()
+    QRectF rect = m_supply->sceneBoundingRect() | m_supplyText->sceneBoundingRect()
             | m_enclosure->sceneBoundingRect();
+    for (const PlacedLoad &load : m_project.loads())
+        rect |= m_project.loadOutline(load);
+    return rect;
 }
 
 QPointF EditorScene::terminalPos(const QString &terminalId) const
@@ -170,6 +184,15 @@ QString EditorScene::selectedWireId() const
 {
     for (const QGraphicsItem *item : selectedItems()) {
         if (dynamic_cast<const WireItem *>(item))
+            return item->data(IdKey).toString();
+    }
+    return {};
+}
+
+QString EditorScene::selectedLoadId() const
+{
+    for (const QGraphicsItem *item : selectedItems()) {
+        if (dynamic_cast<const LoadItem *>(item))
             return item->data(IdKey).toString();
     }
     return {};
@@ -232,7 +255,7 @@ QString EditorScene::wireStart() const
 void EditorScene::retranslate()
 {
     m_supplyText->setText(tr("Supply"));
-    updateSceneRect();
+    syncLoads(); // also updates the scene rect for the text's width
 }
 
 // ~QGraphicsScene deletes the selected items and would emit selectionChanged to listeners that
@@ -268,7 +291,7 @@ void EditorScene::mousePressEvent(QGraphicsSceneMouseEvent *event)
         const QList<QGraphicsItem *> hits = items(event->scenePos());
         for (QGraphicsItem *hit : hits) {
             const QString id = hit->data(IdKey).toString();
-            if (!m_devices.contains(id) && !m_wires.contains(id))
+            if (!m_devices.contains(id) && !m_loads.contains(id) && !m_wires.contains(id))
                 continue;
             clearSelection();
             hit->setSelected(true);
@@ -650,6 +673,38 @@ void EditorScene::syncDevices()
     qDeleteAll(previous);
 }
 
+void EditorScene::syncLoads()
+{
+    QHash<QString, LoadItem *> previous = std::exchange(m_loads, {});
+    for (const PlacedLoad &load : m_project.loads()) {
+        LoadItem *item = previous.take(load.id);
+        if (!item) {
+            item = new LoadItem(m_project.catalog(), load.id);
+            addItem(item);
+        }
+        const LoadType *type = m_project.catalog().loadType(load.type);
+        Q_ASSERT(type); // the project only holds valid loads
+        const QPointF pos = m_project.loadPosition(load);
+        QList<QRectF> emptyPlaces;
+        QList<QLineF> cords;
+        for (int place = 1; place <= type->places.size(); ++place) {
+            const bool taken = std::ranges::any_of(m_project.loads(), [&](const PlacedLoad &l) {
+                return l.socket == load.id && l.place == place;
+            });
+            const QPointF point = type->places[place - 1];
+            if (taken)
+                cords << QLineF(point.x(), type->size.height(), point.x(), point.y());
+            else
+                emptyPlaces << m_project.plugPlaceRect(load, place).translated(-pos);
+        }
+        item->setLoad(load, loadCaption(m_project, load, *type), emptyPlaces, cords);
+        item->setPos(pos);
+        m_loads.insert(load.id, item);
+    }
+    qDeleteAll(previous);
+    updateSceneRect();
+}
+
 void EditorScene::syncWires()
 {
     const QList<Wire> &wires = m_project.wires();
@@ -687,6 +742,12 @@ RouteEnd EditorScene::routeEnd(const QString &terminalId) const
         // The N bar sits above the PE bar, and each is wired from the side away from the other.
         return { mount.topLeft() + hole, object == QStringLiteral("nbar") ? Exit::Up : Exit::Down };
     }
+    if (const PlacedLoad *load = m_project.load(object)) {
+        const LoadType *type = m_project.catalog().loadType(load->type);
+        const TerminalSpec *terminal = type ? findTerminal(type->terminals, name) : nullptr;
+        Q_ASSERT(terminal); // the project only holds valid terminals
+        return { m_project.loadPosition(*load) + terminal->position, Exit::Up };
+    }
     const PlacedDevice *device = m_project.device(object);
     Q_ASSERT(device); // the project only holds valid terminals
     const DeviceType *type = m_project.catalog().deviceType(device->type);
@@ -714,6 +775,11 @@ QList<QRectF> EditorScene::routeObstacles() const
     for (const PictureItem *cell : std::as_const(m_barCells))
         bars |= cell->sceneBoundingRect();
     obstacles << bars;
+    // A plugged appliance lies inside its socket's outline.
+    for (const PlacedLoad &load : m_project.loads()) {
+        if (load.socket.isEmpty())
+            obstacles << m_project.loadOutline(load);
+    }
     return obstacles;
 }
 

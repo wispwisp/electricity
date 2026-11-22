@@ -4,6 +4,8 @@
 #include <QColor>
 #include <QFont>
 #include <QGraphicsItem>
+#include <QLineF>
+#include <QList>
 #include <QPainterPath>
 #include <QPolygonF>
 #include <QString>
@@ -14,6 +16,7 @@
 enum class Conductor : std::uint8_t;
 struct Catalog;
 struct PlacedDevice;
+struct PlacedLoad;
 
 // An SVG picture at its view-box size, with its scene id in data(0).
 class PictureItem : public QGraphicsItem
@@ -86,6 +89,45 @@ private:
     QRectF m_label; // the picture's "label" element
     TextItem *m_designationItem;
     QString m_rating;
+    bool m_refused = false;
+};
+
+// A placed load: its picture, the caption under a wired load, and for a socket faint outlines of
+// its empty plug places and a cord to each plugged appliance. The origin is the picture's top-left.
+class LoadItem : public QGraphicsItem
+{
+public:
+    static constexpr qreal PlacedZ = 1;
+    static constexpr qreal LiftedZ = 2;
+
+    LoadItem(const Catalog &catalog, const QString &id);
+    // places and cords in item coordinates
+    void setLoad(const PlacedLoad &load, const QString &caption, const QList<QRectF> &emptyPlaces,
+                 const QList<QLineF> &cords);
+    [[nodiscard]] QString caption() const;
+    [[nodiscard]] QList<QRectF> emptyPlaces() const;
+    [[nodiscard]] QList<QLineF> cords() const;
+    void setRefused(bool refused);
+    [[nodiscard]] bool isRefused() const;
+
+    // what it paints: the picture, the caption band and caption, the empty places and the cords
+    [[nodiscard]] QRectF boundingRect() const override;
+    // the picture and the caption band, so that an empty plug place doesn't take clicks
+    [[nodiscard]] QPainterPath shape() const override;
+    void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
+
+private:
+    // the caption band, widened on both sides for a caption wider than the picture
+    [[nodiscard]] QRectF captionRect() const;
+
+    const Catalog &m_catalog;
+    QString m_path;
+    QSizeF m_size;
+    QRectF m_band; // under the picture of a wired load, else empty
+    QFont m_font;
+    QString m_caption;
+    QList<QRectF> m_emptyPlaces;
+    QList<QLineF> m_cords;
     bool m_refused = false;
 };
 

@@ -128,6 +128,18 @@ bool fullyVisible(QGraphicsView *view, const QRectF &sceneRect)
     return view->viewport()->rect().contains(view->mapFromScene(sceneRect).boundingRect());
 }
 
+bool crossesInside(const QPolygonF &route, const QRectF &rect)
+{
+    const QRectF inside = rect.adjusted(0.5, 0.5, -0.5, -0.5);
+    for (qsizetype i = 2; i + 1 < route.size(); ++i) {
+        const QRectF segment = QRectF(route[i - 1], route[i]).normalized();
+        if (segment.left() < inside.right() && segment.right() > inside.left()
+            && segment.top() < inside.bottom() && segment.bottom() > inside.top())
+            return true;
+    }
+    return false;
+}
+
 void dragPresetOver(QGraphicsView *view, PaletteWidget *palette, const QString &presetId,
                     QPoint viewportPos)
 {

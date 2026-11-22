@@ -29,6 +29,12 @@ constexpr qreal kWireLaneWidth = 4.5;
 constexpr qreal kWireHitMargin = 2.4; // the hit shape reaches 1.2 beyond the edge
 constexpr qreal kWireHitWidth = 6;
 constexpr qreal kEarthStripeLength = 2.2; // as on the supply picture
+constexpr qreal kPlaceOutlineWidth = 0.75;
+constexpr qreal kCordWidth = 1.2;
+const QColor kCordColor(0x1c, 0x1e, 0x21);
+// A light edge, as the pictures' outlines, so that the dark cord shows on the dark canvas.
+constexpr qreal kCordEdgeWidth = 0.8; // 0.4 on each side of the core
+const QColor kCordEdgeColor(0xe6, 0xe8, 0xeb);
 
 // Grows with the section like a conductor's diameter, from 1.8 at 1.5 mm² to 3.2 at 16 mm², so
 // that with its edge the thickest wire is 4 wide and wires on neighbouring 4.5-unit lanes keep
@@ -44,6 +50,16 @@ void drawOutline(QPainter *painter, const QRectF &rect, const QColor &color)
     painter->setBrush(Qt::NoBrush);
     const qreal inset = kSelectionWidth / 2;
     painter->drawRect(rect.adjusted(inset, inset, -inset, -inset));
+}
+
+// At full strength even on the translucent drag preview, so a refusal reads as red.
+void drawRefused(QPainter *painter, const QRectF &rect)
+{
+    painter->setOpacity(1);
+    QColor tint = Theme::refusedColor();
+    tint.setAlpha(kRefusedAlpha);
+    painter->fillRect(rect, tint);
+    drawOutline(painter, rect, Theme::refusedColor());
 }
 
 QFont pixelFont(int pixelSize)
@@ -196,14 +212,8 @@ void DeviceItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWid
 
     if (isSelected())
         drawOutline(painter, body, Theme::selectionColor());
-    if (m_refused) {
-        // At full strength even on the translucent drag preview, so a refusal reads as red.
-        painter->setOpacity(1);
-        QColor tint = Theme::refusedColor();
-        tint.setAlpha(kRefusedAlpha);
-        painter->fillRect(body, tint);
-        drawOutline(painter, body, Theme::refusedColor());
-    }
+    if (m_refused)
+        drawRefused(painter, body);
 }
 
 QVariant DeviceItem::itemChange(GraphicsItemChange change, const QVariant &value)
@@ -223,6 +233,113 @@ void DeviceItem::placeDesignation()
     m_designationItem->setPos(pos()
                               + QPointF((m_size.width() - text.width()) / 2,
                                         -(DesignationHeight + text.height()) / 2));
+}
+
+LoadItem::LoadItem(const Catalog &catalog, const QString &id)
+    : m_catalog(catalog)
+    , m_font(pixelFont(DeviceItem::DesignationPixelSize))
+{
+    setData(EditorScene::IdKey, id);
+    setFlag(ItemIsSelectable);
+    setZValue(PlacedZ);
+}
+
+void LoadItem::setLoad(const PlacedLoad &load, const QString &caption,
+                       const QList<QRectF> &emptyPlaces, const QList<QLineF> &cords)
+{
+    const LoadType *type = m_catalog.loadType(load.type);
+    Q_ASSERT(type); // the project only holds valid loads
+    prepareGeometryChange();
+    m_path = loadPicturePath(type->picture);
+    m_size = type->size;
+    m_band = type->caption.isEmpty()
+            ? QRectF()
+            : QRectF(0, m_size.height(), m_size.width(), LoadCaptionHeight);
+    m_caption = caption;
+    m_emptyPlaces = emptyPlaces;
+    m_cords = cords;
+}
+
+QString LoadItem::caption() const
+{
+    return m_caption;
+}
+
+QList<QRectF> LoadItem::emptyPlaces() const
+{
+    return m_emptyPlaces;
+}
+
+QList<QLineF> LoadItem::cords() const
+{
+    return m_cords;
+}
+
+void LoadItem::setRefused(bool refused)
+{
+    m_refused = refused;
+    update();
+}
+
+bool LoadItem::isRefused() const
+{
+    return m_refused;
+}
+
+QRectF LoadItem::boundingRect() const
+{
+    QRectF rect = QRectF(QPointF(0, 0), m_size) | m_band | captionRect();
+    for (const QRectF &place : m_emptyPlaces)
+        rect |= place;
+    const qreal margin = (kCordWidth + kCordEdgeWidth) / 2;
+    for (const QLineF &cord : m_cords) {
+        const QRectF line = QRectF(cord.p1(), cord.p2()).normalized();
+        rect |= line.adjusted(-margin, -margin, margin, margin);
+    }
+    return rect;
+}
+
+QPainterPath LoadItem::shape() const
+{
+    QPainterPath path;
+    path.addRect(QRectF(QPointF(0, 0), m_size) | m_band);
+    return path;
+}
+
+void LoadItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWidget *)
+{
+    const QRectF picture(QPointF(0, 0), m_size);
+    svgRenderer(m_path).render(painter, picture);
+
+    if (!m_caption.isEmpty()) {
+        painter->setFont(m_font);
+        painter->setPen(QApplication::palette().color(QPalette::Text));
+        painter->drawText(captionRect(), Qt::AlignCenter, m_caption);
+    }
+    painter->setBrush(Qt::NoBrush);
+    painter->setPen(
+            QPen(QApplication::palette().color(QPalette::Mid), kPlaceOutlineWidth, Qt::DashLine));
+    const qreal inset = kPlaceOutlineWidth / 2;
+    for (const QRectF &place : m_emptyPlaces)
+        painter->drawRect(place.adjusted(inset, inset, -inset, -inset));
+    painter->setPen(QPen(kCordEdgeColor, kCordWidth + kCordEdgeWidth, Qt::SolidLine, Qt::FlatCap));
+    painter->drawLines(m_cords);
+    painter->setPen(QPen(kCordColor, kCordWidth, Qt::SolidLine, Qt::FlatCap));
+    painter->drawLines(m_cords);
+
+    if (isSelected())
+        drawOutline(painter, picture, Theme::selectionColor());
+    if (m_refused)
+        drawRefused(painter, picture);
+}
+
+QRectF LoadItem::captionRect() const
+{
+    if (m_caption.isEmpty() || m_band.isEmpty())
+        return {};
+    const qreal width
+            = std::max(m_band.width(), QFontMetricsF(m_font).horizontalAdvance(m_caption));
+    return { m_band.center().x() - width / 2, m_band.top(), width, m_band.height() };
 }
 
 WireItem::WireItem(const QString &id)

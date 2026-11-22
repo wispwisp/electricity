@@ -3,6 +3,7 @@
 
 #include <QPoint>
 #include <QPointF>
+#include <QPolygonF>
 #include <QRectF>
 #include <QString>
 #include <Qt>
@@ -37,6 +38,9 @@ void mouseDrag(QWidget *viewport, QPoint from, QPoint to, Qt::MouseButton button
                Qt::KeyboardModifiers modifiers = {});
 void wheel(QWidget *viewport, QPoint pos, int angleDeltaY);
 bool fullyVisible(QGraphicsView *view, const QRectF &sceneRect);
+// For orthogonal routes, where a segment's bounding rect is the segment itself. The first and the
+// last segment are the stubs into the route's own terminals and are skipped.
+bool crossesInside(const QPolygonF &route, const QRectF &rect);
 // Offscreen drags end at once (ADR 0025), so these send the canvas viewport the events Qt delivers
 // while a preset is dragged from the palette: enter and move at viewportPos, with the palette's own
 // drag data, the copy action and the left button.

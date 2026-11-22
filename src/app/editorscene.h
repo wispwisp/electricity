@@ -8,6 +8,7 @@
 #include <optional>
 
 class DeviceItem;
+class LoadItem;
 class PictureItem;
 class QAction;
 class QGraphicsEllipseItem;
@@ -27,9 +28,10 @@ struct RailSlot
     friend bool operator==(const RailSlot &, const RailSlot &) = default;
 };
 
-// The panel: the supply block, the enclosure with its N and PE bars, one item per placed device and
-// one per wire, kept in sync with the project. Scene units are enclosure picture units; the
-// enclosure sits at (0, 0). One item is selected at a time: a device, a wire or the enclosure.
+// The panel: the supply block, the enclosure with its N and PE bars, one item per placed device,
+// one per load and one per wire, kept in sync with the project. Scene units are enclosure picture
+// units; the enclosure sits at (0, 0). One item is selected at a time: a device, a load, a wire or
+// the enclosure.
 // Presets dropped from the palette are placed, devices are moved with the mouse, and wires are
 // drawn with the wire tool, through the undo stack.
 class EditorScene : public QGraphicsScene
@@ -44,7 +46,7 @@ public:
     [[nodiscard]] QRectF slotRect(int row, int module, int modules) const;
     // device centred on scenePos; nullopt outside the enclosure interior
     [[nodiscard]] std::optional<RailSlot> slotAt(QPointF scenePos, int modules) const;
-    // supply, its text and the enclosure
+    // supply, its text, the enclosure and the loads' outlines
     [[nodiscard]] QRectF panelRect() const;
     // scene position of a terminal of the project, for a device at its slot in the model
     [[nodiscard]] QPointF terminalPos(const QString &terminalId) const;
@@ -52,6 +54,8 @@ public:
     [[nodiscard]] QString selectedDeviceId() const;
     // "" if none
     [[nodiscard]] QString selectedWireId() const;
+    // "" if none
+    [[nodiscard]] QString selectedLoadId() const;
     [[nodiscard]] bool isEnclosureSelected() const;
     // nearest terminal within 4 units, "" if none
     [[nodiscard]] QString terminalAt(QPointF scenePos) const;
@@ -64,9 +68,9 @@ public:
     [[nodiscard]] QString wireStart() const;
     // Esc with the tool on: cancels the wire in progress, or with none turns the tool off.
     void escapeWireTool();
-    // Actions of the menu shown by a right-click on a device or a wire.
+    // Actions of the menu shown by a right-click on a device, a load or a wire.
     void setDeviceContextActions(const QList<QAction *> &actions);
-    // the "Supply" text
+    // the "Supply" text and the load captions
     void retranslate();
 
 signals:
@@ -91,12 +95,14 @@ private:
     [[nodiscard]] QPointF railCentre(int row) const;
     void syncEnclosure();
     void syncDevices();
+    // Captions are translated here, so retranslate() re-syncs too.
+    void syncLoads();
     // Re-routes every wire, with a device being moved still at its slot in the model.
     void syncWires();
     // The terminal's position and the side its wires leave from.
     [[nodiscard]] RouteEnd routeEnd(const QString &terminalId) const;
     // What wires go around: device bodies with their designations, the supply with its letters,
-    // and the two bars as one block.
+    // the two bars as one block, and the outlines of loads that aren't plugged in.
     [[nodiscard]] QList<QRectF> routeObstacles() const;
     void addBar(const QString &barId, const QString &mountId, int terminals);
     void updateSceneRect();
@@ -134,6 +140,7 @@ private:
     QList<TextItem *> m_supplyLetters; // in the order of the supply's terminals
     QList<PictureItem *> m_barCells;
     QHash<QString, DeviceItem *> m_devices;
+    QHash<QString, LoadItem *> m_loads;
     QHash<QString, WireItem *> m_wires;
     DeviceItem *m_preview = nullptr; // while a preset is dragged over the scene
     QString m_movingId;              // the device under a left press, "" if none

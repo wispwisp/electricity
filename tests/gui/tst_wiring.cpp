@@ -40,20 +40,6 @@ bool orthogonal(const QPolygonF &route)
     return route.size() >= 2;
 }
 
-// For orthogonal routes, where a segment's bounding rect is the segment itself. The first and the
-// last segment are the stubs into the route's own terminals and are skipped.
-bool crossesInside(const QPolygonF &route, const QRectF &rect)
-{
-    const QRectF inside = rect.adjusted(0.5, 0.5, -0.5, -0.5);
-    for (qsizetype i = 2; i + 1 < route.size(); ++i) {
-        const QRectF segment = QRectF(route[i - 1], route[i]).normalized();
-        if (segment.left() < inside.right() && segment.right() > inside.left()
-            && segment.top() < inside.bottom() && segment.bottom() > inside.top())
-            return true;
-    }
-    return false;
-}
-
 // Any segment, stubs included.
 bool touches(const QPolygonF &route, const QRectF &rect)
 {

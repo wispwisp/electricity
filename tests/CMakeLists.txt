@@ -62,6 +62,7 @@ add_gui_test(tst_placing gui/tst_placing.cpp)
 add_gui_test(tst_editing gui/tst_editing.cpp)
 add_gui_test(tst_properties gui/tst_properties.cpp)
 add_gui_test(tst_wiring gui/tst_wiring.cpp)
+add_gui_test(tst_loading gui/tst_loading.cpp)
 
 # Strings must be extracted before scanning: the fixture .ts has no unfinished entries,
 # only the fixture source has a new one.
