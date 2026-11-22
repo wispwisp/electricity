@@ -60,10 +60,41 @@ private slots:
     void growingEnclosureMovesLoadsBelow();
     void shrinkingMovesThemBackUp();
     void shrinkRefusedWhenLoadsWouldCollide();
+    void newWireLengthDependsOnEnds();
+    void cableGroupsWiresBySides();
+    void setCableLengthSetsEveryWire();
+    void newWireJoinsItsCableLength();
 
 private:
+    void addCableFixture();
+    QString addWire(const QString &from, const QString &to);
     std::unique_ptr<Project> m_project;
 };
+
+void TestLoads::addCableFixture()
+{
+    PlacedDevice qf1 = preset("breaker-2p-c40");
+    PlacedDevice qf2 = preset("breaker-1p-c10");
+    qf2.module = 2;
+    m_project->addDevice(qf1);
+    m_project->addDevice(qf2);
+    m_project->addLoad(load("ceiling-lamp", { 300, 0 }));
+    m_project->addLoad(load("ceiling-lamp", { 360, 0 }));
+    m_project->addLoad(load("ceiling-lamp", { 420, 0 }));
+}
+
+QString TestLoads::addWire(const QString &from, const QString &to)
+{
+    const QString id = m_project->addWire(Wire{ {},
+                                                from,
+                                                to,
+                                                2.5,
+                                                m_project->conductorFor(from, to),
+                                                m_project->newWireLength(from, to) });
+    if (id.isEmpty())
+        qFatal("wire refused: %s -> %s", qPrintable(from), qPrintable(to));
+    return id;
+}
 
 void TestLoads::init()
 {
@@ -299,6 +330,66 @@ void TestLoads::shrinkRefusedWhenLoadsWouldCollide()
     QCOMPARE(m_project->load(u"l1")->position, QPointF(300, 300));
     QCOMPARE(m_project->load(u"l2")->position, QPointF(300, 400));
     QCOMPARE(m_project->enclosure().id, u"enclosure-24"_s);
+}
+
+void TestLoads::newWireLengthDependsOnEnds()
+{
+    addCableFixture();
+    QCOMPARE(m_project->newWireLength(u"d1:2"_s, u"d2:1"_s), 0.3);
+    QCOMPARE(m_project->newWireLength(u"d2:2"_s, u"l1:L"_s), 15.0);
+    QCOMPARE(m_project->newWireLength(u"supply:L"_s, u"l1:L"_s), 15.0);
+    QCOMPARE(m_project->newWireLength(u"l1:L"_s, u"l2:L"_s), 15.0);
+}
+
+void TestLoads::cableGroupsWiresBySides()
+{
+    addCableFixture();
+    const QString wl = addWire(u"d2:2"_s, u"l1:L"_s);
+    const QString wn = addWire(u"nbar:2"_s, u"l1:N"_s);
+    const QString wp = addWire(u"pebar:2"_s, u"l1:PE"_s);
+    const QString w12l = addWire(u"l1:L"_s, u"l2:L"_s);
+    const QString w12n = addWire(u"l1:N"_s, u"l2:N"_s);
+    const QString w3 = addWire(u"l3:L"_s, u"l3:N"_s);
+    const QString wd = addWire(u"d1:2"_s, u"d2:1"_s);
+    const QStringList panelCable{ wl, wn, wp };
+    QCOMPARE(m_project->cableWires(u"nbar:2"_s, u"l1:N"_s), panelCable);
+    QCOMPARE(m_project->cableWires(u"l1:PE"_s, u"pebar:2"_s), panelCable);
+    QCOMPARE(m_project->cableWires(u"d2:2"_s, u"l1:L"_s), panelCable);
+    QCOMPARE(m_project->cableWires(u"l1:L"_s, u"l2:L"_s), QStringList({ w12l, w12n }));
+    QCOMPARE(m_project->cableWires(u"l3:L"_s, u"l3:N"_s), QStringList({ w3 }));
+    QVERIFY(m_project->cableWires(u"d1:2"_s, u"d2:1"_s).isEmpty());
+    QVERIFY(!wd.isEmpty());
+}
+
+void TestLoads::setCableLengthSetsEveryWire()
+{
+    addCableFixture();
+    const QString wl = addWire(u"d2:2"_s, u"l1:L"_s);
+    const QString wn = addWire(u"nbar:2"_s, u"l1:N"_s);
+    const QString wp = addWire(u"pebar:2"_s, u"l1:PE"_s);
+    const QString w12 = addWire(u"l1:L"_s, u"l2:L"_s);
+    const QString wd = addWire(u"d1:2"_s, u"d2:1"_s);
+    QSignalSpy spy(m_project.get(), &Project::changed);
+    QVERIFY(m_project->setCableLength(wl, 8));
+    QCOMPARE(spy.count(), 1);
+    for (const QString &id : { wl, wn, wp })
+        QCOMPARE(m_project->wire(id)->length, 8.0);
+    QCOMPARE(m_project->wire(w12)->length, 15.0);
+    QVERIFY(!m_project->setCableLength(wd, 8));
+    QVERIFY(!m_project->setCableLength(u"w99", 8));
+    QVERIFY(!m_project->setCableLength(wl, 0));
+    QVERIFY(!m_project->setCableLength(wl, 500.5));
+    QVERIFY(m_project->setCableLength(wl, 500));
+    QCOMPARE(m_project->wire(wp)->length, 500.0);
+    QCOMPARE(spy.count(), 2);
+}
+
+void TestLoads::newWireJoinsItsCableLength()
+{
+    addCableFixture();
+    const QString wl = addWire(u"d2:2"_s, u"l1:L"_s);
+    QVERIFY(m_project->setCableLength(wl, 8));
+    QCOMPARE(m_project->newWireLength(u"nbar:2"_s, u"l1:N"_s), 8.0);
 }
 
 QTEST_APPLESS_MAIN(TestLoads)

@@ -429,6 +429,50 @@ bool Project::updateWire(const Wire &wire)
     return true;
 }
 
+QStringList Project::cableWires(const QString &from, const QString &to) const
+{
+    const auto side = [this](const QString &terminalId) {
+        const QString object = terminalObject(terminalId);
+        return load(object) ? object : u"panel"_s;
+    };
+    const auto sides = [&side](const QString &a, const QString &b) {
+        return std::minmax({ side(a), side(b) });
+    };
+    const auto target = sides(from, to);
+    if (target.first == u"panel" && target.second == u"panel")
+        return {};
+    QStringList ids;
+    for (const Wire &w : m_wires) {
+        if (sides(w.from, w.to) == target)
+            ids.append(w.id);
+    }
+    return ids;
+}
+
+double Project::newWireLength(const QString &from, const QString &to) const
+{
+    const QStringList cable = cableWires(from, to);
+    if (!cable.isEmpty())
+        return wire(cable.first())->length;
+    return load(terminalObject(from)) || load(terminalObject(to)) ? LoadWireLength : 0.3;
+}
+
+bool Project::setCableLength(QStringView wireId, double length)
+{
+    const Wire *w = wire(wireId);
+    if (!w || !(length > 0) || length > MaxWireLength)
+        return false;
+    const QStringList cable = cableWires(w->from, w->to);
+    if (cable.isEmpty())
+        return false;
+    for (Wire &other : m_wires) {
+        if (cable.contains(other.id))
+            other.length = length;
+    }
+    emit changed();
+    return true;
+}
+
 PlacedLoad loadFromType(const LoadType &type, QPointF position)
 {
     return { {}, type.id, position, type.power, {}, 0 };

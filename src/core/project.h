@@ -40,6 +40,9 @@ enum class Placement : std::uint8_t {
 
 inline constexpr std::array<double, 6> WireSections{ 1.5, 2.5, 4, 6, 10, 16 };
 
+inline constexpr double LoadWireLength = 15; // m
+inline constexpr double MaxWireLength = 500; // m
+
 struct Wire
 {
     QString id;   // stable "w<n>"; empty until added
@@ -149,6 +152,15 @@ public:
     bool removeWire(QStringView id);
     // replaces the wire with the same id
     bool updateWire(const Wire &wire);
+
+    // ids of the stored wires in the cable of a wire between these ends, in wires() order; empty if
+    // neither end is on a load
+    [[nodiscard]] QStringList cableWires(const QString &from, const QString &to) const;
+    // the cable's length (its first wire's), else LoadWireLength with a load end, else 0.3
+    [[nodiscard]] double newWireLength(const QString &from, const QString &to) const;
+    // sets every wire of that wire's cable; one changed(); false if the wire is unknown, has no
+    // load end, or length is not in (0, MaxWireLength]
+    bool setCableLength(QStringView wireId, double length);
 
     [[nodiscard]] const QList<PlacedLoad> &loads() const;       // insertion order
     [[nodiscard]] const PlacedLoad *load(QStringView id) const; // nullptr if absent
