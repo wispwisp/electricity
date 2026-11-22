@@ -21,6 +21,8 @@ struct Preset;
 
 // The palette item of a preset, or nullptr.
 QTreeWidgetItem *presetItem(QTreeWidget *tree, const QString &id);
+// The palette item of a load type, or nullptr.
+QTreeWidgetItem *loadItem(QTreeWidget *tree, const QString &typeId);
 // A preset of the embedded catalog; aborts if there is none with that id.
 const Preset &preset(const QString &id);
 // The tutorial panel (ADR 0016) on the model: d1 QF1 2P C40 (0,0), d2 QD1 (0,2),
@@ -50,5 +52,10 @@ void leaveDrag(QGraphicsView *view);
 // Enter, move and drop at viewportPos.
 void dropPreset(QGraphicsView *view, PaletteWidget *palette, const QString &presetId,
                 QPoint viewportPos);
+// The same for a load type of the palette.
+void dragLoadOver(QGraphicsView *view, PaletteWidget *palette, const QString &typeId,
+                  QPoint viewportPos);
+void dropLoad(QGraphicsView *view, PaletteWidget *palette, const QString &typeId,
+              QPoint viewportPos);
 // Clicks the combo, waits for its popup view and clicks the item with that text.
 void chooseComboItem(QComboBox *combo, const QString &text);

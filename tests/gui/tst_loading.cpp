@@ -4,6 +4,7 @@
 #include "app/editorscene.h"
 #include "app/language.h"
 #include "app/mainwindow.h"
+#include "app/palettewidget.h"
 #include "app/sceneitems.h"
 #include "app/settings.h"
 #include "app/theme.h"
@@ -17,8 +18,12 @@
 #include <QElapsedTimer>
 #include <QHash>
 #include <QMenu>
+#include <QStatusBar>
 #include <QTest>
+#include <QToolBar>
+#include <QUndoStack>
 
+#include <algorithm>
 #include <memory>
 
 class TestLoading : public QObject
@@ -34,6 +39,11 @@ private slots:
     void captionsFollowLanguage();
     void fitAndRoutingWithFarLoads();
     void loadsInLightTheme();
+    void dropsLoadsOutsideTheEnclosure();
+    void refusesDropsOnEnclosureSupplyAndLoads();
+    void dropsApplianceOntoSocket();
+    void dragPreviewShowsRefusal();
+    void loadDropKeepsWireToolOn();
 
 private:
     [[nodiscard]] LoadItem *loadItem(const QString &id) const;
@@ -53,6 +63,11 @@ private:
     // Every caption, as painted, lies within its load's outline, which is all that wires keep
     // clear of.
     void checkCaptionsFitOutlines();
+    // Drags a load type from the palette onto the canvas and drops it at the scene point.
+    void drop(const QString &type, QPointF scenePos);
+    // The status bar text; cleared by clearMessage, so a test sees the hint of its last drop.
+    [[nodiscard]] QString message() const;
+    void clearMessage();
     template<typename T>
     T *named(const char *name) const
     {
@@ -154,6 +169,21 @@ void TestLoading::checkCaptionsFitOutlines()
                                     .arg(caption.width())
                                     .arg(outline.width())));
     }
+}
+
+void TestLoading::drop(const QString &type, QPointF scenePos)
+{
+    dropLoad(canvas, named<PaletteWidget>("paletteTree"), type, viewportPoint(canvas, scenePos));
+}
+
+QString TestLoading::message() const
+{
+    return window->statusBar()->currentMessage();
+}
+
+void TestLoading::clearMessage()
+{
+    window->statusBar()->clearMessage();
 }
 
 void TestLoading::initTestCase()
@@ -352,6 +382,177 @@ void TestLoading::loadsInLightTheme()
     QCoreApplication::processEvents(); // the palette reaches widgets through posted events
     QVERIFY(saveScreenshot(*window, "f07", "light"));
     saveCloseUp("light-closeup");
+}
+
+// Each drop point is the intended top-left of the picture plus half its size, so the snapped
+// top-left is exact. Top-lefts lie on the 4.5 grid: the TV goes to (301.5, 301.5), not (300, 300).
+void TestLoading::dropsLoadsOutsideTheEnclosure()
+{
+    const Project &project = window->project();
+    drop("ceiling-lamp", QPointF(18, 288));
+    QCOMPARE(project.loads().size(), 1);
+    const PlacedLoad first = project.loads()[0];
+    QCOMPARE(first.id, QStringLiteral("l1"));
+    QCOMPARE(first.type, QStringLiteral("ceiling-lamp"));
+    QCOMPARE(first.position, QPointF(0, 270));
+    QCOMPARE(first.power, 10);
+    QCOMPARE(scene->selectedLoadId(), QStringLiteral("l1"));
+    QCOMPARE(scene->selectedItems().size(), 1);
+    QCOMPARE(window->undoStack().count(), 1);
+    QCOMPARE(countItems(scene, "loadPreview"), 0);
+
+    drop("socket", QPointF(117, 283.5));
+    QCOMPARE(project.loads().size(), 2);
+    QCOMPARE(project.loads()[1].type, QStringLiteral("socket"));
+    QCOMPARE(project.loads()[1].position, QPointF(90, 270));
+    QCOMPARE(scene->selectedLoadId(), project.loads()[1].id);
+
+    drop("tv", QPointF(319.5, 319.5));
+    QCOMPARE(project.loads().size(), 3);
+    const PlacedLoad tvLoad = project.loads()[2];
+    QCOMPARE(tvLoad.type, QStringLiteral("tv"));
+    QCOMPARE(tvLoad.position, QPointF(301.5, 301.5));
+    QCOMPARE(tvLoad.socket, QString());
+    QCOMPARE(tvLoad.place, 0);
+    QCOMPARE(scene->selectedLoadId(), tvLoad.id);
+    QCOMPARE(window->undoStack().count(), 3);
+    QCOMPARE(countItems(scene, "loadPreview"), 0);
+    QVERIFY(saveScreenshot(*window, "f07", "dropped"));
+}
+
+void TestLoading::refusesDropsOnEnclosureSupplyAndLoads()
+{
+    lamp = addLoad("ceiling-lamp", QPointF(0, 270));
+    QVERIFY(!lamp.isEmpty());
+    const Project &project = window->project();
+    const QList<PlacedLoad> loads = project.loads();
+    const int commands = window->undoStack().count();
+    const QString noRoom = QStringLiteral("No room here: something is in the way.");
+
+    clearMessage();
+    drop("ceiling-lamp", QRectF(QPointF(0, 0), project.enclosure().size).center());
+    QCOMPARE(message(), QStringLiteral("Loads go outside the enclosure."));
+
+    clearMessage();
+    drop("ceiling-lamp", sceneItem(scene, "supply")->sceneBoundingRect().center());
+    QCOMPARE(message(), noRoom);
+
+    // The "Supply" text belongs to the supply area too. A lamp centred on it, snapped by up to
+    // half a grid step, stays right of the supply block.
+    const QList<QGraphicsItem *> items = scene->items();
+    const auto text = std::ranges::find_if(items, [](QGraphicsItem *item) {
+        const auto *textItem = dynamic_cast<TextItem *>(item);
+        return textItem && textItem->text() == QStringLiteral("Supply");
+    });
+    QVERIFY(text != items.end());
+    const QPointF onText = (*text)->sceneBoundingRect().center();
+    QVERIFY(onText.x() - 18 - 2.25 >= sceneItem(scene, "supply")->sceneBoundingRect().right());
+    clearMessage();
+    drop("ceiling-lamp", onText);
+    QCOMPARE(message(), noRoom);
+
+    clearMessage();
+    drop("ceiling-lamp", QPointF(18, 288));
+    QCOMPARE(message(), noRoom);
+
+    QCOMPARE(project.loads(), loads);
+    QCOMPARE(window->undoStack().count(), commands);
+    QCOMPARE(countItems(scene, "loadPreview"), 0);
+}
+
+void TestLoading::dropsApplianceOntoSocket()
+{
+    socket = addLoad("socket", QPointF(90, 270));
+    QVERIFY(!socket.isEmpty());
+    const Project &project = window->project();
+    const PlacedLoad socketLoad = *project.load(socket);
+    const QPointF onSocketPicture(117, 283.5);
+
+    drop("kettle", project.plugPlaceRect(socketLoad, 1).center());
+    QCOMPARE(project.loads().size(), 2);
+    const PlacedLoad kettleLoad = project.loads()[1];
+    QCOMPARE(kettleLoad.type, QStringLiteral("kettle"));
+    QCOMPARE(kettleLoad.socket, socket);
+    QCOMPARE(kettleLoad.place, 1);
+    QCOMPARE(scene->selectedLoadId(), kettleLoad.id);
+    QCOMPARE(loadItem(kettleLoad.id)->pos(), QPointF(76.5, 310.5));
+
+    // Over the picture, the free place is the second one.
+    drop("microwave", onSocketPicture);
+    QCOMPARE(project.loads().size(), 3);
+    const PlacedLoad microwave = project.loads()[2];
+    QCOMPARE(microwave.type, QStringLiteral("microwave"));
+    QCOMPARE(microwave.socket, socket);
+    QCOMPARE(microwave.place, 2);
+    QCOMPARE(project.pluggedInto(socket), (QStringList{ kettleLoad.id, microwave.id }));
+    QCOMPARE(loadItem(microwave.id)->pos(), QPointF(121.5, 310.5));
+    QCOMPARE(window->undoStack().count(), 2);
+    QVERIFY(saveScreenshot(*window, "f07", "dropped-plugged"));
+
+    const QList<PlacedLoad> loads = project.loads();
+    clearMessage();
+    drop("tv", onSocketPicture);
+    QCOMPARE(message(), QStringLiteral("This socket already has two appliances."));
+    clearMessage();
+    drop("ceiling-lamp", project.plugPlaceRect(socketLoad, 1).center());
+    QCOMPARE(message(), QStringLiteral("No room here: something is in the way."));
+    QCOMPARE(project.loads(), loads);
+    QCOMPARE(window->undoStack().count(), 2);
+}
+
+void TestLoading::dragPreviewShowsRefusal()
+{
+    socket = addLoad("socket", QPointF(90, 270));
+    QVERIFY(!socket.isEmpty());
+    const Project &project = window->project();
+    auto *palette = named<PaletteWidget>("paletteTree");
+
+    dragLoadOver(canvas, palette, "ceiling-lamp", viewportPoint(canvas, QPointF(18, 288)));
+    QCOMPARE(countItems(scene, "loadPreview"), 1);
+    LoadItem *preview = loadItem("loadPreview");
+    QVERIFY(preview);
+    QVERIFY(preview->isVisible());
+    QCOMPARE(preview->opacity(), 0.6);
+    QCOMPARE(preview->zValue(), LoadItem::LiftedZ);
+    QCOMPARE(preview->pos(), QPointF(0, 270));
+    QVERIFY(!preview->isRefused());
+    QVERIFY(saveScreenshot(*window, "f07", "drag-preview"));
+
+    dragLoadOver(canvas, palette, "ceiling-lamp",
+                 viewportPoint(canvas, QRectF(QPointF(0, 0), project.enclosure().size).center()));
+    QCOMPARE(countItems(scene, "loadPreview"), 1);
+    preview = loadItem("loadPreview");
+    QVERIFY(preview);
+    QVERIFY(preview->isVisible());
+    QVERIFY(preview->isRefused());
+    QVERIFY(saveScreenshot(*window, "f07", "drag-refused"));
+
+    // Over the socket, an appliance hangs in the place it would go into.
+    dragLoadOver(canvas, palette, "kettle",
+                 viewportPoint(canvas, project.plugPlaceRect(*project.load(socket), 1).center()));
+    QCOMPARE(countItems(scene, "loadPreview"), 1);
+    preview = loadItem("loadPreview");
+    QVERIFY(preview);
+    QCOMPARE(preview->pos(), QPointF(76.5, 310.5));
+    QVERIFY(!preview->isRefused());
+    saveCloseUp("drag-plug-closeup");
+
+    leaveDrag(canvas);
+    QCOMPARE(countItems(scene, "loadPreview"), 0);
+    QCOMPARE(project.loads().size(), 1);
+    QCOMPARE(window->undoStack().count(), 0);
+}
+
+void TestLoading::loadDropKeepsWireToolOn()
+{
+    auto *wireAction = named<QAction>("wireAction");
+    QVERIFY(wireAction);
+    QTest::mouseClick(named<QToolBar>("editToolBar")->widgetForAction(wireAction), Qt::LeftButton);
+    QVERIFY(scene->isWireMode());
+    drop("ceiling-lamp", QPointF(18, 288));
+    QCOMPARE(window->project().loads().size(), 1);
+    QVERIFY(scene->isWireMode());
+    QVERIFY(wireAction->isChecked());
 }
 
 QTEST_MAIN(TestLoading)

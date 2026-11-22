@@ -25,18 +25,50 @@ namespace {
 // The data of the drag in progress. Qt keeps it until the drag ends, and the view hands it to the
 // scene again on leave; owned by the view, so it goes away with a window closed mid-drag.
 QPointer<QMimeData> dragData;
-} // namespace
 
-QTreeWidgetItem *presetItem(QTreeWidget *tree, const QString &id)
+QTreeWidgetItem *paletteItem(QTreeWidget *tree, int role, const QString &id)
 {
     for (int g = 0; g < tree->topLevelItemCount(); ++g) {
         QTreeWidgetItem *group = tree->topLevelItem(g);
         for (int i = 0; i < group->childCount(); ++i) {
-            if (group->child(i)->data(0, PaletteWidget::PresetIdRole).toString() == id)
+            if (group->child(i)->data(0, role).toString() == id)
                 return group->child(i);
         }
     }
     return nullptr;
+}
+
+void dragItemOver(QGraphicsView *view, PaletteWidget *palette, QTreeWidgetItem *item,
+                  QPoint viewportPos)
+{
+    delete dragData;
+    QVERIFY2(item, "no such palette item");
+    dragData = palette->mimeData({ item });
+    dragData->setParent(view);
+    QDragEnterEvent enter(QPointF(viewportPos), Qt::CopyAction, dragData, Qt::LeftButton,
+                          Qt::NoModifier);
+    QApplication::sendEvent(view->viewport(), &enter);
+    QDragMoveEvent move(QPointF(viewportPos), Qt::CopyAction, dragData, Qt::LeftButton,
+                        Qt::NoModifier);
+    QApplication::sendEvent(view->viewport(), &move);
+}
+
+void dropDragged(QGraphicsView *view, QPoint viewportPos)
+{
+    QDropEvent drop(viewportPos, Qt::CopyAction, dragData, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(view->viewport(), &drop);
+    delete dragData;
+}
+} // namespace
+
+QTreeWidgetItem *presetItem(QTreeWidget *tree, const QString &id)
+{
+    return paletteItem(tree, PaletteWidget::PresetIdRole, id);
+}
+
+QTreeWidgetItem *loadItem(QTreeWidget *tree, const QString &typeId)
+{
+    return paletteItem(tree, PaletteWidget::LoadTypeRole, typeId);
 }
 
 const Preset &preset(const QString &id)
@@ -143,15 +175,7 @@ bool crossesInside(const QPolygonF &route, const QRectF &rect)
 void dragPresetOver(QGraphicsView *view, PaletteWidget *palette, const QString &presetId,
                     QPoint viewportPos)
 {
-    delete dragData;
-    dragData = palette->mimeData({ presetItem(palette, presetId) });
-    dragData->setParent(view);
-    QDragEnterEvent enter(QPointF(viewportPos), Qt::CopyAction, dragData, Qt::LeftButton,
-                          Qt::NoModifier);
-    QApplication::sendEvent(view->viewport(), &enter);
-    QDragMoveEvent move(QPointF(viewportPos), Qt::CopyAction, dragData, Qt::LeftButton,
-                        Qt::NoModifier);
-    QApplication::sendEvent(view->viewport(), &move);
+    dragItemOver(view, palette, presetItem(palette, presetId), viewportPos);
 }
 
 void leaveDrag(QGraphicsView *view)
@@ -165,9 +189,20 @@ void dropPreset(QGraphicsView *view, PaletteWidget *palette, const QString &pres
                 QPoint viewportPos)
 {
     dragPresetOver(view, palette, presetId, viewportPos);
-    QDropEvent drop(viewportPos, Qt::CopyAction, dragData, Qt::LeftButton, Qt::NoModifier);
-    QApplication::sendEvent(view->viewport(), &drop);
-    delete dragData;
+    dropDragged(view, viewportPos);
+}
+
+void dragLoadOver(QGraphicsView *view, PaletteWidget *palette, const QString &typeId,
+                  QPoint viewportPos)
+{
+    dragItemOver(view, palette, loadItem(palette, typeId), viewportPos);
+}
+
+void dropLoad(QGraphicsView *view, PaletteWidget *palette, const QString &typeId,
+              QPoint viewportPos)
+{
+    dragLoadOver(view, palette, typeId, viewportPos);
+    dropDragged(view, viewportPos);
 }
 
 void chooseComboItem(QComboBox *combo, const QString &text)

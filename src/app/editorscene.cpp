@@ -23,6 +23,7 @@
 #include <QUndoStack>
 
 #include <algorithm>
+#include <cmath>
 #include <limits>
 #include <utility>
 
@@ -40,7 +41,8 @@ constexpr qreal kTerminalReach = 4; // a click this close to a terminal is on it
 constexpr qreal kHighlightRadius = 4.5;
 constexpr qreal kHighlightWidth = 1.2;
 constexpr qreal kWirePreviewWidth = 1.5;
-constexpr qreal kWireToolZ = 3; // the wire tool's overlays, above a device lifted for a move
+constexpr qreal kWireToolZ = 3;  // the wire tool's overlays, above a device lifted for a move
+constexpr qreal kLoadGrid = 4.5; // a load's picture top-left snaps to it
 
 // Ctrl and Shift would add to the selection; one item is selected at a time.
 void dropSelectionModifiers(QGraphicsSceneMouseEvent *event)
@@ -57,6 +59,15 @@ const Preset *draggedPreset(const Catalog &catalog, const QMimeData *data)
     const auto it = std::ranges::find(catalog.presets, QString::fromUtf8(data->data(format)),
                                       &Preset::id);
     return it == catalog.presets.end() ? nullptr : &*it;
+}
+
+// The load type a palette drag carries, or nullptr.
+const LoadType *draggedLoad(const Catalog &catalog, const QMimeData *data)
+{
+    const QString format = QString::fromLatin1(PaletteWidget::LoadMimeType);
+    if (!data || !data->hasFormat(format))
+        return nullptr;
+    return catalog.loadType(QString::fromUtf8(data->data(format)));
 }
 
 // nullptr if absent
@@ -556,23 +567,114 @@ void EditorScene::snapItem(DeviceItem *item, PlacedDevice device, RailSlot slot)
     item->setRefused(m_project.placement(device) != Placement::Fits);
 }
 
+LoadPlacement EditorScene::loadTarget(PlacedLoad &load, QPointF cursor) const
+{
+    const LoadType *type = m_project.catalog().loadType(load.type);
+    if (!type)
+        return LoadPlacement::Invalid;
+    PlacedLoad plugged = load; // keeps its position, which is unused while plugged in
+    const QPointF topLeft = cursor - QPointF(type->size.width(), type->size.height()) / 2;
+    load.position = QPointF(std::round(topLeft.x() / kLoadGrid) * kLoadGrid,
+                            std::round(topLeft.y() / kLoadGrid) * kLoadGrid);
+    load.socket.clear();
+    load.place = 0;
+    for (const PlacedLoad &socket : m_project.loads()) {
+        const LoadType *socketType = m_project.catalog().loadType(socket.type);
+        if (socket.id == load.id || !socketType || socketType->places.isEmpty()
+            || !m_project.loadOutline(socket).contains(cursor))
+            continue;
+        if (!type->plugsIn)
+            return LoadPlacement::Overlaps;
+        plugged.socket = socket.id;
+        int nearest = 0;
+        qreal nearestDistance = std::numeric_limits<qreal>::max();
+        for (int place = 1; place <= socketType->places.size(); ++place) {
+            plugged.place = place;
+            const qreal distance
+                    = QLineF(m_project.plugPlaceRect(socket, place).center(), cursor).length();
+            if (distance < nearestDistance
+                && m_project.loadPlacement(plugged) == LoadPlacement::Fits) {
+                nearest = place;
+                nearestDistance = distance;
+            }
+        }
+        if (nearest == 0)
+            return LoadPlacement::PlaceTaken;
+        plugged.place = nearest;
+        load = plugged;
+        return LoadPlacement::Fits;
+    }
+    QRectF supply = m_supply->sceneBoundingRect() | m_supplyText->sceneBoundingRect();
+    for (const TextItem *letter : std::as_const(m_supplyLetters))
+        supply |= letter->sceneBoundingRect();
+    if (m_project.loadOutline(load).intersects(supply))
+        return LoadPlacement::Overlaps;
+    return m_project.loadPlacement(load);
+}
+
+bool EditorScene::placeLoadAt(PlacedLoad &load, QPointF cursor)
+{
+    switch (loadTarget(load, cursor)) {
+    case LoadPlacement::Fits:
+        return true;
+    case LoadPlacement::OnEnclosure:
+        emit hint(tr("Loads go outside the enclosure."));
+        break;
+    case LoadPlacement::Overlaps:
+        emit hint(tr("No room here: something is in the way."));
+        break;
+    case LoadPlacement::PlaceTaken:
+        emit hint(tr("This socket already has two appliances."));
+        break;
+    case LoadPlacement::Invalid:
+        break;
+    }
+    return false;
+}
+
+void EditorScene::previewLoad(const LoadType &type, QPointF cursor)
+{
+    PlacedLoad load = loadFromType(type, QPointF());
+    const LoadPlacement placement = loadTarget(load, cursor);
+    if (!m_loadPreview) {
+        m_loadPreview = new LoadItem(m_project.catalog(), QStringLiteral("loadPreview"));
+        m_loadPreview->setFlag(QGraphicsItem::ItemIsSelectable, false);
+        m_loadPreview->setOpacity(kPreviewOpacity);
+        m_loadPreview->setZValue(LoadItem::LiftedZ);
+        // A socket shows the places it keeps free for appliances.
+        const PlacedLoad atOrigin = loadFromType(type, QPointF());
+        QList<QRectF> places;
+        for (int place = 1; place <= type.places.size(); ++place)
+            places << m_project.plugPlaceRect(atOrigin, place);
+        m_loadPreview->setLoad(atOrigin, QString(), places, {});
+        addItem(m_loadPreview);
+    }
+    m_loadPreview->setPos(m_project.loadPosition(load));
+    m_loadPreview->setRefused(placement != LoadPlacement::Fits);
+}
+
 void EditorScene::dragEnterEvent(QGraphicsSceneDragDropEvent *event)
 {
     removePreview();
     dragMoveEvent(event);
 }
 
-// Every preset drag is accepted, even where the device doesn't fit, so that the drop arrives and
-// can say why.
+// Every preset or load drag is accepted, even where it can't go, so that the drop arrives and can
+// say why.
 void EditorScene::dragMoveEvent(QGraphicsSceneDragDropEvent *event)
 {
     const Preset *preset = draggedPreset(m_project.catalog(), event->mimeData());
-    if (!preset) {
+    const LoadType *loadType = draggedLoad(m_project.catalog(), event->mimeData());
+    if (!preset && !loadType) {
         event->ignore();
         return;
     }
     event->setDropAction(Qt::CopyAction);
     event->accept();
+    if (loadType) {
+        previewLoad(*loadType, event->scenePos());
+        return;
+    }
     const PlacedDevice device = deviceFromPreset(*preset, 0, 0);
     if (!m_preview) {
         m_preview = new DeviceItem(m_project.catalog(), QStringLiteral("preview"));
@@ -596,6 +698,20 @@ void EditorScene::dragLeaveEvent(QGraphicsSceneDragDropEvent *)
 void EditorScene::dropEvent(QGraphicsSceneDragDropEvent *event)
 {
     removePreview();
+    if (const LoadType *loadType = draggedLoad(m_project.catalog(), event->mimeData())) {
+        PlacedLoad load = loadFromType(*loadType, QPointF());
+        if (!placeLoadAt(load, event->scenePos())) {
+            event->ignore();
+            return;
+        }
+        event->setDropAction(Qt::CopyAction);
+        event->accept();
+        auto *command = new AddLoadCommand(m_project, load);
+        m_undoStack.push(command);
+        clearSelection();
+        m_loads.value(command->loadId())->setSelected(true);
+        return;
+    }
     const Preset *preset = draggedPreset(m_project.catalog(), event->mimeData());
     if (!preset) {
         event->ignore();
@@ -617,6 +733,7 @@ void EditorScene::dropEvent(QGraphicsSceneDragDropEvent *event)
 void EditorScene::removePreview()
 {
     delete std::exchange(m_preview, nullptr);
+    delete std::exchange(m_loadPreview, nullptr);
 }
 
 // Swaps the picture and bars of the existing enclosure item, so a selected enclosure stays

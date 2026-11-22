@@ -14,6 +14,7 @@
 #include <QMimeData>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QSvgRenderer>
 
 #include <utility>
 
@@ -23,16 +24,29 @@ QString catalogText(const QString &source)
     return QCoreApplication::translate("Catalog", source.toUtf8().constData());
 }
 
-// Every picture sits centred in the same cell, so the text of all rows starts at the same x.
+// Every picture sits centred in the same cell, so the text of all rows starts at the same x. A
+// picture wider than the cell, as the loads are, shrinks to its width.
 QPixmap iconCell(const QString &path, qreal ratio, const QSize &cell)
 {
-    const QPixmap picture = svgPixmap(path, cell.height(), ratio);
+    const QSizeF box = svgRenderer(path).viewBoxF().size();
+    const int height = box.isEmpty()
+            ? cell.height()
+            : qMin(cell.height(), qFloor(cell.width() * box.height() / box.width()));
+    const QPixmap picture = svgPixmap(path, height, ratio);
     QPixmap result(cell * ratio);
     result.setDevicePixelRatio(ratio);
     result.fill(Qt::transparent);
     QPainter painter(&result);
-    painter.drawPixmap(QPointF((cell.width() - picture.width() / ratio) / 2, 0), picture);
+    painter.drawPixmap(QPointF((cell.width() - picture.width() / ratio) / 2,
+                               (cell.height() - picture.height() / ratio) / 2),
+                       picture);
     return result;
+}
+
+QString loadToolTip(const LoadType &type)
+{
+    return QStringLiteral("<b>") + catalogText(type.name).toHtmlEscaped()
+            + QStringLiteral("</b><br>") + catalogText(type.description).toHtmlEscaped();
 }
 } // namespace
 
@@ -50,15 +64,18 @@ PaletteWidget::PaletteWidget(const Catalog &catalog, QWidget *parent)
     QHash<QString, QTreeWidgetItem *> groups;
     QFont bold = font();
     bold.setBold(true);
+    const auto addGroup = [this, &bold](const QString &name) {
+        auto *group = new QTreeWidgetItem(this);
+        group->setFlags(Qt::ItemIsEnabled);
+        group->setFont(0, bold);
+        group->setData(0, Qt::UserRole + 1, name);
+        group->setExpanded(true);
+        return group;
+    };
     for (const Preset &preset : m_catalog.presets) {
         QTreeWidgetItem *&group = groups[preset.group];
-        if (!group) {
-            group = new QTreeWidgetItem(this);
-            group->setFlags(Qt::ItemIsEnabled);
-            group->setFont(0, bold);
-            group->setData(0, Qt::UserRole + 1, preset.group);
-            group->setExpanded(true);
-        }
+        if (!group)
+            group = addGroup(preset.group);
         auto *item = new QTreeWidgetItem(group);
         item->setFlags(Qt::ItemIsEnabled);
         item->setData(0, PresetIdRole, preset.id);
@@ -68,6 +85,17 @@ PaletteWidget::PaletteWidget(const Catalog &catalog, QWidget *parent)
             item->setIcon(0,
                           QIcon(iconCell(picturePath(variant->picture), devicePixelRatioF(),
                                          iconSize())));
+    }
+    if (!m_catalog.loads.isEmpty()) {
+        QTreeWidgetItem *group = addGroup(QStringLiteral("Loads"));
+        for (const LoadType &type : m_catalog.loads) {
+            auto *item = new QTreeWidgetItem(group);
+            item->setFlags(Qt::ItemIsEnabled);
+            item->setData(0, LoadTypeRole, type.id);
+            item->setIcon(0,
+                          QIcon(iconCell(loadPicturePath(type.picture), devicePixelRatioF(),
+                                         iconSize())));
+        }
     }
     retranslate();
 }
@@ -89,11 +117,21 @@ QString PaletteWidget::toolTipFor(const Preset &preset) const
 
 void PaletteWidget::retranslate()
 {
+    QLocale locale(languageCode(currentLanguage()));
+    locale.setNumberOptions(QLocale::OmitGroupSeparator); // "2000 W", as on appliance labels
     for (int g = 0; g < topLevelItemCount(); ++g) {
         QTreeWidgetItem *group = topLevelItem(g);
         group->setText(0, catalogText(group->data(0, Qt::UserRole + 1).toString()));
         for (int i = 0; i < group->childCount(); ++i) {
             QTreeWidgetItem *item = group->child(i);
+            if (const LoadType *type = m_catalog.loadType(item->data(0, LoadTypeRole).toString())) {
+                QString text = catalogText(type->name);
+                if (type->power > 0) // a socket has no power of its own
+                    text += QLatin1Char('\n') + tr("%1 W").arg(locale.toString(type->power));
+                item->setText(0, text);
+                item->setToolTip(0, loadToolTip(*type));
+                continue;
+            }
             const QString id = item->data(0, PresetIdRole).toString();
             for (const Preset &preset : m_catalog.presets) {
                 if (preset.id != id)
@@ -116,49 +154,56 @@ void PaletteWidget::changeEvent(QEvent *event)
 
 QStringList PaletteWidget::mimeTypes() const
 {
-    return { QString::fromLatin1(PresetMimeType) };
+    return { QString::fromLatin1(PresetMimeType), QString::fromLatin1(LoadMimeType) };
 }
 
 QMimeData *PaletteWidget::mimeData(const QList<QTreeWidgetItem *> &items) const
 {
     for (const QTreeWidgetItem *item : items) {
-        const QString id = item->data(0, PresetIdRole).toString();
+        QString format = QString::fromLatin1(PresetMimeType);
+        QString id = item->data(0, PresetIdRole).toString();
+        if (id.isEmpty()) {
+            format = QString::fromLatin1(LoadMimeType);
+            id = item->data(0, LoadTypeRole).toString();
+        }
         if (id.isEmpty())
             continue;
         auto *data = new QMimeData;
-        data->setData(QString::fromLatin1(PresetMimeType), id.toUtf8());
+        data->setData(format, id.toUtf8());
         return data;
     }
     return nullptr;
 }
 
-// Presets aren't selectable and QAbstractItemView only drags selected items, so the palette starts
-// the drag itself (ADR 0025).
+// Presets and loads aren't selectable and QAbstractItemView only drags selected items, so the
+// palette starts the drag itself (ADR 0025).
 void PaletteWidget::mousePressEvent(QMouseEvent *event)
 {
-    m_pressedPreset = nullptr;
+    m_pressedItem = nullptr;
     if (event->button() == Qt::LeftButton) {
         m_pressPos = event->position().toPoint();
         QTreeWidgetItem *item = itemAt(m_pressPos);
-        if (item && !item->data(0, PresetIdRole).toString().isEmpty())
-            m_pressedPreset = item;
+        if (item
+            && (!item->data(0, PresetIdRole).toString().isEmpty()
+                || !item->data(0, LoadTypeRole).toString().isEmpty()))
+            m_pressedItem = item;
     }
     QTreeWidget::mousePressEvent(event);
 }
 
 void PaletteWidget::mouseMoveEvent(QMouseEvent *event)
 {
-    if (m_pressedPreset && (event->buttons() & Qt::LeftButton)
+    if (m_pressedItem && (event->buttons() & Qt::LeftButton)
         && (event->position().toPoint() - m_pressPos).manhattanLength()
                 >= QApplication::startDragDistance()) {
-        dragPreset(std::exchange(m_pressedPreset, nullptr));
+        dragItem(std::exchange(m_pressedItem, nullptr));
         event->accept();
         return;
     }
     QTreeWidget::mouseMoveEvent(event);
 }
 
-void PaletteWidget::dragPreset(QTreeWidgetItem *item)
+void PaletteWidget::dragItem(QTreeWidgetItem *item)
 {
     auto *drag = new QDrag(this);
     drag->setMimeData(mimeData({ item }));

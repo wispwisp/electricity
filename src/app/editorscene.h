@@ -5,6 +5,7 @@
 #include <QHash>
 #include <QList>
 
+#include <cstdint>
 #include <optional>
 
 class DeviceItem;
@@ -18,7 +19,10 @@ class Project;
 class QUndoStack;
 class TextItem;
 class WireItem;
+enum class LoadPlacement : std::uint8_t;
+struct LoadType;
 struct PlacedDevice;
+struct PlacedLoad;
 struct RouteEnd;
 
 struct RailSlot
@@ -32,8 +36,8 @@ struct RailSlot
 // one per load and one per wire, kept in sync with the project. Scene units are enclosure picture
 // units; the enclosure sits at (0, 0). One item is selected at a time: a device, a load, a wire or
 // the enclosure.
-// Presets dropped from the palette are placed, devices are moved with the mouse, and wires are
-// drawn with the wire tool, through the undo stack.
+// Presets and loads dropped from the palette are placed, devices are moved with the mouse, and
+// wires are drawn with the wire tool, through the undo stack.
 class EditorScene : public QGraphicsScene
 {
     Q_OBJECT
@@ -111,6 +115,14 @@ private:
     bool placeAt(PlacedDevice &device, QPointF centre);
     // Shows the item on the slot, tinted if the device doesn't fit there.
     void snapItem(DeviceItem *item, PlacedDevice device, RailSlot slot);
+    // Where the load goes for a drop with the cursor at cursor: an appliance over a socket into its
+    // free place nearest the cursor (socket and place), any other load with its picture centred on
+    // the cursor and snapped to the grid (position). Returns why it can't go there, or Fits.
+    [[nodiscard]] LoadPlacement loadTarget(PlacedLoad &load, QPointF cursor) const;
+    // The same; false, with a hint, if the load can't go there.
+    bool placeLoadAt(PlacedLoad &load, QPointF cursor);
+    // Shows the load where a drop at cursor would put it, tinted if it can't go there.
+    void previewLoad(const LoadType &type, QPointF cursor);
     // A left press on a device may become a move.
     void pressDevice(QGraphicsSceneMouseEvent *event);
     void finishMove(QPointF centre);
@@ -142,9 +154,10 @@ private:
     QHash<QString, DeviceItem *> m_devices;
     QHash<QString, LoadItem *> m_loads;
     QHash<QString, WireItem *> m_wires;
-    DeviceItem *m_preview = nullptr; // while a preset is dragged over the scene
-    QString m_movingId;              // the device under a left press, "" if none
-    QPointF m_grabOffset;            // press point minus the device body centre
+    DeviceItem *m_preview = nullptr;   // while a preset is dragged over the scene
+    LoadItem *m_loadPreview = nullptr; // while a load is dragged over the scene
+    QString m_movingId;                // the device under a left press, "" if none
+    QPointF m_grabOffset;              // press point minus the device body centre
     QList<QAction *> m_contextActions;
     QMenu *m_contextMenu = nullptr;
     QPoint m_pressScreenPos;

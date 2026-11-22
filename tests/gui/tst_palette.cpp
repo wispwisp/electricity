@@ -5,18 +5,23 @@
 #include "app/palettewidget.h"
 #include "app/settings.h"
 #include "app/theme.h"
+#include "core/project.h"
 #include "editorhelpers.h"
 #include "menuclicks.h"
 #include "screenshot.h"
 #include "testsettings.h"
 
 #include <QApplication>
+#include <QDrag>
 #include <QFontMetrics>
 #include <QHelpEvent>
 #include <QMenu>
+#include <QMimeData>
 #include <QTest>
 #include <QToolTip>
 #include <QTreeWidget>
+
+#include <memory>
 
 namespace {
 void hover(QTreeWidget *tree, QTreeWidgetItem *item)
@@ -53,6 +58,9 @@ private slots:
     void switchesLanguageAndTheme();
     void textFitsInEveryLanguage();
     void groupStaysExpandedOnDoubleClick();
+    void showsLoadsGroup();
+    void providesLoadDragData();
+    void loadTextsFitInEveryLanguage();
 };
 
 void TestPalette::initTestCase()
@@ -69,7 +77,7 @@ void TestPalette::showsProtectionPresetsWithTooltips()
     QVERIFY(QTest::qWaitForWindowExposed(&window));
     auto *tree = window.findChild<QTreeWidget *>("paletteTree");
     QVERIFY(tree);
-    QCOMPARE(tree->topLevelItemCount(), 1);
+    QCOMPARE(tree->topLevelItemCount(), 2);
     QTreeWidgetItem *group = tree->topLevelItem(0);
     QCOMPARE(group->text(0), QStringLiteral("Protection"));
     QVERIFY(group->isExpanded());
@@ -189,6 +197,106 @@ void TestPalette::groupStaysExpandedOnDoubleClick()
         const QRect rect = tree->visualItemRect(group->child(i));
         QVERIFY(!rect.isEmpty());
         QVERIFY(tree->viewport()->rect().contains(rect));
+    }
+}
+
+void TestPalette::showsLoadsGroup()
+{
+    MainWindow window;
+    window.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&window));
+    auto *tree = window.findChild<QTreeWidget *>("paletteTree");
+    QVERIFY(tree);
+    QCOMPARE(tree->topLevelItemCount(), 2);
+    QTreeWidgetItem *group = tree->topLevelItem(1);
+    QCOMPARE(group->text(0), QStringLiteral("Loads"));
+    QVERIFY(group->isExpanded());
+    const QList<std::pair<QString, QString>> expected{
+        { "ceiling-lamp", "Ceiling lamp\n10 W" },
+        { "socket", "Double socket" },
+        { "kettle", "Kettle\n2000 W" },
+        { "washing-machine", "Washing machine\n2200 W" },
+        { "refrigerator", "Refrigerator\n150 W" },
+        { "tv", "TV\n120 W" },
+        { "microwave", "Microwave\n1200 W" },
+        { "air-conditioner", "Air conditioner\n1000 W" },
+        { "water-heater", "Water heater\n2000 W" },
+        { "cooktop", "Electric cooktop\n7000 W" }
+    };
+    QCOMPARE(group->childCount(), int(expected.size()));
+    for (int i = 0; i < expected.size(); ++i) {
+        QTreeWidgetItem *item = group->child(i);
+        QCOMPARE(item->data(0, PaletteWidget::LoadTypeRole).toString(), expected[i].first);
+        QCOMPARE(item->data(0, PaletteWidget::PresetIdRole).toString(), QString());
+        QCOMPARE(item->text(0), expected[i].second);
+        QVERIFY(!item->icon(0).isNull());
+    }
+    QTreeWidgetItem *kettle = loadItem(tree, "kettle");
+    QVERIFY(kettle);
+    QVERIFY(kettle->toolTip(0).contains("Kettle"));
+    QVERIFY(kettle->toolTip(0).contains("Drop it onto a socket"));
+    QVERIFY(!loadItem(tree, "breaker-1p-c10"));
+    tree->scrollToItem(group->child(group->childCount() - 1));
+    QVERIFY(saveScreenshot(window, "f07", "palette-loads"));
+}
+
+void TestPalette::providesLoadDragData()
+{
+    MainWindow window;
+    window.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&window));
+    auto *palette = window.findChild<PaletteWidget *>("paletteTree");
+    QVERIFY(palette);
+    QVERIFY(palette->mimeTypes().contains(PaletteWidget::PresetMimeType));
+    QVERIFY(palette->mimeTypes().contains(PaletteWidget::LoadMimeType));
+    QTreeWidgetItem *item = loadItem(palette, "kettle");
+    QVERIFY(item);
+    const std::unique_ptr<QMimeData> data(palette->mimeData({ item }));
+    QVERIFY(data);
+    QCOMPARE(data->data(PaletteWidget::LoadMimeType), QByteArray("kettle"));
+    QVERIFY(!data->hasFormat(PaletteWidget::PresetMimeType));
+
+    // As with presets, moving beyond the start distance starts the drag, which the offscreen
+    // platform ends at once.
+    palette->scrollToItem(item);
+    QWidget *viewport = palette->viewport();
+    const QPoint start = palette->visualItemRect(item).center();
+    QTest::mousePress(viewport, Qt::LeftButton, {}, start);
+    QTest::mouseMove(viewport, start + QPoint(QApplication::startDragDistance() + 10, 0));
+    auto *drag = palette->findChild<QDrag *>();
+    QVERIFY(drag);
+    QCOMPARE(drag->mimeData()->data(PaletteWidget::LoadMimeType), QByteArray("kettle"));
+    QCOMPARE(drag->supportedActions(), Qt::CopyAction);
+    QVERIFY(!drag->pixmap().isNull());
+    QTest::mouseRelease(viewport, Qt::LeftButton, {}, start + QPoint(30, 0));
+    QVERIFY(window.project().loads().isEmpty());
+}
+
+void TestPalette::loadTextsFitInEveryLanguage()
+{
+    MainWindow window;
+    window.show();
+    QVERIFY(QTest::qWaitForWindowExposed(&window));
+    auto *tree = window.findChild<QTreeWidget *>("paletteTree");
+    QVERIFY(tree);
+    QCOMPARE(tree->topLevelItemCount(), 2);
+    const QList<std::pair<QString, QString>> kettleTexts{ { "ru", "Чайник\n2000 Вт" },
+                                                          { "kk", "Шәйнек\n2000 Вт" },
+                                                          { "en", "Kettle\n2000 W" } };
+    for (const auto &[code, kettleText] : kettleTexts) {
+        chooseLanguage(window, code);
+        QCOMPARE(loadItem(tree, "kettle")->text(0), kettleText);
+        const QFontMetrics metrics(tree->font());
+        QTreeWidgetItem *group = tree->topLevelItem(1);
+        QVERIFY(group->childCount() > 0);
+        for (int i = 0; i < group->childCount(); ++i) {
+            QTreeWidgetItem *item = group->child(i);
+            const int available = tree->visualItemRect(item).width() - tree->iconSize().width() - 8;
+            for (const QString &line : item->text(0).split('\n')) {
+                QVERIFY2(metrics.horizontalAdvance(line) <= available,
+                         qPrintable(code + ": " + line));
+            }
+        }
     }
 }
 
