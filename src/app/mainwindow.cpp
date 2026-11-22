@@ -7,6 +7,7 @@
 #include "app/language.h"
 #include "app/palettewidget.h"
 #include "app/propertiespanel.h"
+#include "app/sectiontext.h"
 #include "app/settings.h"
 #include "app/svgpixmap.h"
 #include "app/theme.h"
@@ -15,6 +16,7 @@
 
 #include <QAction>
 #include <QActionGroup>
+#include <QComboBox>
 #include <QDockWidget>
 #include <QEvent>
 #include <QMenu>
@@ -23,6 +25,7 @@
 #include <QStatusBar>
 #include <QStatusTipEvent>
 #include <QToolBar>
+#include <QToolButton>
 #include <QUndoStack>
 
 namespace {
@@ -95,6 +98,22 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_redoAction, &QAction::triggered, m_undoStack, &QUndoStack::redo);
     connect(m_undoStack, &QUndoStack::canRedoChanged, m_redoAction, &QAction::setEnabled);
 
+    m_wireAction = new QAction(this);
+    m_wireAction->setObjectName(QStringLiteral("wireAction"));
+    m_wireAction->setIcon(svgIcon(QStringLiteral(":/svg/ui/wire.svg"), 24));
+    m_wireAction->setCheckable(true);
+    connect(m_wireAction, &QAction::toggled, m_scene, &EditorScene::setWireMode);
+    connect(m_scene, &EditorScene::wireModeChanged, m_wireAction, &QAction::setChecked);
+    m_wireSectionCombo = new QComboBox(this);
+    m_wireSectionCombo->setObjectName(QStringLiteral("wireSectionCombo"));
+    m_wireSectionCombo->setSizeAdjustPolicy(QComboBox::AdjustToContents);
+    for (double section : WireSections)
+        m_wireSectionCombo->addItem(QString(), section);
+    m_wireSectionCombo->setCurrentIndex(m_wireSectionCombo->findData(m_scene->wireSection()));
+    connect(m_wireSectionCombo, &QComboBox::activated, this, [this](int index) {
+        m_scene->setWireSection(m_wireSectionCombo->itemData(index).toDouble());
+    });
+
     m_deleteAction = new QAction(this);
     m_deleteAction->setObjectName(QStringLiteral("deleteAction"));
     m_deleteAction->setShortcut(QKeySequence::Delete);
@@ -132,6 +151,11 @@ MainWindow::MainWindow(QWidget *parent)
     m_editToolBar->setMovable(false);
     m_editToolBar->addAction(m_undoAction);
     m_editToolBar->addAction(m_redoAction);
+    m_editToolBar->addSeparator();
+    m_editToolBar->addAction(m_wireAction);
+    qobject_cast<QToolButton *>(m_editToolBar->widgetForAction(m_wireAction))
+            ->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    m_editToolBar->addWidget(m_wireSectionCombo);
 
     m_settingsMenu = menuBar()->addMenu(QString());
     m_settingsMenu->setObjectName(QStringLiteral("settingsMenu"));
@@ -215,6 +239,13 @@ void MainWindow::retranslateUi()
     m_editToolBar->setWindowTitle(tr("Edit"));
     m_undoAction->setText(tr("Undo"));
     m_redoAction->setText(tr("Redo"));
+    m_wireAction->setText(tr("Wire"));
+    m_wireAction->setToolTip(tr("Draw wires: click one terminal, then another."));
+    m_wireSectionCombo->setToolTip(tr("Section of new wires"));
+    for (int i = 0; i < m_wireSectionCombo->count(); ++i) {
+        const double section = m_wireSectionCombo->itemData(i).toDouble();
+        m_wireSectionCombo->setItemText(i, sectionChoiceText(m_project->catalog(), section));
+    }
     m_deleteAction->setText(tr("Delete"));
     m_viewMenu->setTitle(tr("View"));
     m_fitAction->setText(tr("Fit to window"));

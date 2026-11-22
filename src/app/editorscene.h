@@ -10,6 +10,8 @@
 class DeviceItem;
 class PictureItem;
 class QAction;
+class QGraphicsEllipseItem;
+class QGraphicsLineItem;
 class QMenu;
 class Project;
 class QUndoStack;
@@ -28,8 +30,8 @@ struct RailSlot
 // The panel: the supply block, the enclosure with its N and PE bars, one item per placed device and
 // one per wire, kept in sync with the project. Scene units are enclosure picture units; the
 // enclosure sits at (0, 0). One item is selected at a time: a device, a wire or the enclosure.
-// Presets dropped from the palette are placed, and devices are moved with the mouse, through the
-// undo stack.
+// Presets dropped from the palette are placed, devices are moved with the mouse, and wires are
+// drawn with the wire tool, through the undo stack.
 class EditorScene : public QGraphicsScene
 {
     Q_OBJECT
@@ -51,13 +53,23 @@ public:
     // "" if none
     [[nodiscard]] QString selectedWireId() const;
     [[nodiscard]] bool isEnclosureSelected() const;
-    // Actions of the menu shown by a right-click on a device.
+    // nearest terminal within 4 units, "" if none
+    [[nodiscard]] QString terminalAt(QPointF scenePos) const;
+    // off cancels a wire in progress and hides the overlays
+    void setWireMode(bool on);
+    [[nodiscard]] bool isWireMode() const;
+    void setWireSection(double section);
+    [[nodiscard]] double wireSection() const;
+    // terminal id of the wire in progress, "" if none
+    [[nodiscard]] QString wireStart() const;
+    // Actions of the menu shown by a right-click on a device or a wire.
     void setDeviceContextActions(const QList<QAction *> &actions);
     // the "Supply" text
     void retranslate();
 
 signals:
     void hint(const QString &text);
+    void wireModeChanged(bool on); // also when Esc turns the tool off
 
 protected:
     void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
@@ -97,6 +109,19 @@ private:
     // the mouse grab of a move whose release never arrived is dropped.
     void cancelMove();
     void removePreview();
+    // The wire tool takes every left press, and a right press that cancels a wire in progress;
+    // false for a press it leaves to the editor.
+    bool pressWireTool(QGraphicsSceneMouseEvent *event);
+    // Starts, cancels or finishes the wire in progress; "" for a click away from terminals.
+    void clickTerminal(const QString &terminalId);
+    void finishWire(const QString &end);
+    void cancelWire();
+    // An undo may remove the terminal a wire in progress starts at.
+    void syncWireTool();
+    // The highlight on the terminal under the cursor, the preview from the start to the cursor.
+    void updateWireOverlays();
+    [[nodiscard]] bool isTerminalFull(const QString &terminalId) const;
+    [[nodiscard]] QString fullTerminalHint(const QString &terminalId) const;
 
     Project &m_project;
     QUndoStack &m_undoStack;
@@ -114,4 +139,10 @@ private:
     QMenu *m_contextMenu = nullptr;
     QPoint m_pressScreenPos;
     bool m_moving = false; // the press has moved beyond the start drag distance
+    QGraphicsEllipseItem *m_terminalHighlight;
+    QGraphicsLineItem *m_wirePreview;
+    bool m_wireMode = false;
+    double m_wireSection = 2.5; // mm², the toolbar default
+    QString m_wireStart;
+    QPointF m_wireCursor; // the last cursor position the wire tool saw
 };

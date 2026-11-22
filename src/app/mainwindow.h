@@ -7,6 +7,7 @@
 class EditorScene;
 class Project;
 class QAction;
+class QComboBox;
 class QDockWidget;
 class QMenu;
 class QToolBar;
@@ -41,6 +42,8 @@ private:
     QToolBar *m_editToolBar = nullptr;
     QAction *m_undoAction = nullptr;
     QAction *m_redoAction = nullptr;
+    QAction *m_wireAction = nullptr;
+    QComboBox *m_wireSectionCombo = nullptr;
     QAction *m_deleteAction = nullptr;
     QAction *m_fitAction = nullptr;
     QMenu *m_settingsMenu = nullptr;

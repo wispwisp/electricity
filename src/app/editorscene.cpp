@@ -5,15 +5,19 @@
 #include "app/palettewidget.h"
 #include "app/sceneitems.h"
 #include "app/svgpixmap.h"
+#include "app/theme.h"
 #include "core/project.h"
 #include "core/wirerouter.h"
 
 #include <QApplication>
+#include <QGraphicsEllipseItem>
+#include <QGraphicsLineItem>
 #include <QGraphicsSceneDragDropEvent>
 #include <QGraphicsSceneMouseEvent>
 #include <QKeyEvent>
 #include <QMenu>
 #include <QMimeData>
+#include <QPen>
 #include <QSvgRenderer>
 #include <QUndoStack>
 
@@ -31,6 +35,11 @@ constexpr int kSupplyTextPixelSize = 10;
 constexpr qreal kSupplyLetterOffset = 2.5;
 constexpr qreal kSceneMargin = 1000; // room to pan around the panel
 constexpr qreal kPreviewOpacity = 0.6;
+constexpr qreal kTerminalReach = 4; // a click this close to a terminal is on it
+constexpr qreal kHighlightRadius = 4.5;
+constexpr qreal kHighlightWidth = 1.2;
+constexpr qreal kWirePreviewWidth = 1.5;
+constexpr qreal kWireToolZ = 3; // the wire tool's overlays, above a device lifted for a move
 
 // Ctrl and Shift would add to the selection; one item is selected at a time.
 void dropSelectionModifiers(QGraphicsSceneMouseEvent *event)
@@ -65,6 +74,9 @@ EditorScene::EditorScene(Project &project, QUndoStack &undoStack, QObject *paren
                                   QStringLiteral("enclosure")))
     , m_supply(new PictureItem(picturePath(project.supply().picture), QStringLiteral("supply")))
     , m_supplyText(new TextItem(kSupplyTextPixelSize))
+    , m_terminalHighlight(new QGraphicsEllipseItem(-kHighlightRadius, -kHighlightRadius,
+                                                   2 * kHighlightRadius, 2 * kHighlightRadius))
+    , m_wirePreview(new QGraphicsLineItem)
 {
     m_enclosure->setFlag(QGraphicsItem::ItemIsSelectable);
     addItem(m_enclosure);
@@ -77,8 +89,18 @@ EditorScene::EditorScene(Project &project, QUndoStack &undoStack, QObject *paren
         addItem(letter);
         m_supplyLetters << letter;
     }
+    const auto addOverlay = [this](QGraphicsItem *overlay, const QString &id) {
+        overlay->setData(IdKey, id);
+        overlay->setZValue(kWireToolZ);
+        overlay->setAcceptedMouseButtons(Qt::NoButton);
+        overlay->hide();
+        addItem(overlay);
+    };
+    addOverlay(m_terminalHighlight, QStringLiteral("terminalHighlight"));
+    addOverlay(m_wirePreview, QStringLiteral("wirePreview"));
     connect(&m_project, &Project::changed, this, &EditorScene::syncDevices);
     connect(&m_project, &Project::changed, this, &EditorScene::syncWires);
+    connect(&m_project, &Project::changed, this, &EditorScene::syncWireTool);
     connect(&m_project, &Project::enclosureChanged, this, &EditorScene::syncEnclosure);
     syncEnclosure();
     syncDevices();
@@ -158,6 +180,54 @@ bool EditorScene::isEnclosureSelected() const
     return m_enclosure->isSelected();
 }
 
+QString EditorScene::terminalAt(QPointF scenePos) const
+{
+    QString nearest;
+    qreal nearestDistance = std::numeric_limits<qreal>::max();
+    for (const QString &id : m_project.terminalIds()) {
+        const qreal distance = QLineF(terminalPos(id), scenePos).length();
+        if (distance < nearestDistance) {
+            nearest = id;
+            nearestDistance = distance;
+        }
+    }
+    return nearestDistance <= kTerminalReach ? nearest : QString();
+}
+
+// Moves never start under the tool, and one whose release never arrived must not go on under it.
+void EditorScene::setWireMode(bool on)
+{
+    if (on == m_wireMode)
+        return;
+    m_wireMode = on;
+    m_wireStart.clear();
+    cancelMove();
+    updateWireOverlays();
+    if (on)
+        emit hint(tr("Click a terminal to start a wire."));
+    emit wireModeChanged(on);
+}
+
+bool EditorScene::isWireMode() const
+{
+    return m_wireMode;
+}
+
+void EditorScene::setWireSection(double section)
+{
+    m_wireSection = section;
+}
+
+double EditorScene::wireSection() const
+{
+    return m_wireSection;
+}
+
+QString EditorScene::wireStart() const
+{
+    return m_wireStart;
+}
+
 void EditorScene::retranslate()
 {
     m_supplyText->setText(tr("Supply"));
@@ -181,15 +251,17 @@ void EditorScene::setDeviceContextActions(const QList<QAction *> &actions)
 
 void EditorScene::mousePressEvent(QGraphicsSceneMouseEvent *event)
 {
+    if (m_wireMode && pressWireTool(event))
+        return;
     // The menu takes the mouse, so with the left button held a move would never see its release.
     if (event->button() == Qt::RightButton && !(event->buttons() & Qt::LeftButton)) {
         const QList<QGraphicsItem *> hits = items(event->scenePos());
-        for (const QGraphicsItem *hit : hits) {
+        for (QGraphicsItem *hit : hits) {
             const QString id = hit->data(IdKey).toString();
-            if (!m_devices.contains(id))
+            if (!m_devices.contains(id) && !m_wires.contains(id))
                 continue;
             clearSelection();
-            m_devices.value(id)->setSelected(true);
+            hit->setSelected(true);
             if (!m_contextMenu)
                 m_contextMenu = new QMenu(event->widget());
             m_contextMenu->setObjectName(QStringLiteral("deviceContextMenu"));
@@ -210,6 +282,10 @@ void EditorScene::mousePressEvent(QGraphicsSceneMouseEvent *event)
 void EditorScene::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
 {
     QGraphicsScene::mouseMoveEvent(event);
+    if (m_wireMode) {
+        m_wireCursor = event->scenePos();
+        updateWireOverlays();
+    }
     if (m_movingId.isEmpty() || !(event->buttons() & Qt::LeftButton))
         return;
     if (!m_moving
@@ -245,6 +321,8 @@ void EditorScene::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
 
 void EditorScene::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event)
 {
+    if (m_wireMode && pressWireTool(event))
+        return;
     dropSelectionModifiers(event);
     if (event->button() == Qt::LeftButton)
         cancelMove();
@@ -253,9 +331,18 @@ void EditorScene::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event)
     pressDevice(event);
 }
 
-// Esc cancels a move.
+// With the wire tool on, Esc cancels a wire in progress, otherwise it turns the tool off. With the
+// tool off, Esc cancels a move.
 void EditorScene::keyPressEvent(QKeyEvent *event)
 {
+    if (event->key() == Qt::Key_Escape && m_wireMode) {
+        if (m_wireStart.isEmpty())
+            setWireMode(false);
+        else
+            cancelWire();
+        event->accept();
+        return;
+    }
     if (event->key() != Qt::Key_Escape || m_movingId.isEmpty()) {
         QGraphicsScene::keyPressEvent(event);
         return;
@@ -304,6 +391,102 @@ void EditorScene::cancelMove()
     item->setPos(slotRect(device->row, device->module, m_project.moduleWidth(*device)).topLeft());
     if (mouseGrabberItem() == item)
         item->ungrabMouse();
+}
+
+bool EditorScene::pressWireTool(QGraphicsSceneMouseEvent *event)
+{
+    if (event->button() == Qt::LeftButton) {
+        m_wireCursor = event->scenePos();
+        clickTerminal(terminalAt(m_wireCursor));
+        updateWireOverlays();
+    } else if (event->button() == Qt::RightButton && !m_wireStart.isEmpty()) {
+        cancelWire();
+    } else {
+        return false;
+    }
+    event->accept();
+    return true;
+}
+
+void EditorScene::clickTerminal(const QString &terminalId)
+{
+    if (terminalId.isEmpty())
+        return;
+    if (m_wireStart.isEmpty()) {
+        if (isTerminalFull(terminalId)) {
+            emit hint(fullTerminalHint(terminalId));
+        } else {
+            m_wireStart = terminalId;
+            emit hint(tr("Click the second terminal. Esc cancels."));
+        }
+    } else if (terminalId == m_wireStart) {
+        m_wireStart.clear();
+    } else {
+        finishWire(terminalId);
+    }
+}
+
+// A refused wire keeps the wire in progress, so another end can be picked.
+void EditorScene::finishWire(const QString &end)
+{
+    const Conductor conductor = m_project.conductorFor(m_wireStart, end);
+    const Wire wire{ {}, m_wireStart, end, m_wireSection, conductor };
+    const WireCheck check = m_project.wireCheck(wire);
+    if (check == WireCheck::Ok) {
+        m_wireStart.clear();
+        auto *command = new AddWireCommand(m_project, wire);
+        m_undoStack.push(command);
+        clearSelection();
+        m_wires.value(command->wireId())->setSelected(true);
+    } else if (check == WireCheck::TerminalFull) {
+        // An undo or a redo may have filled the start since it was clicked.
+        emit hint(fullTerminalHint(isTerminalFull(end) ? end : m_wireStart));
+    } else if (check == WireCheck::Duplicate) {
+        emit hint(tr("These terminals are already joined by a wire."));
+    }
+}
+
+void EditorScene::cancelWire()
+{
+    m_wireStart.clear();
+    updateWireOverlays();
+}
+
+void EditorScene::syncWireTool()
+{
+    if (!m_wireStart.isEmpty() && !m_project.hasTerminal(m_wireStart))
+        m_wireStart.clear();
+    updateWireOverlays();
+}
+
+void EditorScene::updateWireOverlays()
+{
+    const QString terminal = m_wireMode ? terminalAt(m_wireCursor) : QString();
+    m_terminalHighlight->setVisible(!terminal.isEmpty());
+    if (!terminal.isEmpty()) {
+        m_terminalHighlight->setPos(terminalPos(terminal));
+        const QColor color
+                = isTerminalFull(terminal) ? Theme::refusedColor() : Theme::selectionColor();
+        m_terminalHighlight->setPen(QPen(color, kHighlightWidth));
+    }
+    m_wirePreview->setVisible(!m_wireStart.isEmpty());
+    if (!m_wireStart.isEmpty()) {
+        const Conductor conductor = m_project.terminalRole(m_wireStart).value_or(Conductor::L);
+        m_wirePreview->setPen(
+                QPen(Theme::conductorColor(conductor), kWirePreviewWidth, Qt::DashLine));
+        m_wirePreview->setLine(QLineF(terminalPos(m_wireStart), m_wireCursor));
+    }
+}
+
+bool EditorScene::isTerminalFull(const QString &terminalId) const
+{
+    return m_project.wireCount(terminalId) >= m_project.wireCapacity(terminalId);
+}
+
+QString EditorScene::fullTerminalHint(const QString &terminalId) const
+{
+    return m_project.wireCapacity(terminalId) == 1 ? tr("This bar hole already has a wire.")
+                                                   : tr("This terminal already has two wires.");
 }
 
 bool EditorScene::placeAt(PlacedDevice &device, QPointF centre)

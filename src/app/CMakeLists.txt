@@ -3,7 +3,7 @@ add_library(electricity_lib STATIC mainwindow.cpp mainwindow.h theme.cpp theme.h
     language.cpp language.h settings.cpp settings.h
     languagedialog.cpp languagedialog.h svgpixmap.cpp svgpixmap.h palettewidget.cpp palettewidget.h
     editcommands.cpp editcommands.h sceneitems.cpp sceneitems.h editorscene.cpp editorscene.h
-    canvasview.cpp canvasview.h propertiespanel.cpp propertiespanel.h)
+    canvasview.cpp canvasview.h propertiespanel.cpp propertiespanel.h sectiontext.cpp sectiontext.h)
 target_link_libraries(electricity_lib PUBLIC panelcore Qt6::Widgets Qt6::Svg)
 qt_add_resources(electricity_lib "fonts" PREFIX "/fonts"
     BASE "${PROJECT_SOURCE_DIR}/resources/fonts"
@@ -21,7 +21,8 @@ qt_add_resources(electricity_lib "pictures" PREFIX "/" BASE "${PROJECT_SOURCE_DI
           "${PROJECT_SOURCE_DIR}/resources/svg/devices/pebar.svg"
           "${PROJECT_SOURCE_DIR}/resources/svg/devices/supply-1p.svg"
           "${PROJECT_SOURCE_DIR}/resources/svg/ui/undo.svg"
-          "${PROJECT_SOURCE_DIR}/resources/svg/ui/redo.svg")
+          "${PROJECT_SOURCE_DIR}/resources/svg/ui/redo.svg"
+          "${PROJECT_SOURCE_DIR}/resources/svg/ui/wire.svg")
 
 qt_add_executable(electricity WIN32 main.cpp)
 target_link_libraries(electricity PRIVATE electricity_lib)
