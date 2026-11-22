@@ -20,8 +20,13 @@ namespace {
 constexpr qreal kSelectionWidth = 2;
 constexpr int kRatingPixelSize = 5;
 constexpr int kRefusedAlpha = 150;
-constexpr qreal kWireEdgeWidth = 0.8;      // the dark edge, 0.4 on each side of the core
-constexpr qreal kWireSelectionWidth = 2.4; // the selection colour, 1.2 outside the edge
+constexpr qreal kWireEdgeWidth = 0.8; // the dark edge, 0.4 on each side of the core
+// A selected wire has, instead of the edge, a white line and then the selection colour on each side
+// of its core, together at most kWireSelectionWidth wide, and stays within its 4.5-unit lane.
+constexpr qreal kWireSelectionWidth = 0.8;
+constexpr qreal kWireSelectionGap = 0.3; // the white line
+constexpr qreal kWireLaneWidth = 4.5;
+constexpr qreal kWireHitMargin = 2.4; // the hit shape reaches 1.2 beyond the edge
 constexpr qreal kWireHitWidth = 6;
 constexpr qreal kEarthStripeLength = 2.2; // as on the supply picture
 
@@ -236,8 +241,8 @@ void WireItem::setWire(const QPolygonF &route, Conductor conductor, double secti
     QPainterPath path;
     path.addPolygon(m_route);
     QPainterPathStroker stroker;
-    stroker.setWidth(std::max(kWireHitWidth,
-                              wireCoreWidth(m_section) + kWireEdgeWidth + kWireSelectionWidth));
+    stroker.setWidth(
+            std::max(kWireHitWidth, wireCoreWidth(m_section) + kWireEdgeWidth + kWireHitMargin));
     stroker.setCapStyle(Qt::RoundCap);
     stroker.setJoinStyle(Qt::RoundJoin);
     m_shape = stroker.createStroke(path);
@@ -272,9 +277,14 @@ void WireItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWidge
         painter->drawPolyline(m_route);
     };
     painter->setBrush(Qt::NoBrush);
-    if (isSelected())
-        stroke(Theme::selectionColor(), core + kWireEdgeWidth + kWireSelectionWidth);
-    stroke(Theme::wireEdgeColor(), core + kWireEdgeWidth);
+    if (isSelected()) {
+        // The white keeps the selection colour apart from an N wire's similar blue.
+        const qreal outer = std::min(kWireLaneWidth, core + 2 * kWireSelectionWidth);
+        stroke(Theme::selectionColor(), outer);
+        stroke(Qt::white, core + 2 * kWireSelectionGap);
+    } else {
+        stroke(Theme::wireEdgeColor(), core + kWireEdgeWidth);
+    }
     stroke(Theme::conductorColor(m_conductor), core);
     if (m_conductor == Conductor::PE) {
         QPen stripes(Theme::earthStripeColor(), core, Qt::CustomDashLine, Qt::FlatCap,

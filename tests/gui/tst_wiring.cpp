@@ -88,6 +88,14 @@ bool samePoint(QPointF a, QPointF b)
 {
     return QLineF(a, b).length() < 0.01;
 }
+
+int colourDistance(const QColor &a, const QColor &b)
+{
+    return qAbs(a.red() - b.red()) + qAbs(a.green() - b.green()) + qAbs(a.blue() - b.blue());
+}
+
+constexpr int kProfileZoom = 20; // pixels per unit
+constexpr qreal kLanePitch = 4.5;
 } // namespace
 
 class TestWiring : public QObject
@@ -103,6 +111,7 @@ private slots:
     void wiresFollowEnclosureResize();
     void barBridgeGoesAroundTheBars();
     void wireSelectionSurvivesResync();
+    void selectedWireKeepsItsColour();
     void clickingEmptyCanvasClearsWireSelection();
     void supplyShowsConductorLetters();
     void designationsDrawOverWires();
@@ -131,6 +140,10 @@ private:
     [[nodiscard]] WireItem *wireItem(const QString &id) const;
     [[nodiscard]] DeviceItem *deviceItem(const QString &id) const;
     void wireTutorialPanel();
+    // Pixel colours on a line across the wire, from the middle of its longest segment out to 3
+    // units on one side, one per pixel at kProfileZoom pixels per unit: as drawn now, and with
+    // nothing selected.
+    [[nodiscard]] std::pair<QList<QColor>, QList<QColor>> acrossWire(const QString &id);
     void clickWire(const QString &id, Qt::MouseButton button = Qt::LeftButton);
     template<typename T>
     T *named(const char *name) const
@@ -173,6 +186,37 @@ void TestWiring::wireTutorialPanel()
     addTutorialWires(window->project());
     QCOMPARE(window->project().devices().size(), 5);
     QCOMPARE(window->project().wires().size(), 9);
+}
+
+std::pair<QList<QColor>, QList<QColor>> TestWiring::acrossWire(const QString &id)
+{
+    const QPolygonF route = wireItem(id)->route();
+    QLineF longest;
+    for (qsizetype i = 1; i < route.size(); ++i) {
+        if (QLineF(route[i - 1], route[i]).length() > longest.length())
+            longest = QLineF(route[i - 1], route[i]);
+    }
+    const QLineF normal = longest.normalVector().unitVector();
+    const QPointF outwards = normal.p2() - normal.p1();
+    canvas->setTransform(QTransform::fromScale(kProfileZoom, kProfileZoom));
+    canvas->centerOn(longest.center());
+    const auto sample = [&] {
+        const QImage image = canvas->viewport()->grab().toImage();
+        QList<QColor> colours;
+        for (int px = 0; px <= 3 * kProfileZoom; ++px) {
+            const QPointF at = longest.center() + outwards * px / kProfileZoom;
+            colours << image.pixelColor(canvas->mapFromScene(at));
+        }
+        return colours;
+    };
+    const QList<QColor> drawn = sample();
+    const QList<QGraphicsItem *> selection = scene->selectedItems();
+    scene->clearSelection();
+    const QList<QColor> plain = sample();
+    for (QGraphicsItem *item : selection)
+        item->setSelected(true);
+    canvas->fitToPanel();
+    return { drawn, plain };
 }
 
 // Clicks the midpoint of the wire's longest segment that no other wire covers, so that the click
@@ -416,6 +460,69 @@ void TestWiring::wireSelectionSurvivesResync()
                       viewportPoint(canvas, scene->slotRect(0, 0, 2).center()));
     QCOMPARE(scene->selectedDeviceId(), QStringLiteral("d1"));
     QCOMPARE(scene->selectedWireId(), QString());
+}
+
+// A selected wire keeps its conductor colour over the whole core and stays within its lane, and
+// shows the selection colour with a contrasting accent, so that a selected N wire stands out too.
+void TestWiring::selectedWireKeepsItsColour()
+{
+    addToolDevices();
+    auto *combo = named<QComboBox>("wireSectionCombo");
+    QVERIFY(combo);
+    clickWireButton();
+    QVERIFY(scene->isWireMode());
+    chooseComboItem(combo, combo->itemText(combo->findData(16.0)));
+    clickTerminal("supply:L");
+    clickTerminal("d1:1");
+    chooseComboItem(combo, combo->itemText(combo->findData(2.5)));
+    clickTerminal("supply:N");
+    clickTerminal("d1:3");
+    QCOMPARE(window->project().wires(),
+             (QList<Wire>{ Wire{ "w1", "supply:L", "d1:1", 16, Conductor::L },
+                           Wire{ "w2", "supply:N", "d1:3", 2.5, Conductor::N } }));
+    pressEscape();
+    QVERIFY(!scene->isWireMode());
+    QCOMPARE(scene->selectedWireId(), QStringLiteral("w2"));
+    QVERIFY(saveScreenshot(*window, "f06", "wire-selected-n"));
+
+    const auto checkLook = [&](const QString &id, Conductor conductor) {
+        const auto [drawn, plain] = acrossWire(id);
+        const QColor core = Theme::conductorColor(conductor);
+        const QColor selection = Theme::selectionColor();
+        int corePixels = 0;
+        bool highlighted = false;
+        bool accented = false;
+        for (qsizetype px = 0; px < drawn.size(); ++px) {
+            const QString where = QStringLiteral("%1 at %2 px").arg(id).arg(px);
+            if (colourDistance(plain[px], core) <= 2) {
+                ++corePixels;
+                QVERIFY2(colourDistance(drawn[px], core) <= 12, qPrintable(where));
+            }
+            if (px > kLanePitch / 2 * kProfileZoom + 1) {
+                QVERIFY2(colourDistance(drawn[px], plain[px]) <= 12, qPrintable(where));
+            } else if (colourDistance(drawn[px], plain[px]) > 30) {
+                highlighted = highlighted || colourDistance(drawn[px], selection) <= 30;
+                accented = accented
+                        || (colourDistance(drawn[px], core) > 150
+                            && colourDistance(drawn[px], selection) > 150);
+            }
+        }
+        QVERIFY2(corePixels >= kProfileZoom / 2, qPrintable(id));
+        QVERIFY2(highlighted, qPrintable(id));
+        QVERIFY2(accented, qPrintable(id));
+    };
+    checkLook("w2", Conductor::N);
+    if (QTest::currentTestFailed())
+        return;
+    clickWire("w1");
+    QCOMPARE(scene->selectedWireId(), QStringLiteral("w1"));
+    checkLook("w1", Conductor::L);
+    if (QTest::currentTestFailed())
+        return;
+
+    canvas->scale(3, 3);
+    canvas->centerOn(scene->terminalPos("supply:N"));
+    QVERIFY(saveScreenshot(*canvas, "f06", "wire-selected-closeup"));
 }
 
 void TestWiring::clickingEmptyCanvasClearsWireSelection()
