@@ -30,6 +30,10 @@ private slots:
     void removeRestoresDeviceAndDesignations();
     void updateUndoRestoresPositionAndParameters();
     void setEnclosureUndo();
+    void addWireUndoRedoKeepsId();
+    void removeWireRestoresIdAndOrder();
+    void updateWireUndoRestoresSection();
+    void removeDeviceRestoresItsWires();
 };
 
 void TestEditCommands::addUndoRedoKeepsId()
@@ -132,6 +136,109 @@ void TestEditCommands::setEnclosureUndo()
 
     stack.redo();
     QCOMPARE(project.enclosure().id, u"enclosure-24"_s);
+}
+
+void TestEditCommands::addWireUndoRedoKeepsId()
+{
+    Project project(embeddedCatalog());
+    QUndoStack stack;
+    stack.push(new AddDeviceCommand(project, preset("breaker-2p-c40", 0, 0)));
+
+    Wire wire;
+    wire.from = u"supply:L"_s;
+    wire.to = u"d1:1"_s;
+    wire.section = 10;
+    wire.conductor = Conductor::N;
+    auto *add = new AddWireCommand(project, wire);
+    stack.push(add);
+    QCOMPARE(add->wireId(), u"w1"_s);
+    const QList<Wire> after = project.wires();
+
+    stack.undo();
+    QVERIFY(project.wires().isEmpty());
+
+    stack.redo();
+    QCOMPARE(project.wires(), after);
+    QCOMPARE(project.wire(u"w1")->section, 10.0);
+    QCOMPARE(project.wire(u"w1")->conductor, Conductor::N);
+}
+
+void TestEditCommands::removeWireRestoresIdAndOrder()
+{
+    Project project(embeddedCatalog());
+    QUndoStack stack;
+    stack.push(new AddDeviceCommand(project, preset("breaker-2p-c40", 0, 0)));
+    for (const auto &ends :
+         { std::pair{ u"supply:L"_s, u"d1:1"_s }, std::pair{ u"supply:N"_s, u"d1:2"_s },
+           std::pair{ u"supply:PE"_s, u"pebar:1"_s } }) {
+        Wire wire;
+        wire.from = ends.first;
+        wire.to = ends.second;
+        stack.push(new AddWireCommand(project, wire));
+    }
+    const QList<Wire> before = project.wires();
+    QCOMPARE(before.size(), 3);
+
+    stack.push(new RemoveWireCommand(project, before[1].id));
+    QCOMPARE(project.wires().size(), 2);
+
+    stack.undo();
+    QCOMPARE(project.wires(), before);
+
+    stack.redo();
+    QCOMPARE(project.wires().size(), 2);
+    QVERIFY(!project.wire(before[1].id));
+}
+
+void TestEditCommands::updateWireUndoRestoresSection()
+{
+    Project project(embeddedCatalog());
+    QUndoStack stack;
+    Wire wire;
+    wire.from = u"supply:PE"_s;
+    wire.to = u"pebar:1"_s;
+    stack.push(new AddWireCommand(project, wire));
+    QCOMPARE(project.wire(u"w1")->section, 2.5);
+
+    Wire thick = *project.wire(u"w1");
+    thick.section = 10;
+    stack.push(new UpdateWireCommand(project, thick));
+    QCOMPARE(project.wire(u"w1")->section, 10.0);
+
+    stack.undo();
+    QCOMPARE(project.wire(u"w1")->section, 2.5);
+    stack.redo();
+    QCOMPARE(project.wire(u"w1")->section, 10.0);
+}
+
+void TestEditCommands::removeDeviceRestoresItsWires()
+{
+    Project project(embeddedCatalog());
+    QUndoStack stack;
+    stack.push(new AddDeviceCommand(project, preset("breaker-2p-c40", 0, 0)));
+    stack.push(new AddDeviceCommand(project, preset("rcd-2p-40-30", 0, 2)));
+    for (const auto &ends :
+         { std::pair{ u"supply:L"_s, u"d1:1"_s }, std::pair{ u"supply:PE"_s, u"pebar:1"_s },
+           std::pair{ u"d1:2"_s, u"d2:1"_s } }) {
+        Wire wire;
+        wire.from = ends.first;
+        wire.to = ends.second;
+        stack.push(new AddWireCommand(project, wire));
+    }
+    const QList<Wire> before = project.wires();
+    QCOMPARE(before.size(), 3);
+
+    stack.push(new RemoveDeviceCommand(project, u"d1"_s));
+    QCOMPARE(project.wires().size(), 1);
+    QCOMPARE(project.wires()[0].id, u"w2"_s);
+
+    stack.undo();
+    QCOMPARE(project.wires(), before);
+
+    stack.redo();
+    QCOMPARE(project.wires().size(), 1);
+    stack.undo();
+    QCOMPARE(project.wires(), before);
 }
 
 QTEST_MAIN(TestEditCommands)

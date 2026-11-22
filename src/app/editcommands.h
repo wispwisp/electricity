@@ -33,6 +33,8 @@ private:
     Project &m_project;
     PlacedDevice m_device;
     qsizetype m_index = 0; // position in devices() when removed
+    QList<Wire> m_wires;   // the device's wires, ascending by index in wires()
+    QList<qsizetype> m_wireIndices;
 };
 
 class UpdateDeviceCommand : public QUndoCommand
@@ -46,6 +48,45 @@ private:
     Project &m_project;
     PlacedDevice m_before;
     PlacedDevice m_after;
+};
+
+class AddWireCommand : public QUndoCommand
+{
+public:
+    AddWireCommand(Project &project, Wire wire);
+    [[nodiscard]] QString wireId() const; // set by the first redo
+    void undo() override;
+    void redo() override;
+
+private:
+    Project &m_project;
+    Wire m_wire;
+};
+
+class RemoveWireCommand : public QUndoCommand
+{
+public:
+    RemoveWireCommand(Project &project, const QString &id); // undo restores the id and index
+    void undo() override;
+    void redo() override;
+
+private:
+    Project &m_project;
+    Wire m_wire;
+    qsizetype m_index = 0; // position in wires() when removed
+};
+
+class UpdateWireCommand : public QUndoCommand
+{
+public:
+    UpdateWireCommand(Project &project, Wire after);
+    void undo() override;
+    void redo() override;
+
+private:
+    Project &m_project;
+    Wire m_before;
+    Wire m_after;
 };
 
 class SetEnclosureCommand : public QUndoCommand
