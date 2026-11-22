@@ -3,6 +3,7 @@
 
 #include "app/editcommands.h"
 #include "app/editorscene.h"
+#include "app/sectiontext.h"
 #include "core/catalog.h"
 #include "core/project.h"
 
@@ -86,6 +87,23 @@ PropertiesPanel::PropertiesPanel(Project &project, QUndoStack &undoStack, Editor
     m_deviceForm->addRow(m_residualCaption, m_residual);
     layout->addWidget(m_deviceBox);
 
+    m_wireBox = new QWidget(this);
+    auto *wireLayout = new QVBoxLayout(m_wireBox);
+    wireLayout->setContentsMargins(0, 0, 0, 0);
+    m_wireTitle = new QLabel(m_wireBox);
+    m_wireTitle->setFont(bold);
+    m_wireEnds = namedLabel("wireEndsLabel", m_wireBox);
+    m_wireEnds->setWordWrap(true);
+    wireLayout->addWidget(m_wireTitle);
+    wireLayout->addWidget(m_wireEnds);
+    auto *wireForm = new QFormLayout;
+    wireForm->setRowWrapPolicy(QFormLayout::WrapAllRows);
+    wireLayout->addLayout(wireForm);
+    m_sectionCaption = new QLabel(m_wireBox);
+    m_section = namedCombo("sectionCombo", m_wireBox);
+    wireForm->addRow(m_sectionCaption, m_section);
+    layout->addWidget(m_wireBox);
+
     m_enclosureBox = new QWidget(this);
     auto *enclosureLayout = new QVBoxLayout(m_enclosureBox);
     enclosureLayout->setContentsMargins(0, 0, 0, 0);
@@ -102,6 +120,7 @@ PropertiesPanel::PropertiesPanel(Project &project, QUndoStack &undoStack, Editor
     enclosureForm->addRow(m_sizeCaption, m_size);
     layout->addWidget(m_enclosureBox);
     layout->addStretch();
+    m_wireBox->setObjectName(QStringLiteral("wireBox"));
 
     connect(m_rating, &QComboBox::activated, this, [this](int index) {
         const int current = m_rating->itemData(index).toInt();
@@ -113,6 +132,7 @@ PropertiesPanel::PropertiesPanel(Project &project, QUndoStack &undoStack, Editor
         editDevice([poles](PlacedDevice &device) { device.poles = poles; });
     });
     connect(m_size, &QComboBox::activated, this, &PropertiesPanel::changeSize);
+    connect(m_section, &QComboBox::activated, this, &PropertiesPanel::changeSection);
     connect(&m_scene, &QGraphicsScene::selectionChanged, this, &PropertiesPanel::refresh);
     connect(&m_project, &Project::changed, this, &PropertiesPanel::refresh);
     retranslate();
@@ -129,6 +149,8 @@ void PropertiesPanel::retranslate()
 {
     m_hint->setText(tr("Select a device on the panel to see its properties."));
     m_enclosureTitle->setText(tr("Enclosure"));
+    m_wireTitle->setText(tr("Wire"));
+    m_sectionCaption->setText(tr("Section"));
     m_ratingCaption->setText(tr("Rating"));
     m_polesCaption->setText(tr("Poles"));
     m_curveCaption->setText(tr("Curve"));
@@ -142,9 +164,11 @@ void PropertiesPanel::refresh()
 {
     const PlacedDevice *device = m_project.device(m_scene.selectedDeviceId());
     const DeviceType *type = device ? m_project.catalog().deviceType(device->type) : nullptr;
-    const bool enclosure = !type && m_scene.isEnclosureSelected();
-    m_hint->setVisible(!type && !enclosure);
+    const Wire *wire = m_project.wire(m_scene.selectedWireId());
+    const bool enclosure = !type && !wire && m_scene.isEnclosureSelected();
+    m_hint->setVisible(!type && !wire && !enclosure);
     m_deviceBox->setVisible(type);
+    m_wireBox->setVisible(wire);
     m_enclosureBox->setVisible(enclosure);
 
     if (type) {
@@ -173,10 +197,33 @@ void PropertiesPanel::refresh()
         m_residual->setText(
                 QStringLiteral("%1 mA").arg(device->parameters["residualCurrent"].toInt()));
         m_deviceForm->setRowVisible(m_residual, hasResidual);
+    } else if (wire) {
+        m_wireEnds->setText(terminalText(wire->from) + QStringLiteral(" \u2192 ")
+                            + terminalText(wire->to));
+        const QSignalBlocker sectionBlocker(m_section);
+        m_section->clear();
+        for (double value : WireSections)
+            m_section->addItem(sectionText(value), value);
+        m_section->setCurrentIndex(m_section->findData(wire->section));
     } else if (enclosure) {
         const QSignalBlocker sizeBlocker(m_size);
         m_size->setCurrentIndex(m_size->findData(m_project.enclosure().id));
     }
+}
+
+QString PropertiesPanel::terminalText(const QString &terminalId) const
+{
+    const QString object = terminalObject(terminalId);
+    QString name;
+    if (object == QLatin1String("supply"))
+        name = tr("Supply");
+    else if (object == QLatin1String("nbar"))
+        name = tr("N bar");
+    else if (object == QLatin1String("pebar"))
+        name = tr("PE bar");
+    else
+        name = m_project.designation(object);
+    return name + QLatin1Char(' ') + terminalName(terminalId);
 }
 
 void PropertiesPanel::editDevice(const std::function<void(PlacedDevice &)> &change)
@@ -188,7 +235,10 @@ void PropertiesPanel::editDevice(const std::function<void(PlacedDevice &)> &chan
     change(after);
     if (after == *current)
         return; // the value already shown was chosen again
-    if (m_project.placement(after) == Placement::Fits)
+    const QStringList orphaned = m_project.orphanedTerminals(after);
+    if (!orphaned.isEmpty())
+        emit hint(tr("Remove the wires from terminals %1 first.").arg(orphaned.join(", ")));
+    else if (m_project.placement(after) == Placement::Fits)
         m_undoStack.push(new UpdateDeviceCommand(m_project, after));
     else
         emit hint(tr("Not enough room next to the device for more poles."));
@@ -202,7 +252,21 @@ void PropertiesPanel::changeSize(int index)
         return;
     if (m_project.fitsEnclosure(id))
         m_undoStack.push(new SetEnclosureCommand(m_project, id));
+    else if (!m_project.keepsBarWires(id))
+        emit hint(tr("Remove the wires from the bar holes that would be removed first."));
     else
         emit hint(tr("Move or delete the devices on the rows that would be removed first."));
+    refresh();
+}
+
+void PropertiesPanel::changeSection(int index)
+{
+    const Wire *current = m_project.wire(m_scene.selectedWireId());
+    if (!current)
+        return;
+    Wire after = *current;
+    after.section = m_section->itemData(index).toDouble();
+    if (after != *current)
+        m_undoStack.push(new UpdateWireCommand(m_project, after));
     refresh();
 }

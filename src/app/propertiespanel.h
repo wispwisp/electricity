@@ -13,8 +13,8 @@ class QUndoStack;
 class Project;
 struct PlacedDevice;
 
-// Shows and edits the selected device (rating, poles) or the enclosure (size); edits go through
-// the undo stack, and one that doesn't fit is refused with a hint.
+// Shows and edits the selected device (rating, poles), wire (section) or the enclosure (size);
+// edits go through the undo stack, and one that doesn't fit is refused with a hint.
 class PropertiesPanel : public QWidget
 {
     Q_OBJECT
@@ -33,6 +33,8 @@ private:
     void retranslate();
     void editDevice(const std::function<void(PlacedDevice &)> &change);
     void changeSize(int index);
+    void changeSection(int index);
+    [[nodiscard]] QString terminalText(const QString &terminalId) const;
 
     Project &m_project;
     QUndoStack &m_undoStack;
@@ -51,6 +53,11 @@ private:
     QLabel *m_curve;
     QLabel *m_residualCaption;
     QLabel *m_residual;
+    QWidget *m_wireBox;
+    QLabel *m_wireTitle;
+    QLabel *m_wireEnds;
+    QLabel *m_sectionCaption;
+    QComboBox *m_section;
     QWidget *m_enclosureBox;
     QLabel *m_enclosureTitle;
     QLabel *m_sizeCaption;

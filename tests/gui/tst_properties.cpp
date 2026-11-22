@@ -40,6 +40,10 @@ private slots:
     void deleteKeyInComboKeepsDevice();
     void choosingTheShownValueAddsNoUndoStep();
     void retranslatesAndFollowsTheme();
+    void showsAndEditsWireSection();
+    void refusesPoleChangeThatOrphansWires();
+    void refusesShrinkThatOrphansBarWires();
+    void wirePropertiesTranslated();
 
 private:
     [[nodiscard]] QPoint at(int row, int module) const;
@@ -48,6 +52,7 @@ private:
     // The layout settles after the event loop runs; every shown caption must then fit its text.
     void settleAndCheckFit();
     void selectEnclosure();
+    void selectWire(const QString &id);
     [[nodiscard]] static QStringList items(const QComboBox *combo);
     template<typename T>
     T *named(const char *name) const
@@ -321,6 +326,109 @@ void TestProperties::retranslatesAndFollowsTheme()
     clickMenuBarItem(*window, settingsMenu);
     openSubmenu(settingsMenu, themeMenu);
     clickMenuItem(themeMenu, named<QAction>("themeAction_dark"));
+}
+
+void TestProperties::selectWire(const QString &id)
+{
+    auto *item = sceneItem(scene, id);
+    QVERIFY(item);
+    scene->clearSelection();
+    item->setSelected(true);
+    QCOMPARE(scene->selectedWireId(), id);
+}
+
+void TestProperties::showsAndEditsWireSection()
+{
+    addTutorialDevices(window->project());
+    addTutorialWires(window->project());
+    selectWire("w1");
+    auto *box = named<QWidget>("wireBox");
+    QVERIFY(box);
+    QVERIFY(box->isVisible());
+    QVERIFY(!named<QComboBox>("ratingCombo")->isVisible());
+    QVERIFY(!named<QComboBox>("enclosureSizeCombo")->isVisible());
+    QCOMPARE(named<QLabel>("wireEndsLabel")->text(), QStringLiteral("Supply L \u2192 QF1 1"));
+    auto *section = named<QComboBox>("sectionCombo");
+    QCOMPARE(section->currentText(), QStringLiteral("10 mm\u00b2"));
+    QCOMPARE(items(section),
+             (QStringList{ "1.5 mm\u00b2", "2.5 mm\u00b2", "4 mm\u00b2", "6 mm\u00b2",
+                           "10 mm\u00b2", "16 mm\u00b2" }));
+
+    const int undoCount = window->undoStack().count();
+    chooseComboItem(section, "16 mm\u00b2");
+    QCOMPARE(window->project().wire(QStringLiteral("w1"))->section, 16.0);
+    QCOMPARE(window->undoStack().count(), undoCount + 1);
+    QVERIFY(saveScreenshot(*window, "f06", "properties-wire"));
+    chooseComboItem(section, "16 mm\u00b2");
+    QCOMPARE(window->undoStack().count(), undoCount + 1);
+    QTest::keyClick(window.get(), Qt::Key_Z, Qt::ControlModifier);
+    QCOMPARE(window->project().wire(QStringLiteral("w1"))->section, 10.0);
+    QCOMPARE(section->currentText(), QStringLiteral("10 mm\u00b2"));
+
+    selectWire("w8");
+    QCOMPARE(named<QLabel>("wireEndsLabel")->text(), QStringLiteral("QD1 N2 \u2192 N bar 1"));
+    selectWire("w9");
+    QCOMPARE(named<QLabel>("wireEndsLabel")->text(), QStringLiteral("Supply PE \u2192 PE bar 1"));
+}
+
+void TestProperties::refusesPoleChangeThatOrphansWires()
+{
+    drop("breaker-2p-c40", 0, 6, 2);
+    QCOMPARE(window->project().device(QStringLiteral("d1"))->poles, QStringLiteral("2P"));
+    Wire wire;
+    wire.from = QStringLiteral("supply:L");
+    wire.to = QStringLiteral("d1:3");
+    QVERIFY(!window->project().addWire(wire).isEmpty());
+    select(0, 6);
+    auto *poles = named<QComboBox>("polesCombo");
+    const int undoCount = window->undoStack().count();
+    chooseComboItem(poles, "1P");
+    QCOMPARE(window->statusBar()->currentMessage(),
+             QStringLiteral("Remove the wires from terminals 3 first."));
+    QCOMPARE(window->project().device(QStringLiteral("d1"))->poles, QStringLiteral("2P"));
+    QCOMPARE(poles->currentText(), QStringLiteral("2P"));
+    QCOMPARE(window->undoStack().count(), undoCount);
+}
+
+void TestProperties::refusesShrinkThatOrphansBarWires()
+{
+    QVERIFY(window->project().setEnclosure(QStringLiteral("enclosure-24")));
+    Wire wire;
+    wire.from = QStringLiteral("supply:N");
+    wire.to = QStringLiteral("nbar:12");
+    QVERIFY(!window->project().addWire(wire).isEmpty());
+    selectEnclosure();
+    auto *size = named<QComboBox>("enclosureSizeCombo");
+    chooseComboItem(size, "12");
+    QCOMPARE(window->statusBar()->currentMessage(),
+             QStringLiteral("Remove the wires from the bar holes that would be removed first."));
+    QCOMPARE(window->project().enclosure().id, QStringLiteral("enclosure-24"));
+    QCOMPARE(size->currentText(), QStringLiteral("24"));
+}
+
+void TestProperties::wirePropertiesTranslated()
+{
+    addTutorialDevices(window->project());
+    addTutorialWires(window->project());
+    selectWire("w1");
+    auto *languageMenu = named<QMenu>("languageMenu");
+    clickMenuBarItem(*window, languageMenu);
+    clickMenuItem(languageMenu, named<QAction>("languageAction_ru"));
+    bool title = false;
+    for (const QLabel *label : named<QWidget>("wireBox")->findChildren<QLabel *>())
+        title = title || label->text() == QStringLiteral("Провод");
+    QVERIFY(title);
+    QCOMPARE(named<QLabel>("wireEndsLabel")->text(), QStringLiteral("Ввод L \u2192 QF1 1"));
+    settleAndCheckFit();
+    QVERIFY(saveScreenshot(*window, "f06", "properties-wire-ru"));
+
+    clickMenuBarItem(*window, languageMenu);
+    clickMenuItem(languageMenu, named<QAction>("languageAction_kk"));
+    settleAndCheckFit();
+    QVERIFY(saveScreenshot(*window, "f06", "properties-wire-kk"));
+
+    clickMenuBarItem(*window, languageMenu);
+    clickMenuItem(languageMenu, named<QAction>("languageAction_en"));
 }
 
 QTEST_MAIN(TestProperties)

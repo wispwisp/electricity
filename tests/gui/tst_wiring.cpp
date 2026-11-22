@@ -114,6 +114,8 @@ private slots:
     void undoCancelsWireFromRemovedTerminal();
     void sectionChoiceSurvivesLanguageSwitch();
     void rightClickOnWireShowsMenu();
+    void deletesWireAndUndoes();
+    void deletingWiredDeviceRemovesItsWires();
 
 private:
     [[nodiscard]] WireItem *wireItem(const QString &id) const;
@@ -744,6 +746,58 @@ void TestWiring::rightClickOnWireShowsMenu()
     QTest::keyClick(menu, Qt::Key_Escape);
     QTRY_VERIFY(!menu->isVisible());
     QVERIFY(scene->isWireMode());
+}
+
+void TestWiring::deletesWireAndUndoes()
+{
+    wireTutorialPanel();
+    const auto ids = [this] {
+        QStringList result;
+        for (const Wire &wire : window->project().wires())
+            result << wire.id;
+        return result;
+    };
+    const QStringList all = ids();
+
+    clickWire("w5");
+    canvas->setFocus();
+    QTest::keyClick(canvas, Qt::Key_Delete);
+    QStringList without = all;
+    without.removeOne("w5");
+    QCOMPARE(ids(), without);
+    QVERIFY(saveScreenshot(*window, "f06", "wire-deleted"));
+    QTest::keyClick(window.get(), Qt::Key_Z, Qt::ControlModifier);
+    QCOMPARE(ids(), all);
+
+    clickWire("w6", Qt::RightButton);
+    auto *menu = named<QMenu>("deviceContextMenu");
+    QVERIFY(menu);
+    QTRY_VERIFY(menu->isVisible());
+    clickMenuItem(menu, named<QAction>("deleteAction"));
+    QVERIFY(!window->project().wire(QStringLiteral("w6")));
+
+    clickWire("w7");
+    auto *editMenu = named<QMenu>("editMenu");
+    clickMenuBarItem(*window, editMenu);
+    clickMenuItem(editMenu, named<QAction>("deleteAction"));
+    QVERIFY(!window->project().wire(QStringLiteral("w7")));
+    QCOMPARE(window->project().wires().size(), all.size() - 2);
+}
+
+void TestWiring::deletingWiredDeviceRemovesItsWires()
+{
+    wireTutorialPanel();
+    const QList<Wire> original = window->project().wires();
+    QTest::mouseClick(canvas->viewport(), Qt::LeftButton, {},
+                      viewportPoint(canvas, deviceItem("d3")->sceneBoundingRect().center()));
+    QCOMPARE(scene->selectedDeviceId(), QStringLiteral("d3"));
+    canvas->setFocus();
+    QTest::keyClick(canvas, Qt::Key_Delete);
+    QVERIFY(!window->project().device(QStringLiteral("d3")));
+    QVERIFY(!window->project().wire(QStringLiteral("w5")));
+    QVERIFY(!window->project().wire(QStringLiteral("w6")));
+    QTest::keyClick(window.get(), Qt::Key_Z, Qt::ControlModifier);
+    QCOMPARE(window->project().wires(), original);
 }
 
 QTEST_MAIN(TestWiring)

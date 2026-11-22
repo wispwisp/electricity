@@ -121,13 +121,18 @@ MainWindow::MainWindow(QWidget *parent)
     m_deleteAction->setEnabled(false);
     canvas->addAction(m_deleteAction);
     m_scene->setDeviceContextActions({ m_deleteAction });
-    const auto updateDelete
-            = [this] { m_deleteAction->setEnabled(!m_scene->selectedDeviceId().isEmpty()); };
+    const auto updateDelete = [this] {
+        m_deleteAction->setEnabled(!m_scene->selectedDeviceId().isEmpty()
+                                   || !m_scene->selectedWireId().isEmpty());
+    };
     connect(m_scene, &QGraphicsScene::selectionChanged, this, updateDelete);
     connect(m_project, &Project::changed, this, updateDelete);
     connect(m_deleteAction, &QAction::triggered, this, [this] {
+        const QString wireId = m_scene->selectedWireId();
         const QString id = m_scene->selectedDeviceId();
-        if (!id.isEmpty())
+        if (!wireId.isEmpty())
+            m_undoStack->push(new RemoveWireCommand(*m_project, wireId));
+        else if (!id.isEmpty())
             m_undoStack->push(new RemoveDeviceCommand(*m_project, id));
     });
 

@@ -145,89 +145,89 @@
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="238"/>
-        <location filename="../src/app/mainwindow.cpp" line="239"/>
+        <location filename="../src/app/mainwindow.cpp" line="243"/>
+        <location filename="../src/app/mainwindow.cpp" line="244"/>
         <source>Edit</source>
         <translation>Өңдеу</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="240"/>
+        <location filename="../src/app/mainwindow.cpp" line="245"/>
         <source>Undo</source>
         <translation>Болдырмау</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="241"/>
+        <location filename="../src/app/mainwindow.cpp" line="246"/>
         <source>Redo</source>
         <translation>Қайталау</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="242"/>
+        <location filename="../src/app/mainwindow.cpp" line="247"/>
         <source>Wire</source>
         <translation>Сым</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="243"/>
+        <location filename="../src/app/mainwindow.cpp" line="248"/>
         <source>Draw wires: click one terminal, then another.</source>
         <translation>Сымдар: бір клемманы, содан кейін екіншісін басыңыз.</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="244"/>
+        <location filename="../src/app/mainwindow.cpp" line="249"/>
         <source>Section of new wires</source>
         <translation>Жаңа сымдардың қимасы</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="249"/>
+        <location filename="../src/app/mainwindow.cpp" line="254"/>
         <source>Delete</source>
         <translation>Жою</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="250"/>
+        <location filename="../src/app/mainwindow.cpp" line="255"/>
         <source>View</source>
         <translation>Көрініс</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="251"/>
+        <location filename="../src/app/mainwindow.cpp" line="256"/>
         <source>Fit to window</source>
         <translation>Терезе өлшеміне сыйғызу</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="252"/>
+        <location filename="../src/app/mainwindow.cpp" line="257"/>
         <source>Settings</source>
         <translation>Баптаулар</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="253"/>
+        <location filename="../src/app/mainwindow.cpp" line="258"/>
         <source>Theme</source>
         <translation>Тақырып</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="254"/>
+        <location filename="../src/app/mainwindow.cpp" line="259"/>
         <source>Dark</source>
         <translation>Қараңғы</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="255"/>
+        <location filename="../src/app/mainwindow.cpp" line="260"/>
         <source>Light</source>
         <translation>Ашық</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="256"/>
+        <location filename="../src/app/mainwindow.cpp" line="261"/>
         <source>Language</source>
         <translation>Тіл</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="257"/>
+        <location filename="../src/app/mainwindow.cpp" line="262"/>
         <source>Components</source>
         <translation>Компоненттер</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="258"/>
+        <location filename="../src/app/mainwindow.cpp" line="263"/>
         <source>Properties</source>
         <translation>Қасиеттер</translation>
     </message>
     <message>
         <location filename="../src/app/mainwindow.cpp" line="65"/>
-        <location filename="../src/app/mainwindow.cpp" line="260"/>
+        <location filename="../src/app/mainwindow.cpp" line="265"/>
         <source>Ready</source>
         <translation>Дайын</translation>
     </message>
@@ -243,47 +243,82 @@
 <context>
     <name>PropertiesPanel</name>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="130"/>
+        <location filename="../src/app/propertiespanel.cpp" line="150"/>
         <source>Select a device on the panel to see its properties.</source>
         <translation>Қасиеттерін көру үшін қалқандағы аппаратты таңдаңыз.</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="131"/>
+        <location filename="../src/app/propertiespanel.cpp" line="151"/>
         <source>Enclosure</source>
         <translation>Қалқан корпусы</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="132"/>
+        <location filename="../src/app/propertiespanel.cpp" line="152"/>
+        <source>Wire</source>
+        <translation>Сым</translation>
+    </message>
+    <message>
+        <location filename="../src/app/propertiespanel.cpp" line="153"/>
+        <source>Section</source>
+        <translation>Қима</translation>
+    </message>
+    <message>
+        <location filename="../src/app/propertiespanel.cpp" line="154"/>
         <source>Rating</source>
         <translation>Номинал</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="133"/>
+        <location filename="../src/app/propertiespanel.cpp" line="155"/>
         <source>Poles</source>
         <translation>Полюстер</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="134"/>
+        <location filename="../src/app/propertiespanel.cpp" line="156"/>
         <source>Curve</source>
         <translation>Сипаттама</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="135"/>
+        <location filename="../src/app/propertiespanel.cpp" line="157"/>
         <source>Residual current</source>
         <translation>Ағу тогы</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="136"/>
+        <location filename="../src/app/propertiespanel.cpp" line="158"/>
         <source>Size, modules</source>
         <translation>Өлшемі, модуль</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="194"/>
+        <location filename="../src/app/propertiespanel.cpp" line="219"/>
+        <source>Supply</source>
+        <translation>Кіріс</translation>
+    </message>
+    <message>
+        <location filename="../src/app/propertiespanel.cpp" line="221"/>
+        <source>N bar</source>
+        <translation>N шинасы</translation>
+    </message>
+    <message>
+        <location filename="../src/app/propertiespanel.cpp" line="223"/>
+        <source>PE bar</source>
+        <translation>PE шинасы</translation>
+    </message>
+    <message>
+        <location filename="../src/app/propertiespanel.cpp" line="240"/>
+        <source>Remove the wires from terminals %1 first.</source>
+        <translation>Алдымен %1 клеммаларынан сымдарды ажыратыңыз.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/propertiespanel.cpp" line="244"/>
         <source>Not enough room next to the device for more poles.</source>
         <translation>Аппараттың жанында қосымша полюстерге орын жетпейді.</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="206"/>
+        <location filename="../src/app/propertiespanel.cpp" line="256"/>
+        <source>Remove the wires from the bar holes that would be removed first.</source>
+        <translation>Алдымен алынып тасталатын шина ұяларынан сымдарды ажыратыңыз.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/propertiespanel.cpp" line="258"/>
         <source>Move or delete the devices on the rows that would be removed first.</source>
         <translation>Алдымен алынып тасталатын қатарлардағы аппараттарды жылжытыңыз немесе жойыңыз.</translation>
     </message>
