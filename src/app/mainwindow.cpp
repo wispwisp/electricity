@@ -60,6 +60,11 @@ MainWindow::MainWindow(QWidget *parent)
     QStatusBar *bar = statusBar();
     connect(m_scene, &EditorScene::hint, bar,
             [bar](const QString &text) { bar->showMessage(text, kHintTimeout); });
+    // The wire tool's hints don't outlive it.
+    connect(m_scene, &EditorScene::wireModeChanged, bar, [bar](bool on) {
+        if (!on)
+            bar->clearMessage();
+    });
     connect(bar, &QStatusBar::messageChanged, bar, [bar](const QString &message) {
         if (message.isEmpty())
             bar->showMessage(tr("Ready"));

@@ -119,6 +119,8 @@ private slots:
     void clicksElsewhereDoNothing();
     void paletteDropKeepsToolOn();
     void undoCancelsWireFromRemovedTerminal();
+    void statusBarFollowsTheTool();
+    void statusBarAfterUndoCancel();
     void sectionChoiceSurvivesLanguageSwitch();
     void rightClickOnWireShowsMenu();
     void deletesWireAndUndoes();
@@ -833,6 +835,76 @@ void TestWiring::undoCancelsWireFromRemovedTerminal()
 
     clickTerminal("d1:1");
     QCOMPARE(scene->wireStart(), QStringLiteral("d1:1"));
+}
+
+// Once a wire is finished or cancelled the bar asks for the next start, and once the tool is off it
+// says "Ready". A refusal stays on the bar.
+void TestWiring::statusBarFollowsTheTool()
+{
+    addToolDevices();
+    const QString start = QStringLiteral("Click a terminal to start a wire.");
+    const QString second = QStringLiteral("Click the second terminal. Esc cancels.");
+    clickWireButton();
+    QVERIFY(scene->isWireMode());
+    QCOMPARE(message(), start);
+    clickTerminal("supply:L");
+    QCOMPARE(message(), second);
+    clickTerminal("d1:1");
+    QCOMPARE(window->project().wires().size(), 1);
+    QCOMPARE(message(), start);
+    QVERIFY(saveScreenshot(*window, "f06", "status-after-wire"));
+
+    clickTerminal("d1:2");
+    QCOMPARE(message(), second);
+    pressEscape();
+    QVERIFY(scene->wireStart().isEmpty());
+    QCOMPARE(message(), start);
+
+    clickTerminal("d1:2");
+    QCOMPARE(message(), second);
+    clickTerminal("d1:2");
+    QVERIFY(scene->wireStart().isEmpty());
+    QCOMPARE(message(), start);
+
+    clickTerminal("d1:2");
+    QCOMPARE(message(), second);
+    QTest::mouseClick(canvas->viewport(), Qt::RightButton, {}, at(0, 2, 2));
+    QVERIFY(scene->wireStart().isEmpty());
+    QCOMPARE(message(), start);
+
+    clickTerminal("d1:1");
+    clickTerminal("supply:L");
+    QCOMPARE(scene->wireStart(), QStringLiteral("d1:1"));
+    QCOMPARE(message(), QStringLiteral("These terminals are already joined by a wire."));
+    pressEscape();
+    QCOMPARE(message(), start);
+
+    pressEscape();
+    QVERIFY(!scene->isWireMode());
+    QCOMPARE(message(), QStringLiteral("Ready"));
+
+    clickWireButton();
+    QCOMPARE(message(), start);
+    clickTerminal("d1:2");
+    QCOMPARE(message(), second);
+    clickWireButton();
+    QVERIFY(!scene->isWireMode());
+    QCOMPARE(message(), QStringLiteral("Ready"));
+    QCOMPARE(window->project().wires().size(), 1);
+}
+
+void TestWiring::statusBarAfterUndoCancel()
+{
+    addToolDevices();
+    dropPreset(canvas, named<PaletteWidget>("paletteTree"), "breaker-1p-c16", at(0, 6, 1));
+    const QString dropped = window->project().devices().last().id;
+    clickWireButton();
+    QVERIFY(scene->isWireMode());
+    clickTerminal(dropped + ":1");
+    QCOMPARE(message(), QStringLiteral("Click the second terminal. Esc cancels."));
+    QTest::keyClick(window.get(), Qt::Key_Z, Qt::ControlModifier);
+    QVERIFY(scene->wireStart().isEmpty());
+    QCOMPARE(message(), QStringLiteral("Click a terminal to start a wire."));
 }
 
 void TestWiring::sectionChoiceSurvivesLanguageSwitch()

@@ -424,7 +424,7 @@ void EditorScene::clickTerminal(const QString &terminalId)
             emit hint(tr("Click the second terminal. Esc cancels."));
         }
     } else if (terminalId == m_wireStart) {
-        m_wireStart.clear();
+        cancelWire();
     } else {
         finishWire(terminalId);
     }
@@ -442,6 +442,7 @@ void EditorScene::finishWire(const QString &end)
         m_undoStack.push(command);
         clearSelection();
         m_wires.value(command->wireId())->setSelected(true);
+        emit hint(tr("Click a terminal to start a wire."));
     } else if (check == WireCheck::TerminalFull) {
         // An undo or a redo may have filled the start since it was clicked.
         emit hint(fullTerminalHint(isTerminalFull(end) ? end : m_wireStart));
@@ -454,13 +455,15 @@ void EditorScene::cancelWire()
 {
     m_wireStart.clear();
     updateWireOverlays();
+    emit hint(tr("Click a terminal to start a wire."));
 }
 
 void EditorScene::syncWireTool()
 {
     if (!m_wireStart.isEmpty() && !m_project.hasTerminal(m_wireStart))
-        m_wireStart.clear();
-    updateWireOverlays();
+        cancelWire();
+    else
+        updateWireOverlays();
 }
 
 void EditorScene::updateWireOverlays()
