@@ -24,6 +24,15 @@ const DeviceType *Catalog::deviceType(QStringView id) const
     return nullptr;
 }
 
+const SupplyType *Catalog::supply(QStringView id) const
+{
+    for (const SupplyType &s : supplies) {
+        if (s.id == id)
+            return &s;
+    }
+    return nullptr;
+}
+
 using namespace Qt::StringLiterals;
 
 namespace {
@@ -98,6 +107,32 @@ const DeviceType *checkTypeAndPoles(const Catalog &catalog, const QString &typeI
     return type;
 }
 
+// Maps "L"/"N"/"PE"; nullopt for anything else.
+std::optional<Conductor> parseRole(const QString &text)
+{
+    if (text == u"L")
+        return Conductor::L;
+    if (text == u"N")
+        return Conductor::N;
+    if (text == u"PE")
+        return Conductor::PE;
+    return std::nullopt;
+}
+
+// Reads the optional "role" of a terminal; records an error for an unknown one.
+std::optional<Conductor> terminalRole(const QJsonObject &o, const QString &where,
+                                      QStringList &errors)
+{
+    if (!o.contains("role"))
+        return std::nullopt;
+    const QString text = o.value("role").toString();
+    const std::optional<Conductor> role = parseRole(text);
+    if (!role)
+        errors << u"%1: terminal %2 has unknown role %3"_s.arg(where, o.value("name").toString(),
+                                                               text);
+    return role;
+}
+
 void loadDevices(const QJsonObject &root, Catalog &catalog, QStringList &errors)
 {
     QSet<QString> ids;
@@ -124,7 +159,9 @@ void loadDevices(const QJsonObject &root, Catalog &catalog, QStringList &errors)
             for (const auto &terminalValue : vo.value("terminals").toArray()) {
                 const QJsonObject to = terminalValue.toObject();
                 TerminalSpec terminal{ to.value("name").toString(),
-                                       { to.value("x").toDouble(), to.value("y").toDouble() } };
+                                       { to.value("x").toDouble(), to.value("y").toDouble() },
+                                       terminalRole(to, u"%1 %2"_s.arg(where, variant.poles),
+                                                    errors) };
                 if (names.contains(terminal.name))
                     errors << u"%1 %2: duplicate terminal %3"_s.arg(where, variant.poles,
                                                                     terminal.name);
@@ -144,7 +181,34 @@ void loadDevices(const QJsonObject &root, Catalog &catalog, QStringList &errors)
                      o.value("pitch").toDouble(),
                      { t.value("x").toDouble(), t.value("y").toDouble() } };
         checkUnique(ids, bar.id, errors);
+        const QString barWhere = u"bar %1"_s.arg(bar.id);
+        if (!o.contains("role")) {
+            errors << u"%1: missing role"_s.arg(barWhere);
+        } else if (const auto role = parseRole(o.value("role").toString())) {
+            bar.role = *role;
+        } else {
+            errors << u"%1: unknown role %2"_s.arg(barWhere, o.value("role").toString());
+        }
         catalog.bars << bar;
+    }
+    ids.clear();
+    for (const auto &sv : root.value("supplies").toArray()) {
+        const QJsonObject o = sv.toObject();
+        SupplyType supply{ o.value("id").toString(), o.value("picture").toString(), {} };
+        checkUnique(ids, supply.id, errors);
+        const QString where = u"supply %1"_s.arg(supply.id);
+        QSet<QString> names;
+        for (const auto &terminalValue : o.value("terminals").toArray()) {
+            const QJsonObject to = terminalValue.toObject();
+            TerminalSpec terminal{ to.value("name").toString(),
+                                   { to.value("x").toDouble(), to.value("y").toDouble() },
+                                   terminalRole(to, where, errors) };
+            if (names.contains(terminal.name))
+                errors << u"%1: duplicate terminal %2"_s.arg(where, terminal.name);
+            names.insert(terminal.name);
+            supply.terminals << terminal;
+        }
+        catalog.supplies << supply;
     }
 }
 

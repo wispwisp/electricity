@@ -14,8 +14,8 @@
         {
           "poles": "1P", "modules": 1, "picture": "breaker-1p.svg",
           "terminals": [
-            {"name": "1", "x": 9, "y": 8},
-            {"name": "2", "x": 9, "y": 82}
+            {"name": "1", "x": 9, "y": 8, "role": "L"},
+            {"name": "2", "x": 9, "y": 82, "role": "L"}
           ]
         },
         {
@@ -43,10 +43,10 @@
         {
           "poles": "2P", "modules": 2, "picture": "rcd-2p.svg",
           "terminals": [
-            {"name": "1", "x": 9, "y": 8},
-            {"name": "N1", "x": 27, "y": 8},
-            {"name": "2", "x": 9, "y": 82},
-            {"name": "N2", "x": 27, "y": 82}
+            {"name": "1", "x": 9, "y": 8, "role": "L"},
+            {"name": "N1", "x": 27, "y": 8, "role": "N"},
+            {"name": "2", "x": 9, "y": 82, "role": "L"},
+            {"name": "N2", "x": 27, "y": 82, "role": "N"}
           ]
         }
       ]
@@ -66,17 +66,27 @@
         {
           "poles": "1P+N", "modules": 2, "picture": "rcbo-1pn.svg",
           "terminals": [
-            {"name": "1", "x": 9, "y": 8},
-            {"name": "N1", "x": 27, "y": 8},
-            {"name": "2", "x": 9, "y": 82},
-            {"name": "N2", "x": 27, "y": 82}
+            {"name": "1", "x": 9, "y": 8, "role": "L"},
+            {"name": "N1", "x": 27, "y": 8, "role": "N"},
+            {"name": "2", "x": 9, "y": 82, "role": "L"},
+            {"name": "N2", "x": 27, "y": 82, "role": "N"}
           ]
         }
       ]
     }
   ],
   "bars": [
-    {"id": "nbar", "picture": "nbar.svg", "pitch": 9, "terminal": {"x": 4.5, "y": 8}},
-    {"id": "pebar", "picture": "pebar.svg", "pitch": 9, "terminal": {"x": 4.5, "y": 8}}
+    {"id": "nbar", "picture": "nbar.svg", "pitch": 9, "terminal": {"x": 4.5, "y": 8}, "role": "N"},
+    {"id": "pebar", "picture": "pebar.svg", "pitch": 9, "terminal": {"x": 4.5, "y": 8}, "role": "PE"}
+  ],
+  "supplies": [
+    {
+      "id": "supply-1p", "picture": "supply-1p.svg",
+      "terminals": [
+        {"name": "L", "x": 9, "y": 28, "role": "L"},
+        {"name": "N", "x": 27, "y": 28, "role": "N"},
+        {"name": "PE", "x": 45, "y": 28, "role": "PE"}
+      ]
+    }
   ]
 }

@@ -9,12 +9,16 @@
 #include <QString>
 #include <QStringList>
 
+#include <cstdint>
 #include <optional>
+
+enum class Conductor : std::uint8_t { L, N, PE };
 
 struct TerminalSpec
 {
     QString name;
-    QPointF position; // picture units
+    QPointF position;              // picture units
+    std::optional<Conductor> role; // none for poles that real devices don't mark
     friend bool operator==(const TerminalSpec &, const TerminalSpec &) = default;
 };
 
@@ -41,6 +45,14 @@ struct BarType
     QString picture;
     double pitch = 0;
     QPointF terminal;
+    Conductor role = Conductor::N;
+};
+
+struct SupplyType
+{
+    QString id;
+    QString picture;
+    QList<TerminalSpec> terminals;
 };
 
 struct EnclosureType
@@ -72,10 +84,12 @@ struct Catalog
 {
     QList<DeviceType> deviceTypes;
     QList<BarType> bars;
+    QList<SupplyType> supplies;
     QList<EnclosureType> enclosures;
     QList<Preset> presets;
     QList<Product> products;
     [[nodiscard]] const DeviceType *deviceType(QStringView id) const; // nullptr if absent
+    [[nodiscard]] const SupplyType *supply(QStringView id) const;     // nullptr if absent
 };
 
 struct CatalogSources

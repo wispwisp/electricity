@@ -44,7 +44,8 @@ CatalogSources fixture()
                 "terminals": [{"name": "1", "x": 9, "y": 8}, {"name": "2", "x": 9, "y": 82}]
             }]
         }],
-        "bars": [{"id": "nbar", "picture": "nbar.svg", "pitch": 9, "terminal": {"x": 4.5, "y": 8}}]
+        "bars": [{"id": "nbar", "picture": "nbar.svg", "pitch": 9, "terminal": {"x": 4.5, "y": 8},
+                  "role": "N"}]
     })json";
     s.enclosures = R"json({
         "schemaVersion": 1,
@@ -131,6 +132,7 @@ private slots:
     void rejectsInvalidCatalog();
     void embeddedCatalogLoadsWithoutErrors();
     void deviceTypesMatchSpec();
+    void terminalRolesMatchSpec();
     void enclosuresMatchSpec();
     void presetsMatchSpec();
     void catalogStringsAreRegisteredForTranslation();
@@ -150,7 +152,9 @@ void TestCatalog::loadsValidCatalog()
     QVERIFY(p1 && !breaker->variant(u"2P"));
     QCOMPARE(p1->modules, 1);
     QCOMPARE(p1->picture, QStringLiteral("breaker-1p.svg"));
-    QCOMPARE(p1->terminals, (QList<TerminalSpec>{ { "1", { 9, 8 } }, { "2", { 9, 82 } } }));
+    QCOMPARE(p1->terminals,
+             (QList<TerminalSpec>{ { "1", { 9, 8 }, std::nullopt },
+                                   { "2", { 9, 82 }, std::nullopt } }));
     QCOMPARE(load.catalog.bars.at(0).pitch, 9.0);
     QCOMPARE(load.catalog.enclosures.at(0).peBarTerminals, 8);
     const Preset &preset = load.catalog.presets.at(0);
@@ -309,6 +313,63 @@ void TestCatalog::rejectsInvalidCatalog_data()
             },
             u"wireSection must be positive"_s);
     row(
+            "unknown terminal role",
+            [](CatalogSources &s) {
+                s.devices = patchedFirst(s.devices, u"deviceTypes"_s, [](QJsonObject &type) {
+                    QJsonArray variants = type.value("variants").toArray();
+                    QJsonObject variant = variants.at(0).toObject();
+                    QJsonArray terminals = variant.value("terminals").toArray();
+                    QJsonObject first = terminals.at(0).toObject();
+                    first["role"] = "X";
+                    terminals.replace(0, first);
+                    variant["terminals"] = terminals;
+                    variants.replace(0, variant);
+                    type["variants"] = variants;
+                });
+            },
+            u"device type breaker 1P: terminal 1 has unknown role X"_s);
+    row(
+            "bar missing role",
+            [](CatalogSources &s) {
+                s.devices = patchedFirst(s.devices, u"bars"_s,
+                                         [](QJsonObject &bar) { bar.remove("role"); });
+            },
+            u"bar nbar: missing role"_s);
+    row(
+            "bar unknown role",
+            [](CatalogSources &s) {
+                s.devices = patchedFirst(s.devices, u"bars"_s,
+                                         [](QJsonObject &bar) { bar["role"] = "Q"; });
+            },
+            u"bar nbar: unknown role Q"_s);
+    row(
+            "supply unknown role",
+            [](CatalogSources &s) {
+                s.devices = patched(s.devices, [](QJsonObject &root) {
+                    root["supplies"] = QJsonArray{ QJsonObject{
+                            { "id", "s" },
+                            { "picture", "s.svg" },
+                            { "terminals",
+                              QJsonArray{ QJsonObject{ { "name", "L" },
+                                                       { "x", 1 },
+                                                       { "y", 2 },
+                                                       { "role", "X" } } } } } };
+                });
+            },
+            u"supply s: terminal L has unknown role X"_s);
+    row(
+            "supply duplicate terminal",
+            [](CatalogSources &s) {
+                const QJsonObject terminal{ { "name", "L" }, { "x", 1 }, { "y", 2 } };
+                s.devices = patched(s.devices, [&](QJsonObject &root) {
+                    root["supplies"] = QJsonArray{ QJsonObject{
+                            { "id", "s" },
+                            { "picture", "s.svg" },
+                            { "terminals", QJsonArray{ terminal, terminal } } } };
+                });
+            },
+            u"supply s: duplicate terminal L"_s);
+    row(
             "no rows",
             [](CatalogSources &s) {
                 s.enclosures = patchedFirst(s.enclosures, u"enclosures"_s,
@@ -350,12 +411,14 @@ void TestCatalog::deviceTypesMatchSpec()
             array.append(v);
         return array;
     };
-    const QList<TerminalSpec> twoPole{
-        { "1", { 9, 8 } }, { "3", { 27, 8 } }, { "2", { 9, 82 } }, { "4", { 27, 82 } }
-    };
-    const QList<TerminalSpec> withNeutral{
-        { "1", { 9, 8 } }, { "N1", { 27, 8 } }, { "2", { 9, 82 } }, { "N2", { 27, 82 } }
-    };
+    const QList<TerminalSpec> twoPole{ { "1", { 9, 8 }, std::nullopt },
+                                       { "3", { 27, 8 }, std::nullopt },
+                                       { "2", { 9, 82 }, std::nullopt },
+                                       { "4", { 27, 82 }, std::nullopt } };
+    const QList<TerminalSpec> withNeutral{ { "1", { 9, 8 }, Conductor::L },
+                                           { "N1", { 27, 8 }, Conductor::N },
+                                           { "2", { 9, 82 }, Conductor::L },
+                                           { "N2", { 27, 82 }, Conductor::N } };
 
     QCOMPARE(catalog.deviceType(u"breaker")->designation, QStringLiteral("QF"));
     QCOMPARE(catalog.deviceType(u"rcd")->designation, QStringLiteral("QD"));
@@ -370,7 +433,9 @@ void TestCatalog::deviceTypesMatchSpec()
     const DeviceVariant *b1 = breaker->variant(u"1P");
     QCOMPARE(b1->modules, 1);
     QCOMPARE(b1->picture, QStringLiteral("breaker-1p.svg"));
-    QCOMPARE(b1->terminals, (QList<TerminalSpec>{ { "1", { 9, 8 } }, { "2", { 9, 82 } } }));
+    QCOMPARE(b1->terminals,
+             (QList<TerminalSpec>{ { "1", { 9, 8 }, Conductor::L },
+                                   { "2", { 9, 82 }, Conductor::L } }));
     const DeviceVariant *b2 = breaker->variant(u"2P");
     QCOMPARE(b2->modules, 2);
     QCOMPARE(b2->picture, QStringLiteral("breaker-2p.svg"));
@@ -410,6 +475,35 @@ void TestCatalog::deviceTypesMatchSpec()
         QCOMPARE(bar.pitch, 9.0);
         QCOMPARE(bar.terminal, QPointF(4.5, 8));
     }
+}
+
+void TestCatalog::terminalRolesMatchSpec()
+{
+    const Catalog &catalog = embeddedCatalog();
+    const auto roles = [](const DeviceVariant *variant) {
+        QList<std::optional<Conductor>> result;
+        for (const TerminalSpec &t : variant->terminals)
+            result << t.role;
+        return result;
+    };
+    using Roles = QList<std::optional<Conductor>>;
+    const std::optional<Conductor> L = Conductor::L, N = Conductor::N;
+    QCOMPARE(roles(catalog.deviceType(u"breaker")->variant(u"1P")), (Roles{ L, L }));
+    QCOMPARE(roles(catalog.deviceType(u"breaker")->variant(u"2P")),
+             (Roles{ std::nullopt, std::nullopt, std::nullopt, std::nullopt }));
+    // Terminal order is 1, N1, 2, N2.
+    QCOMPARE(roles(catalog.deviceType(u"rcd")->variant(u"2P")), (Roles{ L, N, L, N }));
+    QCOMPARE(roles(catalog.deviceType(u"rcbo")->variant(u"1P+N")), (Roles{ L, N, L, N }));
+    QCOMPARE(catalog.bars.at(0).role, Conductor::N);
+    QCOMPARE(catalog.bars.at(1).role, Conductor::PE);
+
+    const SupplyType *supply = catalog.supply(u"supply-1p");
+    QVERIFY(supply && !catalog.supply(u"nope"));
+    QCOMPARE(supply->picture, QStringLiteral("supply-1p.svg"));
+    QCOMPARE(supply->terminals,
+             (QList<TerminalSpec>{ { "L", { 9, 28 }, Conductor::L },
+                                   { "N", { 27, 28 }, Conductor::N },
+                                   { "PE", { 45, 28 }, Conductor::PE } }));
 }
 
 void TestCatalog::enclosuresMatchSpec()
