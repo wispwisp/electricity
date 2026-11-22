@@ -888,14 +888,14 @@ void TestProperties::loadPropertiesTranslated()
     QCOMPARE(named<QLabel>("loadNameLabel")->text(), QStringLiteral("Чайник"));
     QVERIFY(showsLabel("Мощность"));
     QCOMPARE(named<QSpinBox>("powerSpin")->text(), QStringLiteral("2000 Вт"));
-    QCOMPARE(named<QLabel>("plugStatusLabel")->text(), QStringLiteral("Подключён к: Розетка 1"));
+    QCOMPARE(named<QLabel>("plugStatusLabel")->text(), QStringLiteral("Подключено к: Розетка 1"));
     settleAndCheckFit();
     QVERIFY(saveScreenshot(*window, "f07", "properties-load-ru"));
 
     clickLoad(socket);
     QCOMPARE(named<QLabel>("loadNameLabel")->text(), QStringLiteral("Розетка 1"));
     QCOMPARE(named<QLabel>("loadTypeLabel")->text(), QStringLiteral("Двойная розетка"));
-    QVERIFY(showsLabel("Включено"));
+    QVERIFY(showsLabel("В розетке"));
     QCOMPARE(named<QLabel>("socketContentsLabel")->text(),
              QStringLiteral("Чайник, 2000 Вт\nМикроволновая печь, 1200 Вт"));
     settleAndCheckFit();

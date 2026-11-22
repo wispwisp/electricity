@@ -416,7 +416,7 @@ void PropertiesPanel::changeLength(double length)
     const Wire *current = m_project.wire(m_wireId);
     if (!current)
         return;
-    if (current->length != length)
+    if (current->length != length && !m_project.cableWires(current->from, current->to).isEmpty())
         m_undoStack.push(new SetCableLengthCommand(m_project, m_wireId, length));
     refresh();
 }

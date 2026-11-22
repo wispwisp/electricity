@@ -356,8 +356,8 @@ void loadLoads(const QJsonObject &root, Catalog &catalog, QStringList &errors)
         const bool isSocket = o.contains("places");
         if (isSocket && load.power != 0)
             errors << u"%1: a socket has no power"_s.arg(where);
-        else if (!isSocket && (load.power < 1 || load.power > 15000))
-            errors << u"%1: power must be 1 to 15000 W"_s.arg(where);
+        else if (!isSocket && (load.power < 1 || load.power > MaxLoadPower))
+            errors << u"%1: power must be 1 to %2 W"_s.arg(where, QString::number(MaxLoadPower));
         if (load.plugsIn) {
             if (!load.terminals.isEmpty() || isSocket || !load.caption.isEmpty())
                 errors << u"%1: a plug-in appliance has no terminals, places or caption"_s.arg(

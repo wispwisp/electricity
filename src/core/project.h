@@ -67,7 +67,6 @@ enum class WireCheck : std::uint8_t {
 [[nodiscard]] QString terminalObject(const QString &terminalId);                    // "d1"
 [[nodiscard]] QString terminalName(const QString &terminalId);                      // "N1"
 
-inline constexpr int MaxLoadPower = 15000;     // W
 inline constexpr double LoadCaptionHeight = 9; // the band under a wired load's picture
 // The band above a wired load's picture that its wires come in by, kept free of other loads.
 inline constexpr double LoadEntryLaneHeight = 9;

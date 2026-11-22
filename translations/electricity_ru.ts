@@ -176,7 +176,7 @@
     <message>
         <location filename="../src/core/catalogstrings.cpp" line="43"/>
         <source>An appliance. Drop it onto a socket to plug it in.</source>
-        <translation>Бытовой прибор. Перетащите его на розетку, чтобы включить.</translation>
+        <translation>Бытовой прибор. Перетащите его на розетку, чтобы подключить.</translation>
     </message>
     <message>
         <location filename="../src/core/catalogstrings.cpp" line="44"/>
@@ -355,137 +355,137 @@
 <context>
     <name>PropertiesPanel</name>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="203"/>
+        <location filename="../src/app/propertiespanel.cpp" line="223"/>
         <source>Select a device on the panel to see its properties.</source>
         <translation>Выберите аппарат на щите, чтобы увидеть его свойства.</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="204"/>
+        <location filename="../src/app/propertiespanel.cpp" line="224"/>
         <source>Enclosure</source>
         <translation>Корпус щита</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="205"/>
+        <location filename="../src/app/propertiespanel.cpp" line="225"/>
         <source>Wire</source>
         <translation>Провод</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="206"/>
+        <location filename="../src/app/propertiespanel.cpp" line="226"/>
         <source>Section</source>
         <translation>Сечение</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="207"/>
+        <location filename="../src/app/propertiespanel.cpp" line="227"/>
         <source>Length</source>
         <translation>Длина</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="208"/>
+        <location filename="../src/app/propertiespanel.cpp" line="228"/>
         <source> m</source>
         <translation> м</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="210"/>
+        <location filename="../src/app/propertiespanel.cpp" line="230"/>
         <source>Applies to the whole cable: every wire between the same two places.</source>
         <translation>Применяется ко всему кабелю: ко всем проводам между теми же двумя местами.</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="211"/>
+        <location filename="../src/app/propertiespanel.cpp" line="231"/>
         <source>Power</source>
         <translation>Мощность</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="212"/>
+        <location filename="../src/app/propertiespanel.cpp" line="232"/>
         <source> W</source>
         <translation> Вт</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="213"/>
+        <location filename="../src/app/propertiespanel.cpp" line="233"/>
         <source>Plugged in</source>
-        <translation>Включено</translation>
+        <translation>В розетке</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="214"/>
+        <location filename="../src/app/propertiespanel.cpp" line="234"/>
         <source>Rating</source>
         <translation>Номинал</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="215"/>
+        <location filename="../src/app/propertiespanel.cpp" line="235"/>
         <source>Poles</source>
         <translation>Полюсы</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="216"/>
+        <location filename="../src/app/propertiespanel.cpp" line="236"/>
         <source>Curve</source>
         <translation>Характеристика</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="217"/>
+        <location filename="../src/app/propertiespanel.cpp" line="237"/>
         <source>Residual current</source>
         <translation>Ток утечки</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="218"/>
+        <location filename="../src/app/propertiespanel.cpp" line="238"/>
         <source>Size, modules</source>
         <translation>Размер, модулей</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="278"/>
+        <location filename="../src/app/propertiespanel.cpp" line="298"/>
         <source>Plugged into %1</source>
-        <translation>Подключён к: %1</translation>
+        <translation>Подключено к: %1</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="279"/>
+        <location filename="../src/app/propertiespanel.cpp" line="299"/>
         <source>Not plugged in</source>
-        <translation>Не включён в розетку</translation>
+        <translation>Не подключено к розетке</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="286"/>
+        <location filename="../src/app/propertiespanel.cpp" line="306"/>
         <source>%1, %2 W</source>
         <translation>%1, %2 Вт</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="288"/>
+        <location filename="../src/app/propertiespanel.cpp" line="308"/>
         <source>Nothing plugged in</source>
-        <translation>Ничего не включено</translation>
+        <translation>Ничего не подключено</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="317"/>
+        <location filename="../src/app/propertiespanel.cpp" line="337"/>
         <source>Supply</source>
         <translation>Ввод</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="319"/>
+        <location filename="../src/app/propertiespanel.cpp" line="339"/>
         <source>N bar</source>
         <translation>Шина N</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="321"/>
+        <location filename="../src/app/propertiespanel.cpp" line="341"/>
         <source>PE bar</source>
         <translation>Шина PE</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="346"/>
+        <location filename="../src/app/propertiespanel.cpp" line="366"/>
         <source>Remove the wires from terminals %1 first.</source>
         <translation>Сначала отключите провода от клемм %1.</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="350"/>
+        <location filename="../src/app/propertiespanel.cpp" line="370"/>
         <source>Not enough room next to the device for more poles.</source>
         <translation>Рядом с аппаратом не хватает места для дополнительных полюсов.</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="362"/>
+        <location filename="../src/app/propertiespanel.cpp" line="382"/>
         <source>Remove the wires from the bar holes that would be removed first.</source>
         <translation>Сначала отключите провода от гнёзд шин, которые будут убраны.</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="364"/>
+        <location filename="../src/app/propertiespanel.cpp" line="384"/>
         <source>Move the loads below the enclosure first: they would run into other loads.</source>
         <translation>Сначала передвиньте нагрузки под щитом: они наткнутся на другие нагрузки.</translation>
     </message>
     <message>
-        <location filename="../src/app/propertiespanel.cpp" line="366"/>
+        <location filename="../src/app/propertiespanel.cpp" line="386"/>
         <source>Move or delete the devices on the rows that would be removed first.</source>
         <translation>Сначала переместите или удалите аппараты с рядов, которые будут убраны.</translation>
     </message>

@@ -67,6 +67,8 @@ struct EnclosureType
     QSizeF size; // the picture's view box
 };
 
+inline constexpr int MaxLoadPower = 15000; // W
+
 struct LoadType
 {
     QString id, name, description;

@@ -30,8 +30,16 @@ const TerminalSpec *findTerminal(const QList<TerminalSpec> &terminals, const QSt
     return it == terminals.end() ? nullptr : &*it;
 }
 
-// The largest plug-in appliance: a plug place's rect hangs from the place point.
-constexpr QSizeF PlugPlaceSize{ 36, 36 };
+// A plug place's rect is the size of the largest plug-in appliance, hanging from the place point.
+QSizeF plugPlaceSize(const Catalog &catalog)
+{
+    QSizeF size(0, 0);
+    for (const LoadType &type : catalog.loads) {
+        if (type.plugsIn)
+            size = size.expandedTo(type.size);
+    }
+    return size;
+}
 
 } // namespace
 
@@ -534,7 +542,8 @@ QRectF Project::plugPlaceRect(const PlacedLoad &socket, int place) const
     if (!type || place < 1 || place > type->places.size())
         return {};
     const QPointF point = socket.position + type->places[place - 1];
-    return { QPointF(point.x() - PlugPlaceSize.width() / 2, point.y()), PlugPlaceSize };
+    const QSizeF size = plugPlaceSize(m_catalog);
+    return { QPointF(point.x() - size.width() / 2, point.y()), size };
 }
 
 QRectF Project::loadOutline(const PlacedLoad &load) const
