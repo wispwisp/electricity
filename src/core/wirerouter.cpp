@@ -130,10 +130,29 @@ std::vector<int> findPath(const Grid &grid, const QRectF &preferred, int start, 
     static constexpr std::array<Step, 4> Steps{
         { { 1, 0, Horizontal }, { -1, 0, Horizontal }, { 0, 1, Vertical }, { 0, -1, Vertical } }
     };
+    // Grid steps from the node until a step lands in the preferred area.
+    const auto stepsToPreferred = [&](int node) {
+        const QPointF p = grid.point(node);
+        const auto along = [](double v, double low, double high) {
+            // The tolerance keeps rounding from adding a step.
+            return int(std::ceil(std::max({ low - v, v - high, 0.0 }) / Pitch - 1e-9));
+        };
+        return along(p.x(), preferred.left(), preferred.right())
+                + along(p.y(), preferred.top(), preferred.bottom());
+    };
+    const int goalOutside = stepsToPreferred(goal);
+    // A route lands outside the preferred area on every step if it never enters it, else at least
+    // on the steps into it but the last and on the steps from it out to the goal. Counting those at
+    // their higher cost keeps the estimate a lower bound that drops by at most a step's cost, so
+    // routes stay the cheapest, and the search no longer spreads over the whole grid towards a far
+    // goal outside the area.
     const auto heuristic = [&](int node) {
-        return (std::abs(node % grid.columns - goal % grid.columns)
-                + std::abs(node / grid.columns - goal / grid.columns))
-                * Pitch;
+        const int steps = std::abs(node % grid.columns - goal % grid.columns)
+                + std::abs(node / grid.columns - goal / grid.columns);
+        const int outside = preferred.isEmpty()
+                ? steps
+                : std::min(steps, std::max(0, stepsToPreferred(node) - 1) + goalOutside);
+        return (steps + (OutsideFactor - 1) * outside) * Pitch;
     };
     const auto ownEnd = [&](int node) { return node == start || node == goal; };
 
