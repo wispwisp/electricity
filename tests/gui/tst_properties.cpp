@@ -17,9 +17,11 @@
 #include <QDockWidget>
 #include <QDoubleSpinBox>
 #include <QGraphicsItem>
+#include <QGraphicsSceneMouseEvent>
 #include <QLabel>
 #include <QLineF>
 #include <QMenu>
+#include <QSignalSpy>
 #include <QSpinBox>
 #include <QStatusBar>
 #include <QTest>
@@ -54,6 +56,7 @@ private slots:
     void showsWhatASocketHas();
     void wireToLoadShowsLengthAndEditsCable();
     void editFinishedByClickingAnotherObject();
+    void directSwitchCommitsTypedValueToItsObject();
     void refusesShrinkWhenLoadsWouldCollide();
     void panelFollowsUndoOfSelectedLoad();
     void loadPropertiesTranslated();
@@ -75,9 +78,14 @@ private:
     void addLoads();
     // The tutorial panel, Lamp 1's cable (QF2 2, N bar 2, PE bar 2) and QF3 2 → Socket 1 L.
     void addLoadWires();
+    // The centre of a load's picture, or the midpoint of a wire's longest segment.
+    [[nodiscard]] QPointF pointOn(const QString &id) const;
     void clickLoad(const QString &id);
     // Clicks the midpoint of the wire's longest segment, which must select it.
     void clickWire(const QString &id);
+    // A click sent to the scene alone: the field keeps the focus, and the selection switches
+    // straight to the clicked object in one selectionChanged.
+    void clickInScene(const QString &id);
     // Clicks into the field and replaces its number with text, without Enter.
     void typeInto(QAbstractSpinBox *spin, const QString &text);
     void clickUndo();
@@ -508,30 +516,47 @@ void TestProperties::addLoadWires()
     QVERIFY(!lampWires.contains(QString()) && !socketWire.isEmpty());
 }
 
-void TestProperties::clickLoad(const QString &id)
+QPointF TestProperties::pointOn(const QString &id) const
 {
-    const PlacedLoad *load = window->project().load(id);
-    QVERIFY(load);
-    const QSizeF size = window->project().catalog().loadType(load->type)->size;
-    QTest::mouseClick(
-            canvas->viewport(), Qt::LeftButton, {},
-            viewportPoint(canvas, QRectF(window->project().loadPosition(*load), size).center()));
-    QCOMPARE(scene->selectedLoadId(), id);
-}
-
-void TestProperties::clickWire(const QString &id)
-{
-    auto *item = dynamic_cast<WireItem *>(sceneItem(scene, id));
-    QVERIFY(item);
-    const QPolygonF route = item->route();
+    if (const PlacedLoad *load = window->project().load(id)) {
+        const QSizeF size = window->project().catalog().loadType(load->type)->size;
+        return QRectF(window->project().loadPosition(*load), size).center();
+    }
+    const QPolygonF route = dynamic_cast<WireItem *>(sceneItem(scene, id))->route();
     QLineF longest;
     for (qsizetype i = 1; i < route.size(); ++i) {
         if (QLineF(route[i - 1], route[i]).length() > longest.length())
             longest = QLineF(route[i - 1], route[i]);
     }
-    QTest::mouseClick(canvas->viewport(), Qt::LeftButton, {},
-                      viewportPoint(canvas, longest.center()));
+    return longest.center();
+}
+
+void TestProperties::clickLoad(const QString &id)
+{
+    QVERIFY(window->project().load(id));
+    QTest::mouseClick(canvas->viewport(), Qt::LeftButton, {}, viewportPoint(canvas, pointOn(id)));
+    QCOMPARE(scene->selectedLoadId(), id);
+}
+
+void TestProperties::clickWire(const QString &id)
+{
+    QVERIFY(dynamic_cast<WireItem *>(sceneItem(scene, id)));
+    QTest::mouseClick(canvas->viewport(), Qt::LeftButton, {}, viewportPoint(canvas, pointOn(id)));
     QCOMPARE(scene->selectedWireId(), id);
+}
+
+void TestProperties::clickInScene(const QString &id)
+{
+    const QPointF pos = pointOn(id);
+    for (const QEvent::Type type :
+         { QEvent::GraphicsSceneMousePress, QEvent::GraphicsSceneMouseRelease }) {
+        QGraphicsSceneMouseEvent event(type);
+        event.setScenePos(pos);
+        event.setButtonDownScenePos(Qt::LeftButton, pos);
+        event.setButton(Qt::LeftButton);
+        event.setButtons(type == QEvent::GraphicsSceneMousePress ? Qt::LeftButton : Qt::NoButton);
+        QCoreApplication::sendEvent(scene, &event);
+    }
 }
 
 void TestProperties::typeInto(QAbstractSpinBox *spin, const QString &text)
@@ -720,6 +745,50 @@ void TestProperties::editFinishedByClickingAnotherObject()
     for (const QString &id : lampWires)
         QCOMPARE(project.wire(id)->length, 8.0);
     QCOMPARE(power->value(), 1800);
+}
+
+// With a value typed but not sent, the selection switches straight from one object to another:
+// kettle to socket hides the power row, lamp to kettle keeps it, and a cable to a panel wire hides
+// the length row. The value goes to the object it was typed for, and nothing to the new one.
+void TestProperties::directSwitchCommitsTypedValueToItsObject()
+{
+    addLoads();
+    addLoadWires();
+    Project &project = window->project();
+    auto *power = named<QSpinBox>("powerSpin");
+    auto *length = named<QDoubleSpinBox>("lengthSpin");
+    QSignalSpy selectionChanged(scene, &QGraphicsScene::selectionChanged);
+    const int undoCount = window->undoStack().count();
+
+    clickLoad(kettle);
+    typeInto(power, "1900");
+    selectionChanged.clear();
+    clickInScene(socket);
+    QCOMPARE(selectionChanged.count(), 1);
+    QCOMPARE(scene->selectedLoadId(), socket);
+    QCOMPARE(project.load(kettle)->power, 1900);
+    QCOMPARE(project.load(socket)->power, 0);
+
+    clickLoad(lamp);
+    typeInto(power, "25");
+    selectionChanged.clear();
+    clickInScene(kettle);
+    QCOMPARE(selectionChanged.count(), 1);
+    QCOMPARE(scene->selectedLoadId(), kettle);
+    QCOMPARE(project.load(lamp)->power, 25);
+    QCOMPARE(project.load(kettle)->power, 1900);
+    QCOMPARE(power->value(), 1900);
+
+    selectWire(lampWires[0]);
+    typeInto(length, "7");
+    selectionChanged.clear();
+    clickInScene("w1");
+    QCOMPARE(selectionChanged.count(), 1);
+    QCOMPARE(scene->selectedWireId(), QStringLiteral("w1"));
+    for (const QString &id : lampWires)
+        QCOMPARE(project.wire(id)->length, 7.0);
+    QCOMPARE(project.wire(QStringLiteral("w1"))->length, 0.3);
+    QCOMPARE(window->undoStack().count(), undoCount + 3);
 }
 
 void TestProperties::refusesShrinkWhenLoadsWouldCollide()

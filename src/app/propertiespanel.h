@@ -62,8 +62,9 @@ private:
     QLabel *m_residualCaption;
     QLabel *m_residual;
     // The load and the wire whose values refresh() last filled in. A typed value arrives when its
-    // field loses the focus: around a click that selects something else, or when a selection
-    // change hides the field. So edits go to these rather than to the selection.
+    // field loses the focus, which can happen around a click that selects something else, and a
+    // selection change sends one still being typed first. So edits go to these rather than to the
+    // selection.
     QString m_loadId;
     QString m_wireId;
     QWidget *m_loadBox;

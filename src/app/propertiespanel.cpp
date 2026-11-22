@@ -180,7 +180,13 @@ PropertiesPanel::PropertiesPanel(Project &project, QUndoStack &undoStack, Editor
     connect(m_section, &QComboBox::activated, this, &PropertiesPanel::changeSection);
     connect(m_power, &QSpinBox::valueChanged, this, &PropertiesPanel::changePower);
     connect(m_length, &QDoubleSpinBox::valueChanged, this, &PropertiesPanel::changeLength);
-    connect(&m_scene, &QGraphicsScene::selectionChanged, this, &PropertiesPanel::refresh);
+    // A value still being typed is sent to its object before the panel shows another one. Not on
+    // Project::changed: that also comes from inside an undo, where a push would break the stack.
+    connect(&m_scene, &QGraphicsScene::selectionChanged, this, [this] {
+        m_power->interpretText();
+        m_length->interpretText();
+        refresh();
+    });
     connect(&m_project, &Project::changed, this, &PropertiesPanel::refresh);
     retranslate();
 }
