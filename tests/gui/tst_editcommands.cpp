@@ -20,6 +20,14 @@ PlacedDevice preset(const char *id, int row, int module)
     qFatal("unknown preset %s", id);
 }
 
+PlacedLoad loadOf(const char *type, QPointF position)
+{
+    const LoadType *loadType = embeddedCatalog().loadType(QString::fromLatin1(type));
+    if (!loadType)
+        qFatal("unknown load type %s", type);
+    return loadFromType(*loadType, position);
+}
+
 } // namespace
 
 class TestEditCommands : public QObject
@@ -34,6 +42,11 @@ private slots:
     void removeWireRestoresIdAndOrder();
     void updateWireUndoRestoresSection();
     void removeDeviceRestoresItsWires();
+    void addLoadUndoRedoKeepsId();
+    void removeSocketRestoresWiresAndPlugs();
+    void updateLoadUndoRestoresPlugAndPower();
+    void setCableLengthUndoRestoresEachWire();
+    void setEnclosureUndoMovesLoadsBack();
 };
 
 void TestEditCommands::addUndoRedoKeepsId()
@@ -239,6 +252,148 @@ void TestEditCommands::removeDeviceRestoresItsWires()
     QCOMPARE(project.wires().size(), 1);
     stack.undo();
     QCOMPARE(project.wires(), before);
+}
+
+void TestEditCommands::addLoadUndoRedoKeepsId()
+{
+    Project project(embeddedCatalog());
+    QUndoStack stack;
+
+    auto *add = new AddLoadCommand(project, loadOf("ceiling-lamp", { 0, 260 }));
+    stack.push(add);
+    QCOMPARE(add->loadId(), u"l1"_s);
+    const QList<PlacedLoad> after = project.loads();
+    QCOMPARE(after.size(), 1);
+
+    stack.undo();
+    QVERIFY(project.loads().isEmpty());
+
+    stack.redo();
+    QCOMPARE(project.loads(), after);
+}
+
+void TestEditCommands::removeSocketRestoresWiresAndPlugs()
+{
+    Project project(embeddedCatalog());
+    QUndoStack stack;
+    stack.push(new AddLoadCommand(project, loadOf("ceiling-lamp", { 100, 260 })));
+    stack.push(new AddLoadCommand(project, loadOf("socket", { 0, 260 })));
+    for (int place = 1; place <= 2; ++place) {
+        PlacedLoad kettle = loadOf("kettle", { 0, 0 });
+        kettle.socket = u"l2"_s;
+        kettle.place = place;
+        stack.push(new AddLoadCommand(project, kettle));
+    }
+    for (const auto &ends :
+         { std::pair{ u"supply:L"_s, u"l2:L"_s }, std::pair{ u"supply:N"_s, u"l2:N"_s },
+           std::pair{ u"pebar:1"_s, u"l2:PE"_s } }) {
+        Wire wire;
+        wire.from = ends.first;
+        wire.to = ends.second;
+        wire.length = 8;
+        stack.push(new AddWireCommand(project, wire));
+    }
+    const QList<PlacedLoad> loadsBefore = project.loads();
+    const QList<Wire> wiresBefore = project.wires();
+    QCOMPARE(wiresBefore.size(), 3);
+
+    stack.push(new RemoveLoadCommand(project, u"l2"_s));
+    QVERIFY(!project.load(u"l2"));
+    QVERIFY(project.wires().isEmpty());
+
+    stack.undo();
+    QCOMPARE(project.loads(), loadsBefore);
+    QCOMPARE(project.wires(), wiresBefore);
+    for (const Wire &wire : project.wires())
+        QCOMPARE(wire.length, 8.0);
+    QCOMPARE(project.pluggedInto(u"l2"), (QStringList{ u"l3"_s, u"l4"_s }));
+
+    stack.redo();
+    QVERIFY(!project.load(u"l2"));
+    QVERIFY(project.wires().isEmpty());
+    QVERIFY(project.load(u"l3")->socket.isEmpty());
+    QVERIFY(project.load(u"l4")->socket.isEmpty());
+
+    stack.undo();
+    QCOMPARE(project.loads(), loadsBefore);
+    QCOMPARE(project.wires(), wiresBefore);
+}
+
+void TestEditCommands::updateLoadUndoRestoresPlugAndPower()
+{
+    Project project(embeddedCatalog());
+    QUndoStack stack;
+    stack.push(new AddLoadCommand(project, loadOf("socket", { 0, 260 })));
+    stack.push(new AddLoadCommand(project, loadOf("kettle", { 200, 260 })));
+    const PlacedLoad loose = *project.load(u"l2");
+
+    PlacedLoad plugged = loose;
+    plugged.socket = u"l1"_s;
+    plugged.place = 1;
+    stack.push(new UpdateLoadCommand(project, plugged));
+    QCOMPARE(*project.load(u"l2"), plugged);
+
+    PlacedLoad stronger = plugged;
+    stronger.power = 2200;
+    stack.push(new UpdateLoadCommand(project, stronger));
+    QCOMPARE(project.load(u"l2")->power, 2200);
+
+    PlacedLoad unplugged = stronger;
+    unplugged.socket.clear();
+    unplugged.place = 0;
+    unplugged.position = { 200, 300 };
+    stack.push(new UpdateLoadCommand(project, unplugged));
+    QCOMPARE(*project.load(u"l2"), unplugged);
+
+    stack.undo();
+    QCOMPARE(*project.load(u"l2"), stronger);
+    stack.undo();
+    QCOMPARE(*project.load(u"l2"), plugged);
+    stack.undo();
+    QCOMPARE(*project.load(u"l2"), loose);
+    stack.redo();
+    QCOMPARE(*project.load(u"l2"), plugged);
+}
+
+void TestEditCommands::setCableLengthUndoRestoresEachWire()
+{
+    Project project(embeddedCatalog());
+    QUndoStack stack;
+    stack.push(new AddLoadCommand(project, loadOf("ceiling-lamp", { 0, 260 })));
+    for (const auto &ends :
+         { std::pair{ u"supply:L"_s, u"l1:L"_s }, std::pair{ u"supply:N"_s, u"l1:N"_s },
+           std::pair{ u"pebar:1"_s, u"l1:PE"_s } }) {
+        Wire wire;
+        wire.from = ends.first;
+        wire.to = ends.second;
+        wire.length = 15;
+        stack.push(new AddWireCommand(project, wire));
+    }
+
+    stack.push(new SetCableLengthCommand(project, u"w1"_s, 8));
+    for (const Wire &wire : project.wires())
+        QCOMPARE(wire.length, 8.0);
+
+    stack.undo();
+    for (const Wire &wire : project.wires())
+        QCOMPARE(wire.length, 15.0);
+
+    stack.redo();
+    for (const Wire &wire : project.wires())
+        QCOMPARE(wire.length, 8.0);
+}
+
+void TestEditCommands::setEnclosureUndoMovesLoadsBack()
+{
+    Project project(embeddedCatalog());
+    QUndoStack stack;
+    stack.push(new AddLoadCommand(project, loadOf("ceiling-lamp", { 0, 260 })));
+
+    stack.push(new SetEnclosureCommand(project, u"enclosure-24"_s));
+    QCOMPARE(project.load(u"l1")->position, QPointF(0, 384));
+
+    stack.undo();
+    QCOMPARE(project.load(u"l1")->position, QPointF(0, 260));
 }
 
 QTEST_MAIN(TestEditCommands)

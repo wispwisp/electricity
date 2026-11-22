@@ -169,3 +169,124 @@ void SetEnclosureCommand::redo()
     [[maybe_unused]] const bool set = m_project.setEnclosure(m_after);
     Q_ASSERT(set);
 }
+
+AddLoadCommand::AddLoadCommand(Project &project, PlacedLoad load)
+    : m_project(project)
+    , m_load(std::move(load))
+{
+}
+
+QString AddLoadCommand::loadId() const
+{
+    return m_load.id;
+}
+
+void AddLoadCommand::undo()
+{
+    [[maybe_unused]] const bool removed = m_project.removeLoad(m_load.id);
+    Q_ASSERT(removed);
+}
+
+void AddLoadCommand::redo()
+{
+    m_load.id = m_project.addLoad(m_load);
+    Q_ASSERT(!m_load.id.isEmpty());
+}
+
+RemoveLoadCommand::RemoveLoadCommand(Project &project, const QString &id)
+    : m_project(project)
+{
+    const PlacedLoad *load = project.load(id);
+    Q_ASSERT(load);
+    m_load = *load;
+}
+
+void RemoveLoadCommand::undo()
+{
+    // The appliances hang unplugged where the socket was, so the socket does not fit until they
+    // are lifted out; all of them are re-added in their original order.
+    for (const PlacedLoad &appliance : m_appliances)
+        m_project.removeLoad(appliance.id);
+    QList<std::pair<qsizetype, PlacedLoad>> restored{ { m_index, m_load } };
+    for (qsizetype i = 0; i < m_appliances.size(); ++i)
+        restored.append({ m_applianceIndices[i], m_appliances[i] });
+    std::ranges::sort(restored, {}, &std::pair<qsizetype, PlacedLoad>::first);
+    for (const auto &[index, load] : restored) {
+        [[maybe_unused]] const QString id = m_project.addLoad(load, index);
+        Q_ASSERT(id == load.id);
+    }
+    for (qsizetype i = 0; i < m_wires.size(); ++i) {
+        [[maybe_unused]] const QString wireId = m_project.addWire(m_wires[i], m_wireIndices[i]);
+        Q_ASSERT(wireId == m_wires[i].id);
+    }
+}
+
+void RemoveLoadCommand::redo()
+{
+    m_index = std::ranges::find(m_project.loads(), m_load.id, &PlacedLoad::id)
+            - m_project.loads().begin();
+    m_appliances.clear();
+    m_applianceIndices.clear();
+    for (const QString &id : m_project.pluggedInto(m_load.id)) {
+        m_appliances.append(*m_project.load(id));
+        m_applianceIndices.append(std::ranges::find(m_project.loads(), id, &PlacedLoad::id)
+                                  - m_project.loads().begin());
+    }
+    m_wires.clear();
+    m_wireIndices.clear();
+    for (qsizetype i = 0; i < m_project.wires().size(); ++i) {
+        const Wire &wire = m_project.wires()[i];
+        if (wire.from.startsWith(m_load.id + u':') || wire.to.startsWith(m_load.id + u':')) {
+            m_wires.append(wire);
+            m_wireIndices.append(i);
+        }
+    }
+    [[maybe_unused]] const bool removed = m_project.removeLoad(m_load.id);
+    Q_ASSERT(removed);
+}
+
+UpdateLoadCommand::UpdateLoadCommand(Project &project, PlacedLoad after)
+    : m_project(project)
+    , m_after(std::move(after))
+{
+    const PlacedLoad *load = project.load(m_after.id);
+    Q_ASSERT(load);
+    m_before = *load;
+}
+
+void UpdateLoadCommand::undo()
+{
+    [[maybe_unused]] const bool updated = m_project.updateLoad(m_before);
+    Q_ASSERT(updated);
+}
+
+void UpdateLoadCommand::redo()
+{
+    [[maybe_unused]] const bool updated = m_project.updateLoad(m_after);
+    Q_ASSERT(updated);
+}
+
+SetCableLengthCommand::SetCableLengthCommand(Project &project, const QString &wireId, double length)
+    : m_project(project)
+    , m_wireId(wireId)
+    , m_length(length)
+{
+    const Wire *wire = project.wire(wireId);
+    Q_ASSERT(wire);
+    for (const QString &id : project.cableWires(wire->from, wire->to))
+        m_before.append(*project.wire(id));
+}
+
+void SetCableLengthCommand::undo()
+{
+    for (const Wire &wire : m_before) {
+        [[maybe_unused]] const bool updated = m_project.updateWire(wire);
+        Q_ASSERT(updated);
+    }
+}
+
+void SetCableLengthCommand::redo()
+{
+    [[maybe_unused]] const bool set = m_project.setCableLength(m_wireId, m_length);
+    Q_ASSERT(set);
+}

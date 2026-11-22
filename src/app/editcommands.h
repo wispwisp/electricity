@@ -101,3 +101,60 @@ private:
     QString m_before;
     QString m_after;
 };
+
+class AddLoadCommand : public QUndoCommand
+{
+public:
+    AddLoadCommand(Project &project, PlacedLoad load);
+    [[nodiscard]] QString loadId() const; // set by the first redo
+    void undo() override;
+    void redo() override;
+
+private:
+    Project &m_project;
+    PlacedLoad m_load; // gets its id on the first redo
+};
+
+class RemoveLoadCommand : public QUndoCommand
+{
+public:
+    RemoveLoadCommand(Project &project, const QString &id);
+    void undo() override;
+    void redo() override;
+
+private:
+    Project &m_project;
+    PlacedLoad m_load;
+    qsizetype m_index = 0;          // position in loads() when removed
+    QList<PlacedLoad> m_appliances; // a socket's plugged appliances, as they were
+    QList<qsizetype> m_applianceIndices;
+    QList<Wire> m_wires; // the load's wires, ascending by index in wires()
+    QList<qsizetype> m_wireIndices;
+};
+
+class UpdateLoadCommand : public QUndoCommand // move, plug, unplug, power
+{
+public:
+    UpdateLoadCommand(Project &project, PlacedLoad after);
+    void undo() override;
+    void redo() override;
+
+private:
+    Project &m_project;
+    PlacedLoad m_before;
+    PlacedLoad m_after;
+};
+
+class SetCableLengthCommand : public QUndoCommand
+{
+public:
+    SetCableLengthCommand(Project &project, const QString &wireId, double length);
+    void undo() override;
+    void redo() override;
+
+private:
+    Project &m_project;
+    QString m_wireId;
+    double m_length;
+    QList<Wire> m_before; // the wires of the cable, each with its length before
+};
