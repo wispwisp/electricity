@@ -74,6 +74,7 @@ signals:
     void wireModeChanged(bool on); // also when Esc turns the tool off
 
 protected:
+    bool event(QEvent *event) override;
     void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
     void mouseMoveEvent(QGraphicsSceneMouseEvent *event) override;
     void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
@@ -147,4 +148,6 @@ private:
     double m_wireSection = 2.5; // mm², the toolbar default
     QString m_wireStart;
     QPointF m_wireCursor; // the last cursor position the wire tool saw
+    // The cursor has been on the canvas since the tool turned on or the cursor last left.
+    bool m_wireCursorOnCanvas = false;
 };

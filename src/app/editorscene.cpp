@@ -201,6 +201,7 @@ void EditorScene::setWireMode(bool on)
         return;
     m_wireMode = on;
     m_wireStart.clear();
+    m_wireCursorOnCanvas = false;
     cancelMove();
     updateWireOverlays();
     if (on)
@@ -249,6 +250,15 @@ void EditorScene::setDeviceContextActions(const QList<QAction *> &actions)
     m_contextActions = actions;
 }
 
+bool EditorScene::event(QEvent *event)
+{
+    if (event->type() == QEvent::GraphicsSceneLeave) {
+        m_wireCursorOnCanvas = false;
+        updateWireOverlays();
+    }
+    return QGraphicsScene::event(event);
+}
+
 void EditorScene::mousePressEvent(QGraphicsSceneMouseEvent *event)
 {
     if (m_wireMode && pressWireTool(event))
@@ -284,6 +294,7 @@ void EditorScene::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
     QGraphicsScene::mouseMoveEvent(event);
     if (m_wireMode) {
         m_wireCursor = event->scenePos();
+        m_wireCursorOnCanvas = true;
         updateWireOverlays();
     }
     if (m_movingId.isEmpty() || !(event->buttons() & Qt::LeftButton))
@@ -401,6 +412,7 @@ bool EditorScene::pressWireTool(QGraphicsSceneMouseEvent *event)
 {
     if (event->button() == Qt::LeftButton) {
         m_wireCursor = event->scenePos();
+        m_wireCursorOnCanvas = true;
         clickTerminal(terminalAt(m_wireCursor));
         updateWireOverlays();
     } else if (event->button() == Qt::RightButton && !m_wireStart.isEmpty()) {
@@ -468,7 +480,8 @@ void EditorScene::syncWireTool()
 
 void EditorScene::updateWireOverlays()
 {
-    const QString terminal = m_wireMode ? terminalAt(m_wireCursor) : QString();
+    const QString terminal
+            = m_wireMode && m_wireCursorOnCanvas ? terminalAt(m_wireCursor) : QString();
     m_terminalHighlight->setVisible(!terminal.isEmpty());
     if (!terminal.isEmpty()) {
         m_terminalHighlight->setPos(terminalPos(terminal));

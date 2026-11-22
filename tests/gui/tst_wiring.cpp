@@ -113,6 +113,7 @@ private slots:
     void escAfterToolbarSection();
     void escAfterPropertiesSection();
     void escAfterWireButton();
+    void highlightOnlyUnderTheCursor();
     void secondClickOnStartAndRightClickCancel();
     void doubleClickStartsAWire();
     void doubleClickFinishesAWire();
@@ -715,6 +716,44 @@ void TestWiring::escAfterWireButton()
     pressEscape();
     QVERIFY(!scene->isWireMode());
     QVERIFY(!named<QAction>("wireAction")->isChecked());
+}
+
+// The ring shows where the cursor is on the canvas: not where it was when the tool was last on, and
+// not after the cursor has left the canvas, also through an edit made from the toolbar.
+void TestWiring::highlightOnlyUnderTheCursor()
+{
+    addToolDevices();
+    clickWireButton();
+    QVERIFY(scene->isWireMode());
+    clickTerminal("supply:L");
+    hover(scene->terminalPos("d1:1"));
+    QVERIFY(highlight()->isVisible());
+    pressEscape();
+    pressEscape();
+    QVERIFY(!scene->isWireMode());
+    clickWireButton();
+    QVERIFY(scene->isWireMode());
+    QVERIFY(!highlight()->isVisible());
+    hover(scene->terminalPos("d1:1"));
+    QVERIFY(highlight()->isVisible());
+
+    clickTerminal("supply:L");
+    clickTerminal("d1:1");
+    clickTerminal("supply:N");
+    hover(scene->terminalPos("d1:3"));
+    QVERIFY(highlight()->isVisible());
+    QWidget *undoButton
+            = named<QToolBar>("editToolBar")->widgetForAction(named<QAction>("undoAction"));
+    QVERIFY(undoButton);
+    QTest::mouseMove(undoButton);
+    QVERIFY(!highlight()->isVisible());
+    QVERIFY(preview()->isVisible()); // the wire in progress still shows
+    QTest::mouseClick(undoButton, Qt::LeftButton);
+    QVERIFY(window->project().wires().isEmpty());
+    QCOMPARE(scene->wireStart(), QStringLiteral("supply:N"));
+    QVERIFY(!highlight()->isVisible());
+    hover(scene->terminalPos("d1:3"));
+    QVERIFY(highlight()->isVisible());
 }
 
 void TestWiring::secondClickOnStartAndRightClickCancel()
