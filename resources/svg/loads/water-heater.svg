@@ -1,0 +1,17 @@
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Generic storage water heater: an upright tank with a thermostat dial and two pipes below (cold
+     blue, hot red). -->
+<svg xmlns="http://www.w3.org/2000/svg" version="1.2" baseProfile="tiny"
+     width="36" height="36" viewBox="0 0 36 36">
+  <!-- Pipes -->
+  <rect x="12.5" y="28" width="3.5" height="7.25" fill="#4f86c6" stroke="#e6e8eb"
+        stroke-width="0.8"/>
+  <rect x="20" y="28" width="3.5" height="7.25" fill="#d9603b" stroke="#e6e8eb" stroke-width="0.8"/>
+  <!-- Tank -->
+  <rect x="8.25" y="0.75" width="19.5" height="29.5" rx="7"
+        fill="#9ba2aa" stroke="#e6e8eb" stroke-width="1.5"/>
+  <!-- Thermostat dial -->
+  <circle cx="18" cy="13" r="4.5" fill="#e6e8eb" stroke="#3b4047" stroke-width="1"/>
+  <line x1="18" y1="13" x2="20.5" y2="10.5" stroke="#d9603b" stroke-width="1.4"
+        stroke-linecap="round"/>
+</svg>

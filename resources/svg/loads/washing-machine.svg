@@ -1,0 +1,15 @@
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Generic front-loading washing machine: a box with a control strip and a round door. -->
+<svg xmlns="http://www.w3.org/2000/svg" version="1.2" baseProfile="tiny"
+     width="36" height="36" viewBox="0 0 36 36">
+  <rect x="4.75" y="0.75" width="26.5" height="34.5" rx="2.5"
+        fill="#9ba2aa" stroke="#e6e8eb" stroke-width="1.5"/>
+  <!-- Control strip: drawer and dial -->
+  <line x1="5.5" y1="8.5" x2="30.5" y2="8.5" stroke="#3b4047" stroke-width="1"/>
+  <rect x="8" y="3" width="8" height="3.5" rx="0.8" fill="#5a6069"/>
+  <circle cx="26" cy="4.75" r="2.25" fill="#3b4047"/>
+  <!-- Door: frame ring and glass with water -->
+  <circle cx="18" cy="21.75" r="10.25" fill="#5a6069" stroke="#e6e8eb" stroke-width="1.2"/>
+  <circle cx="18" cy="21.75" r="7" fill="#4f86c6"/>
+  <path d="M 11,22.5 Q 14.5,20 18,22.5 T 25,22.5 A 7,7 0 0 1 11,22.5 Z" fill="#2f5f9a"/>
+</svg>

@@ -26,6 +26,9 @@ private slots:
     void barAndEnclosurePicturesMatchCatalog();
     void rendersAtDevicePixelRatio();
     void rendersEveryPictureAt32px();
+    void loadPicturesFollowArtRulesAndMatchCatalog();
+    void enclosurePicturesMatchCatalogSize();
+    void rendersLoadPicturesAt32px();
 };
 
 namespace {
@@ -59,10 +62,27 @@ bool hasOpaquePixel(const QPixmap &pixmap)
     return false;
 }
 
+// The items in a row, 8 px apart on the background.
+QPixmap row(const QList<QPixmap> &items, const QColor &background, int height)
+{
+    const int gap = 8;
+    int width = gap;
+    for (const QPixmap &item : items)
+        width += item.width() + gap;
+    QPixmap result(width, height + 2 * gap);
+    result.fill(background);
+    QPainter painter(&result);
+    int x = gap;
+    for (const QPixmap &item : items) {
+        painter.drawPixmap(x, gap, item);
+        x += item.width() + gap;
+    }
+    return result;
+}
+
 // Every picture in a row, then each bar tiled 8 times, 8 px apart on the background.
 QPixmap sheet(const QColor &background, int height)
 {
-    const int gap = 8;
     QList<QPixmap> items;
     for (const QString &picture : pictures())
         items << svgPixmap(picturePath(picture), height);
@@ -76,19 +96,16 @@ QPixmap sheet(const QColor &background, int height)
         painter.end();
         items << strip;
     }
+    return row(items, background, height);
+}
 
-    int width = gap;
-    for (const QPixmap &item : items)
-        width += item.width() + gap;
-    QPixmap result(width, height + 2 * gap);
-    result.fill(background);
-    QPainter painter(&result);
-    int x = gap;
-    for (const QPixmap &item : items) {
-        painter.drawPixmap(x, gap, item);
-        x += item.width() + gap;
-    }
-    return result;
+// Every load picture in palette order, 8 px apart on the background.
+QPixmap loadSheet(const QColor &background, int height)
+{
+    QList<QPixmap> items;
+    for (const LoadType &type : embeddedCatalog().loads)
+        items << svgPixmap(loadPicturePath(type.picture), height);
+    return row(items, background, height);
 }
 
 } // namespace
@@ -195,6 +212,58 @@ void TestCatalogArt::rendersEveryPictureAt32px()
                            QStringLiteral("svg-32px-light")));
     QVERIFY(saveScreenshot(sheet(Theme::darkPalette().color(QPalette::Window), 180), test,
                            QStringLiteral("svg-large-dark")));
+}
+
+void TestCatalogArt::loadPicturesFollowArtRulesAndMatchCatalog()
+{
+    QTest::failOnWarning(QRegularExpression(QStringLiteral(".*")));
+    const std::array forbidden
+            = { "<text", "<style", "style=", "<image", "<filter", "<script", "<foreignObject" };
+    for (const LoadType &type : embeddedCatalog().loads) {
+        const QString path = loadPicturePath(type.picture);
+        QVERIFY2(QFile::exists(path), qPrintable(path));
+        const QSvgRenderer r(path);
+        QVERIFY2(r.isValid(), qPrintable(path));
+
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        const QByteArray text = file.readAll();
+        QVERIFY2(text.contains("SPDX-License-Identifier: GPL-3.0-or-later"), qPrintable(path));
+        for (const char *word : forbidden)
+            QVERIFY2(!text.contains(word), qPrintable(path + QStringLiteral(": ") + word));
+
+        QVERIFY2(r.viewBoxF() == QRectF(QPointF(0, 0), type.size), qPrintable(path));
+        for (const TerminalSpec &terminal : type.terminals) {
+            const QString id = QStringLiteral("terminal-") + terminal.name;
+            QVERIFY2(r.elementExists(id), qPrintable(path + u' ' + id));
+            QVERIFY2(mappedBounds(r, id).contains(terminal.position), qPrintable(path + u' ' + id));
+        }
+    }
+}
+
+void TestCatalogArt::enclosurePicturesMatchCatalogSize()
+{
+    for (const EnclosureType &enclosure : embeddedCatalog().enclosures) {
+        const QSvgRenderer r(picturePath(enclosure.picture));
+        QVERIFY2(r.viewBoxF() == QRectF(QPointF(0, 0), enclosure.size),
+                 qPrintable(enclosure.picture));
+    }
+}
+
+void TestCatalogArt::rendersLoadPicturesAt32px()
+{
+    for (const LoadType &type : embeddedCatalog().loads) {
+        const QPixmap pixmap = svgPixmap(loadPicturePath(type.picture), 32);
+        QVERIFY2(pixmap.height() == 32, qPrintable(type.picture));
+        QVERIFY2(hasOpaquePixel(pixmap), qPrintable(type.picture));
+    }
+    const QString test = QStringLiteral("f07");
+    QVERIFY(saveScreenshot(loadSheet(Theme::darkPalette().color(QPalette::Window), 32), test,
+                           QStringLiteral("loads-32px-dark")));
+    QVERIFY(saveScreenshot(loadSheet(Theme::lightPalette().color(QPalette::Window), 32), test,
+                           QStringLiteral("loads-32px-light")));
+    QVERIFY(saveScreenshot(loadSheet(Theme::darkPalette().color(QPalette::Window), 180), test,
+                           QStringLiteral("loads-large-dark")));
 }
 
 QTEST_MAIN(TestCatalogArt)

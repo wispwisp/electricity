@@ -1,0 +1,14 @@
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Generic flat-screen TV: a screen on a stand. -->
+<svg xmlns="http://www.w3.org/2000/svg" version="1.2" baseProfile="tiny"
+     width="36" height="36" viewBox="0 0 36 36">
+  <!-- Stand -->
+  <rect x="16" y="25" width="4" height="5.5" fill="#5a6069"/>
+  <rect x="9.75" y="30.25" width="16.5" height="3.5" rx="1.2"
+        fill="#5a6069" stroke="#e6e8eb" stroke-width="1.2"/>
+  <!-- Bezel and screen -->
+  <rect x="0.75" y="4.75" width="34.5" height="21" rx="1.5"
+        fill="#3b4047" stroke="#e6e8eb" stroke-width="1.5"/>
+  <rect x="3" y="7" width="30" height="16.5" fill="#4f86c6"/>
+  <polygon points="3,7 16,7 7,23.5 3,23.5" fill="#6d9fd6"/>
+</svg>

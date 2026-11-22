@@ -1,0 +1,18 @@
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Generic split air conditioner: a wall unit with louvres, blowing air downwards. -->
+<svg xmlns="http://www.w3.org/2000/svg" version="1.2" baseProfile="tiny"
+     width="36" height="36" viewBox="0 0 36 36">
+  <rect x="0.75" y="4.75" width="34.5" height="15.5" rx="4"
+        fill="#9ba2aa" stroke="#e6e8eb" stroke-width="1.5"/>
+  <!-- Louvres -->
+  <rect x="4" y="14" width="28" height="3.5" rx="1" fill="#3b4047"/>
+  <line x1="5" y1="15.75" x2="31" y2="15.75" stroke="#7a8189" stroke-width="0.8"/>
+  <circle cx="29.5" cy="9" r="1.2" fill="#5bd06a"/>
+  <!-- Air flow -->
+  <path d="M 10,23.5 Q 7.5,27 10,30 T 9,35" fill="none" stroke="#6aa6e8" stroke-width="1.8"
+        stroke-linecap="round"/>
+  <path d="M 18,23.5 Q 15.5,27 18,30 T 17,35" fill="none" stroke="#6aa6e8" stroke-width="1.8"
+        stroke-linecap="round"/>
+  <path d="M 26,23.5 Q 23.5,27 26,30 T 25,35" fill="none" stroke="#6aa6e8" stroke-width="1.8"
+        stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,25 @@
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Generic electric kettle: a jug with a spout and a handle on its power base. -->
+<svg xmlns="http://www.w3.org/2000/svg" version="1.2" baseProfile="tiny"
+     width="36" height="36" viewBox="0 0 36 36">
+  <!-- Power base -->
+  <rect x="6.5" y="30.5" width="21" height="4.5" rx="1.2"
+        fill="#5a6069" stroke="#e6e8eb" stroke-width="1.2"/>
+  <!-- Handle: light edge first, then the body colour -->
+  <path d="M 24,11 H 30 Q 32,11 32,13 V 24 Q 32,27 27,28"
+        fill="none" stroke="#e6e8eb" stroke-width="4.6" stroke-linejoin="round"/>
+  <path d="M 24,11 H 30 Q 32,11 32,13 V 24 Q 32,27 27,28"
+        fill="none" stroke="#c25b4a" stroke-width="2.2" stroke-linejoin="round"/>
+  <!-- Spout -->
+  <polygon points="12.5,11 4,5.5 3.5,8 11.5,16"
+           fill="#c25b4a" stroke="#e6e8eb" stroke-width="1.2" stroke-linejoin="round"/>
+  <!-- Body and lid -->
+  <path d="M 11,9.5 H 25 L 27.5,30.5 H 8.5 Z"
+        fill="#c25b4a" stroke="#e6e8eb" stroke-width="1.5" stroke-linejoin="round"/>
+  <rect x="10.5" y="6.5" width="15" height="3.5" rx="1.2"
+        fill="#9ba2aa" stroke="#e6e8eb" stroke-width="1.2"/>
+  <rect x="16" y="3.5" width="4" height="3" rx="1" fill="#9ba2aa" stroke="#e6e8eb"
+        stroke-width="1"/>
+  <!-- Water window -->
+  <rect x="12.5" y="15" width="3" height="11" rx="1.2" fill="#4f86c6"/>
+</svg>

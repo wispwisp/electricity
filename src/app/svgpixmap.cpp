@@ -13,6 +13,11 @@ QString picturePath(const QString &picture)
     return QStringLiteral(":/svg/devices/") + picture;
 }
 
+QString loadPicturePath(const QString &picture)
+{
+    return QStringLiteral(":/svg/loads/") + picture;
+}
+
 QPixmap svgPixmap(const QString &path, int height, qreal devicePixelRatio)
 {
     // QSvgRenderer warns about a missing file; callers only need the null result.
