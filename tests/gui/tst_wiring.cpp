@@ -338,9 +338,11 @@ void TestWiring::init()
     QVERIFY(scene);
 }
 
+// Also when a light-theme test fails, the next test starts in the dark theme.
 void TestWiring::cleanup()
 {
     window.reset();
+    Theme::apply(Theme::Mode::Dark);
 }
 
 void TestWiring::drawsWiresFromTheModel()
@@ -584,7 +586,6 @@ void TestWiring::wiredPanelInLightTheme()
     Theme::apply(Theme::Mode::Light);
     QCoreApplication::processEvents(); // the palette reaches widgets through posted events
     QVERIFY(saveScreenshot(*window, "f06", "wired-light"));
-    Theme::apply(Theme::Mode::Dark);
 }
 
 // The roadmap scenario: the tutorial's first wires, drawn with the tool.

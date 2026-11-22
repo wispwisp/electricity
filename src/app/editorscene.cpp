@@ -677,24 +677,25 @@ RouteEnd EditorScene::routeEnd(const QString &terminalId) const
     const QString name = terminalName(terminalId);
     const QList<BarType> &bars = m_project.catalog().bars;
     if (object == QStringLiteral("supply")) {
-        if (const TerminalSpec *terminal = findTerminal(m_project.supply().terminals, name))
-            return { m_supply->pos() + terminal->position, Exit::Down };
-    } else if (const auto bar = std::ranges::find(bars, object, &BarType::id); bar != bars.end()) {
+        const TerminalSpec *terminal = findTerminal(m_project.supply().terminals, name);
+        Q_ASSERT(terminal); // the project only holds valid terminals
+        return { m_supply->pos() + terminal->position, Exit::Down };
+    }
+    if (const auto bar = std::ranges::find(bars, object, &BarType::id); bar != bars.end()) {
         const QRectF mount = enclosureElement(object + QStringLiteral("-mount"));
         const QPointF hole(bar->pitch * (name.toInt() - 1) + bar->terminal.x(), bar->terminal.y());
         // The N bar sits above the PE bar, and each is wired from the side away from the other.
         return { mount.topLeft() + hole, object == QStringLiteral("nbar") ? Exit::Up : Exit::Down };
-    } else if (const PlacedDevice *device = m_project.device(object)) {
-        const DeviceType *type = m_project.catalog().deviceType(device->type);
-        const DeviceVariant *variant = type ? type->variant(device->poles) : nullptr;
-        Q_ASSERT(variant); // the project only holds valid devices
-        if (const TerminalSpec *terminal = findTerminal(variant->terminals, name)) {
-            return { slotRect(device->row, device->module, variant->modules).topLeft()
-                             + terminal->position,
-                     terminal->position.y() < kModuleHeight / 2 ? Exit::Up : Exit::Down };
-        }
     }
-    return { {}, Exit::Down };
+    const PlacedDevice *device = m_project.device(object);
+    Q_ASSERT(device); // the project only holds valid terminals
+    const DeviceType *type = m_project.catalog().deviceType(device->type);
+    const DeviceVariant *variant = type ? type->variant(device->poles) : nullptr;
+    Q_ASSERT(variant); // the project only holds valid devices
+    const TerminalSpec *terminal = findTerminal(variant->terminals, name);
+    Q_ASSERT(terminal); // the project only holds valid terminals
+    return { slotRect(device->row, device->module, variant->modules).topLeft() + terminal->position,
+             terminal->position.y() < kModuleHeight / 2 ? Exit::Up : Exit::Down };
 }
 
 QList<QRectF> EditorScene::routeObstacles() const
