@@ -193,6 +193,7 @@
     <name>CurrentText</name>
     <message>
         <location filename="../src/app/currenttext.cpp" line="19"/>
+        <location filename="../src/app/eventtext.cpp" line="53"/>
         <source>%1 A</source>
         <translation>%1 А</translation>
     </message>
@@ -258,96 +259,173 @@
     </message>
 </context>
 <context>
+    <name>EventText</name>
+    <message>
+        <location filename="../src/app/eventtext.cpp" line="35"/>
+        <source>Supply</source>
+        <translation>Ввод</translation>
+    </message>
+    <message>
+        <location filename="../src/app/eventtext.cpp" line="37"/>
+        <source>N bar</source>
+        <translation>Шина N</translation>
+    </message>
+    <message>
+        <location filename="../src/app/eventtext.cpp" line="39"/>
+        <source>PE bar</source>
+        <translation>Шина PE</translation>
+    </message>
+    <message>
+        <location filename="../src/app/eventtext.cpp" line="59"/>
+        <source>%1 mA</source>
+        <translation>%1 мА</translation>
+    </message>
+    <message>
+        <location filename="../src/app/eventtext.cpp" line="69"/>
+        <source>Stairwell breaker</source>
+        <translation>Этажный автомат</translation>
+    </message>
+    <message>
+        <location filename="../src/app/eventtext.cpp" line="73"/>
+        <source>%1 tripped: leakage %2, trips at %3</source>
+        <translation>%1: срабатывание от утечки %2, порог %3</translation>
+    </message>
+    <message>
+        <location filename="../src/app/eventtext.cpp" line="76"/>
+        <source>%1 tripped: test button</source>
+        <translation>%1: срабатывание от кнопки «Тест»</translation>
+    </message>
+    <message>
+        <location filename="../src/app/eventtext.cpp" line="85"/>
+        <source>%1 tripped: short circuit, %2 on %3</source>
+        <translation>%1: срабатывание от короткого замыкания, %2 на %3</translation>
+    </message>
+    <message>
+        <location filename="../src/app/eventtext.cpp" line="86"/>
+        <source>%1 tripped: overload, %2 on %3</source>
+        <translation>%1: срабатывание от перегрузки, %2 на %3</translation>
+    </message>
+    <message>
+        <location filename="../src/app/eventtext.cpp" line="96"/>
+        <source>Wire %1 overheating: %2 on %3, allowed %4</source>
+        <translation>Провод %1 перегревается: %2 на %3, допустимо %4</translation>
+    </message>
+    <message>
+        <location filename="../src/app/eventtext.cpp" line="98"/>
+        <source>Wire %1 overloaded: %2 on %3, allowed %4</source>
+        <translation>Провод %1 перегружен: %2 на %3, допустимо %4</translation>
+    </message>
+    <message>
+        <location filename="../src/app/eventtext.cpp" line="110"/>
+        <source>%1: %2 through a person, no RCD turned it off</source>
+        <translation>%1: через человека идёт %2, ни одно УЗО не отключило</translation>
+    </message>
+    <message>
+        <location filename="../src/app/eventtext.cpp" line="112"/>
+        <source>%1: its case is live, %2</source>
+        <translation>%1: на корпусе напряжение %2</translation>
+    </message>
+    <message>
+        <location filename="../src/app/eventtext.cpp" line="113"/>
+        <source>%1 V</source>
+        <translation>%1 В</translation>
+    </message>
+    <message>
+        <location filename="../src/app/eventtext.cpp" line="128"/>
+        <source>%1 overloaded: %2 on %3, an RCD doesn&apos;t protect against overload</source>
+        <translation>%1: перегрузка %2 при номинале %3, УЗО не защищает от перегрузки</translation>
+    </message>
+</context>
+<context>
     <name>MainWindow</name>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="277"/>
-        <location filename="../src/app/mainwindow.cpp" line="278"/>
+        <location filename="../src/app/mainwindow.cpp" line="281"/>
+        <location filename="../src/app/mainwindow.cpp" line="282"/>
         <source>Edit</source>
         <translation>Правка</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="279"/>
+        <location filename="../src/app/mainwindow.cpp" line="283"/>
         <source>Undo</source>
         <translation>Отменить</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="280"/>
+        <location filename="../src/app/mainwindow.cpp" line="284"/>
         <source>Redo</source>
         <translation>Повторить</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="281"/>
+        <location filename="../src/app/mainwindow.cpp" line="285"/>
         <source>Wire</source>
         <translation>Провод</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="282"/>
+        <location filename="../src/app/mainwindow.cpp" line="286"/>
         <source>Draw wires: click one terminal, then another.</source>
         <translation>Провода: щёлкните одну клемму, затем другую.</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="283"/>
+        <location filename="../src/app/mainwindow.cpp" line="287"/>
         <source>Section of new wires</source>
         <translation>Сечение новых проводов</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="288"/>
+        <location filename="../src/app/mainwindow.cpp" line="292"/>
         <source>Delete</source>
         <translation>Удалить</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="289"/>
+        <location filename="../src/app/mainwindow.cpp" line="293"/>
         <source>View</source>
         <translation>Вид</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="290"/>
+        <location filename="../src/app/mainwindow.cpp" line="294"/>
         <source>Fit to window</source>
         <translation>По размеру окна</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="291"/>
+        <location filename="../src/app/mainwindow.cpp" line="295"/>
         <source>Show currents</source>
         <translation>Показывать токи</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="292"/>
+        <location filename="../src/app/mainwindow.cpp" line="296"/>
         <source>Settings</source>
         <translation>Настройки</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="293"/>
+        <location filename="../src/app/mainwindow.cpp" line="297"/>
         <source>Theme</source>
         <translation>Тема</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="294"/>
+        <location filename="../src/app/mainwindow.cpp" line="298"/>
         <source>Dark</source>
         <translation>Тёмная</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="295"/>
+        <location filename="../src/app/mainwindow.cpp" line="299"/>
         <source>Light</source>
         <translation>Светлая</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="296"/>
+        <location filename="../src/app/mainwindow.cpp" line="300"/>
         <source>Language</source>
         <translation>Язык</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="297"/>
+        <location filename="../src/app/mainwindow.cpp" line="301"/>
         <source>Components</source>
         <translation>Компоненты</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="298"/>
+        <location filename="../src/app/mainwindow.cpp" line="302"/>
         <source>Properties</source>
         <translation>Свойства</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="70"/>
-        <location filename="../src/app/mainwindow.cpp" line="300"/>
+        <location filename="../src/app/mainwindow.cpp" line="319"/>
         <source>Ready</source>
         <translation>Готово</translation>
     </message>

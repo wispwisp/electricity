@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 
+#include "core/simulation.h"
+
+#include <QList>
 #include <QMainWindow>
 #include <QSize>
 
@@ -12,7 +15,6 @@ class QDockWidget;
 class QMenu;
 class QToolBar;
 class QUndoStack;
-class Simulation;
 
 // True when the screen is too small for the default window size plus its frame.
 bool startsMaximized(const QSize &availableScreenSize);
@@ -33,6 +35,8 @@ protected:
 
 private:
     void retranslateUi();
+    void onEvent(const SimulationEvent &event);
+    void showIdleText();
 
     Project *m_project = nullptr;
     QUndoStack *m_undoStack = nullptr;
@@ -54,4 +58,6 @@ private:
     QMenu *m_languageMenu = nullptr;
     QAction *m_darkAction = nullptr;
     QAction *m_lightAction = nullptr;
+    QString m_idleText;                  // the one shown last
+    QList<SimulationEvent> m_conditions; // active, the newest last
 };

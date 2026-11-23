@@ -4,6 +4,7 @@
 #include "app/canvasview.h"
 #include "app/editcommands.h"
 #include "app/editorscene.h"
+#include "app/eventtext.h"
 #include "app/language.h"
 #include "app/palettewidget.h"
 #include "app/propertiespanel.h"
@@ -13,6 +14,7 @@
 #include "app/theme.h"
 #include "core/catalog.h"
 #include "core/project.h"
+#include "core/simulation.h"
 
 #include <QAction>
 #include <QActionGroup>
@@ -65,9 +67,15 @@ MainWindow::MainWindow(QWidget *parent)
         if (!on)
             bar->clearMessage();
     });
-    connect(bar, &QStatusBar::messageChanged, bar, [bar](const QString &message) {
+    connect(bar, &QStatusBar::messageChanged, this, [this](const QString &message) {
         if (message.isEmpty())
-            bar->showMessage(tr("Ready"));
+            showIdleText();
+    });
+    connect(&m_scene->simulation(), &Simulation::occurred, this, &MainWindow::onEvent);
+    // A hint shown by the scene's reaction to the same change stays.
+    connect(m_project, &Project::changed, this, [this] {
+        if (statusBar()->currentMessage() == m_idleText)
+            showIdleText();
     });
 
     m_dock = new QDockWidget(this);
@@ -297,5 +305,30 @@ void MainWindow::retranslateUi()
     m_dock->setWindowTitle(tr("Components"));
     m_propertiesDock->setWindowTitle(tr("Properties"));
     m_scene->retranslate();
-    statusBar()->showMessage(tr("Ready"));
+    showIdleText();
+}
+
+// A condition per object; a new one replaces the object's old one and is the newest.
+void MainWindow::onEvent(const SimulationEvent &event)
+{
+    m_conditions.removeIf([&event](const SimulationEvent &c) { return c.id == event.id; });
+    if (event.kind != SimulationEvent::Kind::Cleared)
+        m_conditions.append(event);
+    showIdleText();
+}
+
+// The newest condition whose object still exists, else "Ready".
+void MainWindow::showIdleText()
+{
+    QString text = tr("Ready");
+    for (auto it = m_conditions.crbegin(); it != m_conditions.crend(); ++it) {
+        const QString id = it->id;
+        if (id == SupplyBreakerId || m_project->device(id) || m_project->wire(id)
+            || m_project->load(id)) {
+            text = eventText(*m_project, *it);
+            break;
+        }
+    }
+    m_idleText = text;
+    statusBar()->showMessage(text);
 }

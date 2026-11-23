@@ -23,6 +23,7 @@
 #include <QElapsedTimer>
 #include <QMenu>
 #include <QSignalBlocker>
+#include <QStatusBar>
 #include <QSvgRenderer>
 #include <QTest>
 #include <QToolBar>
@@ -977,8 +978,9 @@ void TestSimulating::shortShowsWholeAmperes()
     QVERIFY(!project.addWire(wire).isEmpty());
     for (const char *id : { "d1", "d2", "d3" })
         clickHandle(id);
-    QCOMPARE(deviceItem("d3")->currentText(), QStringLiteral("557 A"));
-    QCOMPARE(wireItem(shortEnds)->currentText(), QStringLiteral("557 A"));
+    QCOMPARE(window->simulation().tripCause(u"d3"), TripCause::ShortCircuit);
+    QCOMPARE(window->statusBar()->currentMessage(),
+             QStringLiteral("QF2 tripped: short circuit, 557 A on C10"));
     QVERIFY(saveScreenshot(*window, "f08", "labels-short"));
 }
 
