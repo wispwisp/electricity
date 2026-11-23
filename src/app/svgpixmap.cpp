@@ -53,3 +53,20 @@ QSvgRenderer &svgRenderer(const QString &path)
         renderer = std::make_unique<QSvgRenderer>(path);
     return *renderer;
 }
+
+QSvgRenderer &switchedOffRenderer(const QString &path)
+{
+    static std::map<QString, std::unique_ptr<QSvgRenderer>> renderers;
+    std::unique_ptr<QSvgRenderer> &renderer = renderers[path];
+    if (!renderer) {
+        QByteArray svg;
+        if (QFile file(path); file.open(QIODevice::ReadOnly))
+            svg = file.readAll();
+        svg.replace(R"(<g id="handle")",
+                    QStringLiteral(R"svg(<g id="handle" transform="translate(0 %1)")svg")
+                            .arg(HandleTravel)
+                            .toUtf8());
+        renderer = std::make_unique<QSvgRenderer>(svg);
+    }
+    return *renderer;
+}

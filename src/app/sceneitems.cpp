@@ -162,8 +162,11 @@ void DeviceItem::setDevice(const PlacedDevice &device, const QString &designatio
         m_path = path;
         QSvgRenderer &renderer = svgRenderer(m_path);
         m_size = renderer.viewBoxF().size();
-        const QString label = QStringLiteral("label");
-        m_label = renderer.transformForElement(label).mapRect(renderer.boundsOnElement(label));
+        const auto bounds = [&renderer](const QString &id) {
+            return renderer.transformForElement(id).mapRect(renderer.boundsOnElement(id));
+        };
+        m_label = bounds(QStringLiteral("label"));
+        m_handle = bounds(QStringLiteral("handle"));
     }
     m_designationItem->setText(designation);
     placeDesignation();
@@ -197,6 +200,27 @@ QGraphicsItem *DeviceItem::designationItem() const
     return m_designationItem;
 }
 
+void DeviceItem::setOn(bool on)
+{
+    m_on = on;
+    update();
+}
+
+bool DeviceItem::isOn() const
+{
+    return m_on;
+}
+
+QRectF DeviceItem::handleRect() const
+{
+    return m_on ? m_handle : m_handle.translated(0, HandleTravel);
+}
+
+QRectF DeviceItem::switchRect() const
+{
+    return m_handle.united(m_handle.translated(0, HandleTravel));
+}
+
 QRectF DeviceItem::boundingRect() const
 {
     return { 0, -DesignationHeight, m_size.width(), m_size.height() + DesignationHeight };
@@ -205,7 +229,7 @@ QRectF DeviceItem::boundingRect() const
 void DeviceItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWidget *)
 {
     const QRectF body(QPointF(0, 0), m_size);
-    svgRenderer(m_path).render(painter, body);
+    (m_on ? svgRenderer(m_path) : switchedOffRenderer(m_path)).render(painter, body);
 
     painter->setFont(pixelFont(kRatingPixelSize));
     painter->setPen(Qt::black); // printed on the white label

@@ -240,6 +240,11 @@ QUndoStack &MainWindow::undoStack()
     return *m_undoStack;
 }
 
+Simulation &MainWindow::simulation()
+{
+    return m_scene->simulation();
+}
+
 bool MainWindow::event(QEvent *event)
 {
     // Menu items without a status tip would otherwise clear the status message.

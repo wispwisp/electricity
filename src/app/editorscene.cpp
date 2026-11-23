@@ -7,6 +7,7 @@
 #include "app/svgpixmap.h"
 #include "app/theme.h"
 #include "core/project.h"
+#include "core/simulation.h"
 #include "core/wirerouter.h"
 
 #include <QApplication>
@@ -124,9 +125,13 @@ EditorScene::EditorScene(Project &project, QUndoStack &undoStack, QObject *paren
     connect(&m_project, &Project::changed, this, &EditorScene::syncWires);
     connect(&m_project, &Project::changed, this, &EditorScene::syncWireTool);
     connect(&m_project, &Project::enclosureChanged, this, &EditorScene::syncEnclosure);
+    // After the syncs above, so that a solve after a change finds every item the change added.
+    m_simulation = new Simulation(m_project, this);
+    connect(m_simulation, &Simulation::solved, this, &EditorScene::syncLive);
     syncEnclosure();
     syncDevices();
     retranslate();
+    syncLive();
 }
 
 QRectF EditorScene::enclosureElement(const QString &id) const
@@ -269,6 +274,11 @@ void EditorScene::retranslate()
     syncLoads(); // also updates the scene rect for the text's width
 }
 
+Simulation &EditorScene::simulation()
+{
+    return *m_simulation;
+}
+
 // ~QGraphicsScene deletes the selected items and would emit selectionChanged to listeners that
 // call back into this already destroyed EditorScene. Device items go first: each deletes its
 // designation item, which ~QGraphicsScene would otherwise delete in any order.
@@ -366,7 +376,10 @@ void EditorScene::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
         return;
     if (std::exchange(m_moving, false))
         finishMove(event->scenePos() - m_grabOffset);
+    else if (!m_switchId.isEmpty())
+        m_simulation->setOn(m_switchId, !m_simulation->isOn(m_switchId));
     m_movingId.clear();
+    m_switchId.clear();
 }
 
 void EditorScene::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event)
@@ -418,6 +431,9 @@ void EditorScene::pressItem(QGraphicsSceneMouseEvent *event)
     if (device) {
         m_grabOffset = event->scenePos()
                 - slotRect(device->row, device->module, m_project.moduleWidth(*device)).center();
+        if (static_cast<const DeviceItem *>(item)->switchRect().contains(
+                    item->mapFromScene(event->scenePos())))
+            m_switchId = id;
     } else if (load) {
         const LoadType *type = m_project.catalog().loadType(load->type);
         Q_ASSERT(type); // the project only holds valid loads
@@ -466,6 +482,7 @@ void EditorScene::cancelMove()
 {
     const QString id = std::exchange(m_movingId, {});
     m_moving = false;
+    m_switchId.clear();
     if (id.isEmpty())
         return;
     const PlacedDevice *device = m_project.device(id);
@@ -893,6 +910,12 @@ void EditorScene::syncWires()
         m_wires.insert(wires[i].id, item);
     }
     qDeleteAll(previous);
+}
+
+void EditorScene::syncLive()
+{
+    for (auto it = m_devices.cbegin(); it != m_devices.cend(); ++it)
+        it.value()->setOn(m_simulation->isOn(it.key()));
 }
 
 RouteEnd EditorScene::routeEnd(const QString &terminalId) const

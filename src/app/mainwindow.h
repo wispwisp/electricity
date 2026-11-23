@@ -12,6 +12,7 @@ class QDockWidget;
 class QMenu;
 class QToolBar;
 class QUndoStack;
+class Simulation;
 
 // True when the screen is too small for the default window size plus its frame.
 bool startsMaximized(const QSize &availableScreenSize);
@@ -24,6 +25,7 @@ public:
     ~MainWindow() override;
     Project &project();
     QUndoStack &undoStack();
+    Simulation &simulation(); // the scene's
 
 protected:
     bool event(QEvent *event) override;

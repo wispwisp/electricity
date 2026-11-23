@@ -29,6 +29,7 @@ private slots:
     void loadPicturesFollowArtRulesAndMatchCatalog();
     void enclosurePicturesMatchCatalogSize();
     void rendersLoadPicturesAt32px();
+    void switchedOffPicturesMoveOnlyTheHandle();
 };
 
 namespace {
@@ -97,6 +98,17 @@ QPixmap sheet(const QColor &background, int height)
         items << strip;
     }
     return row(items, background, height);
+}
+
+// The renderer's picture at `height` pixels, on a transparent background.
+QPixmap rendered(QSvgRenderer &renderer, int height)
+{
+    const QRectF box = renderer.viewBoxF();
+    QPixmap pixmap(qRound(height * box.width() / box.height()), height);
+    pixmap.fill(Qt::transparent);
+    QPainter painter(&pixmap);
+    renderer.render(&painter, QRectF(pixmap.rect()));
+    return pixmap;
 }
 
 // Every load picture in palette order, 8 px apart on the background.
@@ -264,6 +276,26 @@ void TestCatalogArt::rendersLoadPicturesAt32px()
                            QStringLiteral("loads-32px-light")));
     QVERIFY(saveScreenshot(loadSheet(Theme::darkPalette().color(QPalette::Window), 180), test,
                            QStringLiteral("loads-large-dark")));
+}
+
+void TestCatalogArt::switchedOffPicturesMoveOnlyTheHandle()
+{
+    const QString handle = QStringLiteral("handle");
+    const QString body = QStringLiteral("body");
+    QList<QPixmap> items;
+    for (const DeviceType &type : embeddedCatalog().deviceTypes) {
+        for (const DeviceVariant &variant : type.variants) {
+            const QString path = picturePath(variant.picture);
+            QSvgRenderer &on = svgRenderer(path);
+            QSvgRenderer &off = switchedOffRenderer(path);
+            QVERIFY2(off.isValid(), qPrintable(path));
+            QCOMPARE(mappedBounds(off, handle), mappedBounds(on, handle).translated(0, 12.5));
+            QCOMPARE(mappedBounds(off, body), mappedBounds(on, body));
+            items << rendered(on, 180) << rendered(off, 180);
+        }
+    }
+    QVERIFY(saveScreenshot(row(items, Theme::darkPalette().color(QPalette::Window), 180),
+                           QStringLiteral("f08"), QStringLiteral("handles-on-off")));
 }
 
 QTEST_MAIN(TestCatalogArt)

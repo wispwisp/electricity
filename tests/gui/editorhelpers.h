@@ -31,6 +31,14 @@ void addTutorialDevices(Project &project);
 // Its wires, in this order: supply:L→d1:1 10, supply:N→d1:3 10, d1:2→d2:1 10, d1:4→d2:N1 10,
 // d2:2→d3:1 6, d3:1→d4:1 6, d4:1→d5:1 6, d2:N2→nbar:1 10, supply:PE→pebar:1 10.
 void addTutorialWires(Project &project);
+// The tutorial loads (ADR 0016) and their wires, after addTutorialDevices and addTutorialWires:
+// l1 Lamp 1 (0, 270), l2 Lamp 2 (45, 270), l3 Socket 1 (94.5, 270), l4 Socket 2 (175.5, 270),
+// l5 Socket 3 (256.5, 270), l6 Socket 4 (337.5, 270); l7 TV in l3 place 1, l8 air conditioner in
+// l4 place 1, l9 kettle in l5 place 1, l10 microwave in l5 place 2. Wires, each with
+// newWireLength() (15 m): d3:2→l1:L, nbar:2→l1:N, pebar:2→l1:PE, then l1→l2 L, N, PE, all 1.5;
+// d4:2→l3:L, nbar:3→l3:N, pebar:3→l3:PE, l3→l4 L, N, PE, and d5:2→l5:L, nbar:4→l5:N,
+// pebar:4→l5:PE, l5→l6 L, N, PE, all 2.5.
+void addTutorialLoads(Project &project);
 // The first scene item whose data(0) is id, or nullptr; and how many there are.
 QGraphicsItem *sceneItem(QGraphicsScene *scene, const QString &id);
 int countItems(QGraphicsScene *scene, const QString &id);

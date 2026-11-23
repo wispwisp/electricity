@@ -123,6 +123,51 @@ void addTutorialWires(Project &project)
     }
 }
 
+void addTutorialLoads(Project &project)
+{
+    struct Load
+    {
+        const char *type;
+        QPointF position;
+        const char *socket;
+        int place;
+    };
+    for (const Load &load :
+         { Load{ "ceiling-lamp", { 0, 270 }, "", 0 }, Load{ "ceiling-lamp", { 45, 270 }, "", 0 },
+           Load{ "socket", { 94.5, 270 }, "", 0 }, Load{ "socket", { 175.5, 270 }, "", 0 },
+           Load{ "socket", { 256.5, 270 }, "", 0 }, Load{ "socket", { 337.5, 270 }, "", 0 },
+           Load{ "tv", {}, "l3", 1 }, Load{ "air-conditioner", {}, "l4", 1 },
+           Load{ "kettle", {}, "l5", 1 }, Load{ "microwave", {}, "l5", 2 } }) {
+        const LoadType *type = project.catalog().loadType(QString::fromLatin1(load.type));
+        QVERIFY(type);
+        PlacedLoad placed = loadFromType(*type, load.position);
+        placed.socket = QString::fromLatin1(load.socket);
+        placed.place = load.place;
+        QVERIFY(!project.addLoad(placed).isEmpty());
+    }
+    struct Ends
+    {
+        const char *from;
+        const char *to;
+        double section;
+    };
+    for (const Ends &ends :
+         { Ends{ "d3:2", "l1:L", 1.5 }, Ends{ "nbar:2", "l1:N", 1.5 },
+           Ends{ "pebar:2", "l1:PE", 1.5 }, Ends{ "l1:L", "l2:L", 1.5 },
+           Ends{ "l1:N", "l2:N", 1.5 }, Ends{ "l1:PE", "l2:PE", 1.5 }, Ends{ "d4:2", "l3:L", 2.5 },
+           Ends{ "nbar:3", "l3:N", 2.5 }, Ends{ "pebar:3", "l3:PE", 2.5 },
+           Ends{ "l3:L", "l4:L", 2.5 }, Ends{ "l3:N", "l4:N", 2.5 }, Ends{ "l3:PE", "l4:PE", 2.5 },
+           Ends{ "d5:2", "l5:L", 2.5 }, Ends{ "nbar:4", "l5:N", 2.5 },
+           Ends{ "pebar:4", "l5:PE", 2.5 }, Ends{ "l5:L", "l6:L", 2.5 },
+           Ends{ "l5:N", "l6:N", 2.5 }, Ends{ "l5:PE", "l6:PE", 2.5 } }) {
+        const QString from = QString::fromLatin1(ends.from);
+        const QString to = QString::fromLatin1(ends.to);
+        Wire wire{ {}, from, to, ends.section, project.conductorFor(from, to) };
+        wire.length = project.newWireLength(from, to);
+        QVERIFY(!project.addWire(wire).isEmpty());
+    }
+}
+
 QGraphicsItem *sceneItem(QGraphicsScene *scene, const QString &id)
 {
     const QList<QGraphicsItem *> items = scene->items();

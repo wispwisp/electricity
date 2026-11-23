@@ -17,6 +17,7 @@ class QGraphicsLineItem;
 class QMenu;
 class Project;
 class QUndoStack;
+class Simulation;
 class TextItem;
 class WireItem;
 enum class LoadPlacement : std::uint8_t;
@@ -80,6 +81,7 @@ public:
     void setDeviceContextActions(const QList<QAction *> &actions);
     // the "Supply" text and the load captions
     void retranslate();
+    [[nodiscard]] Simulation &simulation(); // created and owned by the scene
 
 signals:
     void hint(const QString &text);
@@ -107,6 +109,8 @@ private:
     void syncLoads();
     // Re-routes every wire, with a device being moved still at its slot in the model.
     void syncWires();
+    // Shows the simulation's switch settings: each device's handle up or down.
+    void syncLive();
     // The terminal's position and the side its wires leave from.
     [[nodiscard]] RouteEnd routeEnd(const QString &terminalId) const;
     // What wires go around: device bodies with their designations, the supply with its letters,
@@ -128,7 +132,8 @@ private:
     bool placeLoadAt(PlacedLoad &load, QPointF cursor);
     // Shows the load where a drop at cursor would put it, tinted if it can't go there.
     void previewLoad(const LoadType &type, QPointF cursor);
-    // A left press on a device or a load may become a move.
+    // A left press on a device or a load may become a move; on a device's handle, if it doesn't,
+    // the release switches the device.
     void pressItem(QGraphicsSceneMouseEvent *event);
     // Shows the load being moved where a release with its picture centred on centre would put it,
     // tinted if it can't go there; a socket carries its appliances.
@@ -136,7 +141,7 @@ private:
     // Ends a move with the device body or the load picture centred on centre.
     void finishMove(QPointF centre);
     // Ends a move without changing the model: the item goes back to where the model has it, and
-    // the mouse grab of a move whose release never arrived is dropped.
+    // the mouse grab of a move whose release never arrived is dropped. A switch press is forgotten.
     void cancelMove();
     void removePreview();
     // The wire tool takes every left press, and a right press that cancels a wire in progress;
@@ -163,9 +168,11 @@ private:
     QHash<QString, DeviceItem *> m_devices;
     QHash<QString, LoadItem *> m_loads;
     QHash<QString, WireItem *> m_wires;
+    Simulation *m_simulation = nullptr;
     DeviceItem *m_preview = nullptr;   // while a preset is dragged over the scene
     LoadItem *m_loadPreview = nullptr; // while a load is dragged over the scene
     QString m_movingId;                // the device or load under a left press, "" if none
+    QString m_switchId;                // m_movingId when the press is on its handle, else ""
     QPointF m_grabOffset; // press point minus the device body centre or the load picture centre
     QList<QAction *> m_contextActions;
     QMenu *m_contextMenu = nullptr;

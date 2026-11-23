@@ -73,6 +73,12 @@ public:
     void setRefused(bool refused);
     [[nodiscard]] bool isRefused() const;
     [[nodiscard]] QGraphicsItem *designationItem() const;
+    void setOn(bool on); // repaints; a new item is off
+    [[nodiscard]] bool isOn() const;
+    [[nodiscard]] QRectF handleRect() const; // item coordinates, where the handle is drawn now
+    // Item coordinates: where a press switches the device, the handle's on and off positions
+    // together, so that the second click of a double click still finds the handle it moved.
+    [[nodiscard]] QRectF switchRect() const;
 
     [[nodiscard]] QRectF boundingRect() const override;
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
@@ -86,10 +92,12 @@ private:
     const Catalog &m_catalog;
     QString m_path;
     QSizeF m_size;
-    QRectF m_label; // the picture's "label" element
+    QRectF m_label;  // the picture's "label" element
+    QRectF m_handle; // the picture's "handle" element, drawn on (up)
     TextItem *m_designationItem;
     QString m_rating;
     bool m_refused = false;
+    bool m_on = false;
 };
 
 // A placed load: its picture, the caption under a wired load, and for a socket faint outlines of

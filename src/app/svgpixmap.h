@@ -18,3 +18,7 @@ QPixmap svgPixmap(const QString &path, int height, qreal devicePixelRatio = 1.0)
 QIcon svgIcon(const QString &path, int size);
 // One renderer per path, created on first use and kept for the process.
 QSvgRenderer &svgRenderer(const QString &path);
+
+inline constexpr qreal HandleTravel = 12.5; // picture units a handle moves down when off
+// The picture with its "handle" element moved down by HandleTravel; one renderer per path.
+QSvgRenderer &switchedOffRenderer(const QString &path);
