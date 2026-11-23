@@ -116,7 +116,8 @@ private:
     // load's button and glow, and the current labels where current flows.
     void syncLive();
     // Each shown wire label, in wire order, on or beside its route, never over a label before it,
-    // and clear of what wires go around where the route allows.
+    // and where the route allows neither centred on nor beside it over another wire, and clear of
+    // what wires go around.
     void placeCurrentLabels();
     // The terminal's position and the side its wires leave from.
     [[nodiscard]] RouteEnd routeEnd(const QString &terminalId) const;

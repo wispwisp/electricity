@@ -954,8 +954,14 @@ void EditorScene::placeCurrentLabels()
     QList<QRectF> labels;
     for (const Wire &wire : m_project.wires()) {
         WireItem *item = m_wires.value(wire.id);
-        if (item && !item->currentText().isEmpty())
-            labels << item->placeCurrentLabel(labels, obstacles);
+        if (!item || item->currentText().isEmpty())
+            continue;
+        QList<QPolygonF> otherRoutes;
+        for (const WireItem *other : std::as_const(m_wires)) {
+            if (other != item)
+                otherRoutes << other->route();
+        }
+        labels << item->placeCurrentLabel(labels, obstacles, otherRoutes);
     }
 }
 

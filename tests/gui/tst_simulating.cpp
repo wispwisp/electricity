@@ -28,9 +28,26 @@
 
 #include <algorithm>
 #include <array>
+#include <limits>
 #include <memory>
 
 namespace {
+// Distance from the point to the nearest point of the route.
+qreal distanceToRoute(QPointF point, const QPolygonF &route)
+{
+    qreal nearest = std::numeric_limits<qreal>::max();
+    for (qsizetype i = 1; i < route.size(); ++i) {
+        const QPointF start = route[i - 1];
+        const QPointF along = route[i] - start;
+        const qreal lengthSquared = QPointF::dotProduct(along, along);
+        const qreal t = lengthSquared > 0
+                ? std::clamp(QPointF::dotProduct(point - start, along) / lengthSquared, 0.0, 1.0)
+                : 0.0;
+        nearest = std::min(nearest, QLineF(point, start + along * t).length());
+    }
+    return nearest;
+}
+
 struct WireEnds
 {
     const char *from;
@@ -724,6 +741,25 @@ void TestSimulating::wireLabelsKeepClear()
         for (const QRectF &rect : std::as_const(keepClear))
             QVERIFY2(!label.intersects(rect), qPrintable(wire.id));
         keepClear << label;
+        // On its own wire, or beside it: the label reaches within 2.5 of the route.
+        const QPolygonF route = item->route();
+        bool reachesOwnWire = false;
+        for (qsizetype i = 1; i < route.size(); ++i) {
+            const QRectF segment = QRectF(route[i - 1], route[i])
+                                           .normalized()
+                                           .adjusted(-0.01, -0.01, 0.01, 0.01);
+            reachesOwnWire |= segment.intersects(label.adjusted(-2.5, -2.5, 2.5, 2.5));
+        }
+        QVERIFY2(reachesOwnWire, qPrintable(wire.id));
+        // Never centred on another wire, which would read as that wire's current, or as current
+        // on a PE wire.
+        for (const Wire &other : project.wires()) {
+            if (other.id == wire.id)
+                continue;
+            const auto *otherItem = dynamic_cast<WireItem *>(sceneItem(scene, other.id));
+            QVERIFY2(distanceToRoute(label.center(), otherItem->route()) >= 2.25,
+                     qPrintable(wire.id + QStringLiteral(" on ") + other.id));
+        }
     }
     QCOMPARE(labels, shown);
 
@@ -747,7 +783,7 @@ void TestSimulating::wireLabelStepsOutOfCoveredRoute()
     wire.setWire(QPolygonF({ QPointF(0, 0), QPointF(0, 40), QPointF(30, 40) }), Conductor::L, 1.5);
     wire.setCurrentText(QStringLiteral("0.04 A"));
     const QRectF taken(-30, -20, 90, 90);
-    const QRectF placed = wire.placeCurrentLabel({ taken }, {});
+    const QRectF placed = wire.placeCurrentLabel({ taken }, {}, {});
     QVERIFY(!placed.intersects(taken));
     QCOMPARE(wire.currentLabel()->sceneBoundingRect(), placed);
 }
