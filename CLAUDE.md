@@ -27,6 +27,12 @@ Never edit this file - The most you can do if you need to write down something n
 * Never change a test just to make it pass, and if a test fails, say so. Correct and validate the logic, don't tweak values. Never tweak values in a test just to make it pass. Write a red test first, only after the code itself.
 * Never turn off or delete tests without explicit approval
 
+##### Use TDD
+* Before writing code, write a test, run it, and verify that it fails;
+* If fixing a bug, first write a test that reproduces the bug;
+* Do not delete, skip, or weaken tests to make them pass;
+* If a test seems wrong to you, stop and say so.
+
 #### Claude directives about headless testing
 The container has no display. Never report a feature as working without running it.
 
