@@ -118,6 +118,9 @@ private:
     // Shows the simulation's switch settings and results: each device's handle up or down, each
     // load's button and glow, and the current labels where current flows.
     void syncLive();
+    // Shows the heat: each device's glow and each wire's halo. Lays out no labels, as it runs
+    // after every step of simulated time.
+    void syncHeat();
     // Each shown wire label, in wire order, on or beside its route, never over a label before it,
     // and where the route allows neither centred on nor beside it over another wire, and clear of
     // what wires go around.

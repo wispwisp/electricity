@@ -133,6 +133,7 @@ EditorScene::EditorScene(Project &project, QUndoStack &undoStack, QObject *paren
     // After the syncs above, so that a solve after a change finds every item the change added.
     m_simulation = new Simulation(m_project, this);
     connect(m_simulation, &Simulation::solved, this, &EditorScene::syncLive);
+    connect(m_simulation, &Simulation::heated, this, &EditorScene::syncHeat);
     auto *faults = new QActionGroup(this);
     faults->setExclusionPolicy(QActionGroup::ExclusionPolicy::ExclusiveOptional);
     const auto faultAction = [this, faults](const char *name, Fault fault) {
@@ -1015,7 +1016,16 @@ void EditorScene::syncLive()
     for (auto it = m_wires.cbegin(); it != m_wires.cend(); ++it)
         it.value()->setCurrentText(label(m_simulation->wireCurrent(it.key())));
     m_supplyMark->setVisible(m_simulation->tripCause(SupplyBreakerId) != TripCause::None);
+    syncHeat();
     placeCurrentLabels();
+}
+
+void EditorScene::syncHeat()
+{
+    for (auto it = m_devices.cbegin(); it != m_devices.cend(); ++it)
+        it.value()->setHeatLevel(m_simulation->heatLevel(it.key()));
+    for (auto it = m_wires.cbegin(); it != m_wires.cend(); ++it)
+        it.value()->setHeat(m_simulation->wireHeat(it.key()));
 }
 
 void EditorScene::placeCurrentLabels()

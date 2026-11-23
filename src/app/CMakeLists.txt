@@ -33,7 +33,8 @@ qt_add_resources(electricity_lib "pictures" PREFIX "/" BASE "${PROJECT_SOURCE_DI
           "${PROJECT_SOURCE_DIR}/resources/svg/loads/cooktop.svg"
           "${PROJECT_SOURCE_DIR}/resources/svg/ui/undo.svg"
           "${PROJECT_SOURCE_DIR}/resources/svg/ui/redo.svg"
-          "${PROJECT_SOURCE_DIR}/resources/svg/ui/wire.svg")
+          "${PROJECT_SOURCE_DIR}/resources/svg/ui/wire.svg"
+          "${PROJECT_SOURCE_DIR}/resources/svg/ui/pause.svg")
 
 qt_add_executable(electricity WIN32 main.cpp)
 target_link_libraries(electricity PRIVATE electricity_lib)

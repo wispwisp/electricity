@@ -21,11 +21,13 @@
 #include <QComboBox>
 #include <QDockWidget>
 #include <QEvent>
+#include <QLabel>
 #include <QMenu>
 #include <QMenuBar>
 #include <QScreen>
 #include <QStatusBar>
 #include <QStatusTipEvent>
+#include <QTimer>
 #include <QToolBar>
 #include <QToolButton>
 #include <QUndoStack>
@@ -36,6 +38,8 @@ constexpr QSize kFrameAllowance(20, 60);
 constexpr int kPaletteWidth = 300;
 constexpr int kPropertiesWidth = 230;
 constexpr int kHintTimeout = 5000; // ms
+constexpr int kTickInterval = 50;  // ms of real time between simulation steps (ADR 0008)
+constexpr int kStartSpeed = 10;    // every launch, not saved
 } // namespace
 
 bool startsMaximized(const QSize &availableScreenSize)
@@ -198,6 +202,39 @@ MainWindow::MainWindow(QWidget *parent)
     qobject_cast<QToolButton *>(m_editToolBar->widgetForAction(m_wireAction))
             ->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
     m_editToolBar->addWidget(m_wireSectionCombo);
+    m_editToolBar->addSeparator();
+    m_timeLabel = new QLabel(this);
+    m_timeLabel->setObjectName(QStringLiteral("timeLabel"));
+    m_editToolBar->addWidget(m_timeLabel);
+    m_simulationTimer = new QTimer(this);
+    m_simulationTimer->setObjectName(QStringLiteral("simulationTimer"));
+    m_simulationTimer->setInterval(kTickInterval);
+    connect(m_simulationTimer, &QTimer::timeout, this,
+            [this] { simulation().step(kTickInterval / 1000.0 * m_speed); });
+    auto *speedGroup = new QActionGroup(this);
+    const auto addSpeedAction = [&](const QString &name, int speed) {
+        auto *action = m_editToolBar->addAction(QString());
+        action->setObjectName(name);
+        action->setCheckable(true);
+        speedGroup->addAction(action);
+        connect(action, &QAction::toggled, this, [this, speed](bool checked) {
+            if (!checked)
+                return;
+            m_speed = speed;
+            if (speed > 0)
+                m_simulationTimer->start();
+            else
+                m_simulationTimer->stop();
+        });
+        return action;
+    };
+    m_pauseAction = addSpeedAction(QStringLiteral("pauseAction"), 0);
+    m_pauseAction->setIcon(svgIcon(QStringLiteral(":/svg/ui/pause.svg"), 24));
+    for (int speed : { 1, 10, 60 }) {
+        QAction *action = addSpeedAction(QStringLiteral("speed%1Action").arg(speed), speed);
+        action->setText(QStringLiteral("×%1").arg(speed)); // not translated
+        action->setChecked(speed == kStartSpeed);
+    }
 
     m_settingsMenu = menuBar()->addMenu(QString());
     m_settingsMenu->setObjectName(QStringLiteral("settingsMenu"));
@@ -293,6 +330,8 @@ void MainWindow::retranslateUi()
         const double section = m_wireSectionCombo->itemData(i).toDouble();
         m_wireSectionCombo->setItemText(i, sectionChoiceText(m_project->catalog(), section));
     }
+    m_timeLabel->setText(tr("Time"));
+    m_pauseAction->setText(tr("Pause"));
     m_deleteAction->setText(tr("Delete"));
     m_viewMenu->setTitle(tr("View"));
     m_fitAction->setText(tr("Fit to window"));

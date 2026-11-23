@@ -18,9 +18,13 @@
 
 #include <QAction>
 #include <QApplication>
+#include <QLabel>
 #include <QMenu>
+#include <QSignalSpy>
 #include <QStatusBar>
 #include <QTest>
+#include <QTimer>
+#include <QToolBar>
 #include <QUndoStack>
 
 #include <algorithm>
@@ -67,6 +71,13 @@ private slots:
     void faultActionsAreNotEdits();
     void faultSurvivesDeleteAndUndo();
     void faultMarkKeepsTerminalsAndButtonClear();
+    void timeControlStartsAtTenTimes();
+    void pauseStopsHeatingNotInstantTrips();
+    void overloadTripsAtSixtyTimes();
+    void wireTurnsOrangeThenRed();
+    void overloadedRcdGlows();
+    void quietTimerDoesNoSolves();
+    void tripDuringDragKeepsTheDrag();
 
 private:
     void zoomOut();
@@ -89,6 +100,19 @@ private:
     void tripQf3();
     // The wire with these ends, from "d3:2>l1:L"; empty if none.
     [[nodiscard]] QString wireId(const QString &ends) const;
+    [[nodiscard]] WireItem *wireItem(const QString &ends) const;
+    // The viewport point over the middle of the load's button.
+    [[nodiscard]] QPoint onButton(const QString &id) const;
+    // Switches the devices and loads on by clicks.
+    void switchOn(const QStringList &ids);
+    // Clicks the toolbar button of the checkable action, which is then checked.
+    void clickToolButton(const char *name);
+    // A washing machine dropped into Socket 4, then QF1, QD1, QF4, the kettle, the microwave and
+    // the machine switched on by clicks: QF4 carries 22.0 A.
+    void overloadQf4();
+    // Through the model: d6, a 1P C32 at (0, 7) fed from d5:1 by 0.3 m of 6 mm², and l11, a 9 kW
+    // cooktop wired to d6 and the bars by 15 m of 1.5 mm².
+    void addCooktopCircuit();
     template<typename T>
     T *named(const char *name) const
     {
@@ -191,6 +215,74 @@ QString TestProtecting::wireId(const QString &ends) const
         return wire.from == parts[0] && wire.to == parts[1];
     });
     return it == wires.end() ? QString() : it->id;
+}
+
+WireItem *TestProtecting::wireItem(const QString &ends) const
+{
+    return dynamic_cast<WireItem *>(sceneItem(scene, wireId(ends)));
+}
+
+QPoint TestProtecting::onButton(const QString &id) const
+{
+    const LoadItem *item = loadItem(id);
+    return viewportPoint(canvas, item->mapToScene(item->buttonRect().center()));
+}
+
+void TestProtecting::switchOn(const QStringList &ids)
+{
+    for (const QString &id : ids) {
+        if (window->project().device(id))
+            clickHandle(id);
+        else
+            QTest::mouseClick(canvas->viewport(), Qt::LeftButton, {}, onButton(id));
+        QVERIFY2(window->simulation().isOn(id), qPrintable(id));
+    }
+}
+
+void TestProtecting::clickToolButton(const char *name)
+{
+    auto *action = named<QAction>(name);
+    QVERIFY2(action, name);
+    QWidget *button = named<QToolBar>("editToolBar")->widgetForAction(action);
+    QVERIFY2(button, name);
+    QTest::mouseClick(button, Qt::LeftButton);
+    QVERIFY2(action->isChecked(), name);
+}
+
+void TestProtecting::overloadQf4()
+{
+    dropLoad(canvas, named<PaletteWidget>("paletteTree"), "washing-machine",
+             viewportPoint(canvas, loadItem(QStringLiteral("l6"))->mapToScene(QPointF(18, 13.5))));
+    const QString machine = window->project().loads().last().id;
+    QCOMPARE(window->project().load(machine)->socket, QStringLiteral("l6"));
+    switchOn({ QStringLiteral("d1"), QStringLiteral("d2"), QStringLiteral("d5"),
+               QStringLiteral("l9"), QStringLiteral("l10"), machine });
+}
+
+void TestProtecting::addCooktopCircuit()
+{
+    Project &project = window->project();
+    QCOMPARE(project.addDevice(deviceFromPreset(preset(QStringLiteral("breaker-1p-c32")), 0, 7)),
+             QStringLiteral("d6"));
+    PlacedLoad cooktop = loadFromType(*project.catalog().loadType(QStringLiteral("cooktop")),
+                                      QPointF(432, 270));
+    cooktop.power = 9000;
+    QCOMPARE(project.addLoad(cooktop), QStringLiteral("l11"));
+    struct Ends
+    {
+        const char *from;
+        const char *to;
+        double section;
+        double length;
+    };
+    for (const Ends &ends :
+         { Ends{ "d5:1", "d6:1", 6, 0.3 }, Ends{ "d6:2", "l11:L", 1.5, 15 },
+           Ends{ "nbar:5", "l11:N", 1.5, 15 }, Ends{ "pebar:5", "l11:PE", 1.5, 15 } }) {
+        Wire wire{ {}, QString::fromLatin1(ends.from), QString::fromLatin1(ends.to), ends.section };
+        wire.conductor = project.conductorFor(wire.from, wire.to);
+        wire.length = ends.length;
+        QVERIFY2(!project.addWire(wire).isEmpty(), ends.from);
+    }
 }
 
 void TestProtecting::initTestCase()
@@ -690,4 +782,184 @@ void TestProtecting::faultMarkKeepsTerminalsAndButtonClear()
         item->setFault(false, false);
         QVERIFY2(item->faultMarkRect().isEmpty(), qPrintable(id));
     }
+}
+
+void TestProtecting::timeControlStartsAtTenTimes()
+{
+    const auto startsAtTenTimes = [](const MainWindow &w) {
+        const auto *speed10 = w.findChild<QAction *>(QStringLiteral("speed10Action"));
+        QVERIFY(speed10);
+        QVERIFY(speed10->isChecked());
+        const auto *timer = w.findChild<QTimer *>(QStringLiteral("simulationTimer"));
+        QVERIFY(timer);
+        QVERIFY(timer->isActive());
+        QCOMPARE(timer->interval(), 50);
+    };
+    startsAtTenTimes(*window);
+    QCOMPARE(named<QLabel>("timeLabel")->text(), QStringLiteral("Time"));
+    QCOMPARE(named<QAction>("pauseAction")->text(), QStringLiteral("Pause"));
+    QCOMPARE(named<QAction>("speed1Action")->text(), QStringLiteral("×1"));
+    QCOMPARE(named<QAction>("speed10Action")->text(), QStringLiteral("×10"));
+    QCOMPARE(named<QAction>("speed60Action")->text(), QStringLiteral("×60"));
+
+    clickToolButton("speed60Action");
+    for (const char *name : { "pauseAction", "speed1Action", "speed10Action" })
+        QVERIFY2(!named<QAction>(name)->isChecked(), name);
+    QVERIFY(named<QTimer>("simulationTimer")->isActive());
+
+    const MainWindow second;
+    startsAtTenTimes(second);
+}
+
+void TestProtecting::pauseStopsHeatingNotInstantTrips()
+{
+    clickToolButton("pauseAction");
+    QVERIFY(!named<QTimer>("simulationTimer")->isActive());
+    overloadQf4();
+    Simulation &simulation = window->simulation();
+    const double elapsed = simulation.elapsed();
+    QTest::qWait(500);
+    QCOMPARE(simulation.elapsed(), elapsed);
+    QVERIFY(simulation.isOn(u"d5"));
+
+    clickHandle("d4");
+    QVERIFY(simulation.setFault(QStringLiteral("l3"), Fault::ShortCircuit));
+    QCOMPARE(simulation.tripCause(u"d4"), TripCause::ShortCircuit);
+    QCOMPARE(simulation.elapsed(), elapsed);
+}
+
+void TestProtecting::overloadTripsAtSixtyTimes()
+{
+    clickToolButton("pauseAction");
+    overloadQf4();
+    const Simulation &simulation = window->simulation();
+    const DeviceItem *item = deviceItem(QStringLiteral("d5"));
+    QCOMPARE(item->heatLevel(), 0.0);
+    clickToolButton("speed60Action");
+    QTRY_VERIFY_WITH_TIMEOUT(item->heatLevel() > 0.5, 10000);
+    QCOMPARE(simulation.tripCause(u"d5"), TripCause::None);
+    named<QAction>("fitAction")->trigger(); // the default zoom
+    QVERIFY(saveScreenshot(*window, "f09", "heating"));
+
+    QTRY_VERIFY_WITH_TIMEOUT(simulation.tripCause(u"d5") != TripCause::None, 10000);
+    QCOMPARE(simulation.tripCause(u"d5"), TripCause::Overload);
+    QCOMPARE(message(), QStringLiteral("QF4 tripped: overload, 22.0 A on C16"));
+    QVERIFY(saveScreenshot(*window, "f09", "overload"));
+}
+
+void TestProtecting::wireTurnsOrangeThenRed()
+{
+    clickToolButton("pauseAction");
+    addCooktopCircuit();
+    switchOn({ QStringLiteral("d1"), QStringLiteral("d2"), QStringLiteral("d6"),
+               QStringLiteral("l11") });
+    const Simulation &simulation = window->simulation();
+    const WireItem *wire = wireItem(QStringLiteral("d6:2>l11:L"));
+    QVERIFY(wire);
+    QCOMPARE(wire->heat(), WireHeat::Normal);
+
+    clickToolButton("speed60Action");
+    QTRY_COMPARE_WITH_TIMEOUT(wire->heat(), WireHeat::Overloaded, 10000);
+    QTRY_COMPARE_WITH_TIMEOUT(wire->heat(), WireHeat::Overheating, 10000);
+    QVERIFY2(message().contains(QStringLiteral("overheating: 34.6 A on 1.5 mm², allowed 19 A")),
+             qPrintable(message()));
+    named<QAction>("fitAction")->trigger(); // the default zoom
+    QVERIFY(saveScreenshot(*window, "f09", "wire-overheating"));
+    Theme::apply(Theme::Mode::Light);
+    QCoreApplication::processEvents(); // the palette reaches widgets through posted events
+    QVERIFY(saveScreenshot(*window, "f09", "wire-overheating-light"));
+    QVERIFY(simulation.isOn(u"d6"));
+    QCOMPARE(simulation.tripCause(u"d6"), TripCause::None);
+}
+
+void TestProtecting::overloadedRcdGlows()
+{
+    clickToolButton("pauseAction");
+    addCooktopCircuit();
+    switchOn({ QStringLiteral("d1"), QStringLiteral("d2"), QStringLiteral("d5"),
+               QStringLiteral("d6"), QStringLiteral("l11"), QStringLiteral("l9"),
+               QStringLiteral("l10") });
+    const Simulation &simulation = window->simulation();
+    QSignalSpy occurred(&simulation, &Simulation::occurred);
+    const DeviceItem *item = deviceItem(QStringLiteral("d2"));
+    QCOMPARE(item->heatLevel(), 0.0);
+
+    clickToolButton("speed60Action");
+    QTRY_VERIFY_WITH_TIMEOUT(simulation.isOverloaded(u"d2"), 10000);
+    QTRY_COMPARE(item->heatLevel(), 1.0);
+    named<QAction>("fitAction")->trigger(); // the default zoom
+    QVERIFY(saveScreenshot(*window, "f09", "rcd-overloaded"));
+    // Ruling R5: a wire's message may be newer than QD1's.
+    const auto overloaded = std::ranges::find_if(occurred, [](const QList<QVariant> &arguments) {
+        const auto event = arguments.at(0).value<SimulationEvent>();
+        return event.kind == SimulationEvent::Kind::Overloaded && event.id == QStringLiteral("d2");
+    });
+    QVERIFY(overloaded != occurred.cend());
+    const QString text = eventText(window->project(), overloaded->at(0).value<SimulationEvent>());
+    QVERIFY2(text.startsWith(QStringLiteral("QD1 overloaded:")), qPrintable(text));
+    QVERIFY(simulation.isOn(u"d1"));
+    QCOMPARE(simulation.tripCause(u"d1"), TripCause::None);
+}
+
+void TestProtecting::quietTimerDoesNoSolves()
+{
+    switchOn({ QStringLiteral("d1"), QStringLiteral("d2"), QStringLiteral("d3"),
+               QStringLiteral("d4"), QStringLiteral("d5"), QStringLiteral("l1"),
+               QStringLiteral("l2"), QStringLiteral("l7"), QStringLiteral("l8"),
+               QStringLiteral("l9"), QStringLiteral("l10") });
+    clickToolButton("speed60Action");
+    // A label moved by hand stays where it is unless the label layout runs.
+    CurrentLabelItem *label = wireItem(QStringLiteral("d3:2>l1:L"))->currentLabel();
+    QVERIFY(label->isVisible());
+    const QPointF moved = label->pos() + QPointF(0, 40);
+    label->setPos(moved);
+    const Simulation &simulation = window->simulation();
+    QSignalSpy solved(&simulation, &Simulation::solved);
+    QSignalSpy heated(&simulation, &Simulation::heated);
+    QTest::qWait(1000);
+    QCOMPARE(solved.count(), 0);
+    QVERIFY2(heated.count() >= 10, qPrintable(QString::number(heated.count())));
+    QCOMPARE(label->pos(), moved);
+    for (const char *id : { "d1", "d2", "d3", "d4", "d5" })
+        QVERIFY2(simulation.isOn(QString::fromLatin1(id)), id);
+}
+
+void TestProtecting::tripDuringDragKeepsTheDrag()
+{
+    clickToolButton("pauseAction");
+    overloadQf4();
+    Simulation &simulation = window->simulation();
+    QWidget *viewport = canvas->viewport();
+    // On the rating label, away from the handle.
+    const QPointF grab(9, 28.5);
+    const QPoint from = viewportPoint(canvas, deviceItem(QStringLiteral("d3"))->mapToScene(grab));
+    const QPoint to = viewportPoint(canvas, scene->slotRect(0, 8, 1).topLeft() + grab);
+    QTest::mousePress(viewport, Qt::LeftButton, {}, from);
+    QTest::mouseMove(viewport, (from + to) / 2);
+    QVERIFY(deviceItem(QStringLiteral("d3"))->pos() != scene->slotRect(0, 4, 1).topLeft());
+    simulation.step(200);
+    QCOMPARE(simulation.tripCause(u"d5"), TripCause::Overload);
+    QTest::mouseMove(viewport, to);
+    QTest::mouseRelease(viewport, Qt::LeftButton, {}, to);
+    QCOMPARE(window->project().device(u"d3")->module, 8);
+    QCOMPARE(deviceItem(QStringLiteral("d3"))->pos(), scene->slotRect(0, 8, 1).topLeft());
+
+    QVERIFY(simulation.setOn(QStringLiteral("d5"), true));
+    QVERIFY(simulation.isOn(u"d5"));
+    clickToolButton("wireAction");
+    QVERIFY(scene->isWireMode());
+    const QPoint terminal = viewportPoint(canvas, scene->terminalPos(QStringLiteral("nbar:8")));
+    QTest::mouseClick(viewport, Qt::LeftButton, {}, terminal);
+    QTest::mouseMove(viewport, terminal + QPoint(40, 20));
+    QCOMPARE(scene->wireStart(), QStringLiteral("nbar:8"));
+    const auto *preview = dynamic_cast<QGraphicsLineItem *>(sceneItem(scene, "wirePreview"));
+    QVERIFY(preview && preview->isVisible());
+    const QLineF line = preview->line();
+    const qsizetype wires = window->project().wires().size();
+    simulation.step(200);
+    QCOMPARE(simulation.tripCause(u"d5"), TripCause::Overload);
+    QCOMPARE(scene->wireStart(), QStringLiteral("nbar:8"));
+    QVERIFY(preview->isVisible());
+    QCOMPARE(preview->line(), line);
+    QCOMPARE(window->project().wires().size(), wires);
 }

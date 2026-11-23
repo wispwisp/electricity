@@ -143,7 +143,7 @@ void TestCatalogArt::everyPictureExistsAndFollowsArtRules()
         paths << picturePath(picture);
     const QString supply = QStringLiteral(":/svg/devices/supply-1p.svg");
     paths << supply << QStringLiteral(":/svg/ui/undo.svg") << QStringLiteral(":/svg/ui/redo.svg")
-          << QStringLiteral(":/svg/ui/wire.svg");
+          << QStringLiteral(":/svg/ui/wire.svg") << QStringLiteral(":/svg/ui/pause.svg");
     for (const QString &path : paths) {
         QVERIFY2(QFile::exists(path), qPrintable(path));
         QVERIFY2(QSvgRenderer(path).isValid(), qPrintable(path));

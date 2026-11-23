@@ -12,7 +12,9 @@ class Project;
 class QAction;
 class QComboBox;
 class QDockWidget;
+class QLabel;
 class QMenu;
+class QTimer;
 class QToolBar;
 class QUndoStack;
 
@@ -50,6 +52,10 @@ private:
     QAction *m_redoAction = nullptr;
     QAction *m_wireAction = nullptr;
     QComboBox *m_wireSectionCombo = nullptr;
+    QLabel *m_timeLabel = nullptr;
+    QAction *m_pauseAction = nullptr;
+    QTimer *m_simulationTimer = nullptr;
+    int m_speed = 0; // simulated seconds per second
     QAction *m_deleteAction = nullptr;
     QAction *m_fitAction = nullptr;
     QAction *m_showCurrentsAction = nullptr;

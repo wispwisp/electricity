@@ -5,6 +5,7 @@
 #include "app/svgpixmap.h"
 #include "app/theme.h"
 #include "core/project.h"
+#include "core/simulation.h"
 
 #include <QApplication>
 #include <QFontMetricsF>
@@ -67,6 +68,8 @@ constexpr int kTripBadgePixelSize = 6;
 constexpr qreal kFaultMarkSize = 7;
 constexpr qreal kFaultMarkInset = 1; // from the picture's left and bottom edges
 constexpr int kDropDuration = 150;   // ms, a tripped handle dropping
+constexpr qreal kHeatRimWidth = 2;   // a device body's dark outline, which the glow covers
+constexpr qreal kHeatGlowReach = 3;  // a device's glow above and below its body
 const QColor kWireCurrentTextColor(0xe6, 0xe8, 0xeb);
 const QColor kWireCurrentChipColor(0x1c, 0x1e, 0x21, 220);
 
@@ -102,6 +105,24 @@ void drawButton(QPainter *painter, const QRectF &rect, bool on)
     painter->drawArc(arc, 120 * 16, 300 * 16);
     painter->drawLine(QPointF(rect.center().x(), rect.center().y() - 2.4),
                       QPointF(rect.center().x(), rect.center().y() - 0.2));
+}
+
+// Nested rings around the rect, each fainter and wider, so that the strongest colour is at the
+// rect's edge and nothing tints the rect itself.
+void drawGlow(QPainter *painter, const QRectF &rect, const QColor &base, qreal margin)
+{
+    painter->setPen(Qt::NoPen);
+    constexpr int steps = 6;
+    QPainterPath inside;
+    inside.addRect(rect);
+    for (int i = 0; i < steps; ++i) {
+        const qreal grow = margin * (steps - i) / steps;
+        QPainterPath ring;
+        ring.addRoundedRect(rect.adjusted(-grow, -grow, grow, grow), grow, grow);
+        QColor color = base;
+        color.setAlpha(kGlowAlpha);
+        painter->fillPath(ring.subtracted(inside), color);
+    }
 }
 
 // At full strength even on the translucent drag preview, so a refusal reads as red.
@@ -390,9 +411,28 @@ QRectF DeviceItem::currentRect() const
     return { (m_size.width() - width) / 2, kDeviceCurrentTop, width, kCurrentChipHeight };
 }
 
+void DeviceItem::setHeatLevel(double level)
+{
+    if (std::exchange(m_heatLevel, level) != level)
+        update();
+}
+
+double DeviceItem::heatLevel() const
+{
+    return m_heatLevel;
+}
+
 QRectF DeviceItem::boundingRect() const
 {
-    return { 0, -DesignationHeight, m_size.width(), m_size.height() + DesignationHeight };
+    return { 0, -DesignationHeight, m_size.width(),
+             m_size.height() + DesignationHeight + kHeatGlowReach };
+}
+
+QPainterPath DeviceItem::shape() const
+{
+    QPainterPath path;
+    path.addRect(0, -DesignationHeight, m_size.width(), m_size.height() + DesignationHeight);
+    return path;
 }
 
 void DeviceItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWidget *)
@@ -412,6 +452,17 @@ void DeviceItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWid
         painter->setClipRect(m_handle.translated(0, offset).adjusted(-0.5, -0.5, 0.5, 0.5));
         painter->translate(0, offset);
         svgRenderer(m_path).render(painter, body);
+        painter->restore();
+    }
+    if (m_heatLevel > 0) {
+        // From the body's dark outline outwards, kept to the body's width so that it doesn't tint
+        // the neighbours on the rail.
+        painter->save();
+        painter->setOpacity(m_heatLevel);
+        painter->setClipRect(body.adjusted(0, -kHeatGlowReach, 0, kHeatGlowReach));
+        drawGlow(painter,
+                 body.adjusted(kHeatRimWidth, kHeatRimWidth, -kHeatRimWidth, -kHeatRimWidth),
+                 Theme::overloadedColor(), kHeatRimWidth + kHeatGlowReach);
         painter->restore();
     }
 
@@ -609,23 +660,9 @@ QPainterPath LoadItem::shape() const
 void LoadItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWidget *)
 {
     const QRectF picture(QPointF(0, 0), m_size);
-    if (m_running) {
-        const QColor base = m_light ? Theme::lampGlowColor() : Theme::liveColor();
-        painter->setPen(Qt::NoPen);
-        // Nested rings around the picture, each fainter and wider, so that the strongest colour is
-        // at the picture's edge and nothing tints the picture itself.
-        constexpr int steps = 6;
-        QPainterPath inside;
-        inside.addRect(picture);
-        for (int i = 0; i < steps; ++i) {
-            const qreal grow = kGlowMargin * (steps - i) / steps;
-            QPainterPath ring;
-            ring.addRoundedRect(picture.adjusted(-grow, -grow, grow, grow), grow, grow);
-            QColor color = base;
-            color.setAlpha(kGlowAlpha);
-            painter->fillPath(ring.subtracted(inside), color);
-        }
-    }
+    if (m_running)
+        drawGlow(painter, picture, m_light ? Theme::lampGlowColor() : Theme::liveColor(),
+                 kGlowMargin);
     svgRenderer(m_path).render(painter, picture);
 
     if (!m_shownCaption.isEmpty()) {
@@ -779,6 +816,17 @@ CurrentLabelItem *WireItem::currentLabel() const
     return m_currentLabel;
 }
 
+void WireItem::setHeat(WireHeat heat)
+{
+    if (std::exchange(m_heat, heat) != heat)
+        update();
+}
+
+WireHeat WireItem::heat() const
+{
+    return m_heat;
+}
+
 // The shape is at least as wide as anything painted.
 QRectF WireItem::boundingRect() const
 {
@@ -798,6 +846,11 @@ void WireItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWidge
         painter->drawPolyline(m_route);
     };
     painter->setBrush(Qt::NoBrush);
+    // As wide as the lane, so that it never reaches a neighbour's edge.
+    if (m_heat == WireHeat::Overloaded)
+        stroke(Theme::overloadedColor(), kWireLaneWidth);
+    else if (m_heat == WireHeat::Overheating)
+        stroke(Theme::trippedColor(), kWireLaneWidth);
     if (isSelected()) {
         // The white keeps the selection colour apart from an N wire's similar blue.
         const qreal outer = std::min(kWireLaneWidth, core + 2 * kWireSelectionWidth);

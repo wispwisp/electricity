@@ -14,6 +14,7 @@
 #include <optional>
 
 enum class Conductor : std::uint8_t;
+enum class WireHeat : std::uint8_t;
 struct Catalog;
 struct PlacedDevice;
 struct PlacedLoad;
@@ -89,8 +90,14 @@ public:
     void setCurrentText(const QString &text);
     [[nodiscard]] QString currentText() const;
     [[nodiscard]] QRectF currentRect() const; // item coordinates; empty when hidden
+    // An orange glow around the body, opacity ∝ level (0..1); 0 hides it.
+    void setHeatLevel(double level);
+    [[nodiscard]] double heatLevel() const;
 
+    // what it paints: the designation band, the body and the glow below it
     [[nodiscard]] QRectF boundingRect() const override;
+    // the designation band and the body
+    [[nodiscard]] QPainterPath shape() const override;
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
 
 protected:
@@ -110,6 +117,7 @@ private:
     qreal m_travel = 1; // how far down the handle is, 0 on to 1 off
     QString m_rating;
     QString m_current;
+    double m_heatLevel = 0;
     bool m_refused = false;
     bool m_on = false;
     bool m_tripped = false;
@@ -208,8 +216,8 @@ private:
 };
 
 // A wire along its route, which is in scene coordinates: a dark edge, the conductor colour and, on
-// PE, yellow stripes. Its current label is a separate top-level item, so that it draws over the
-// other wires.
+// PE, yellow stripes; under them a halo while it is overloaded or overheating. Its current label is
+// a separate top-level item, so that it draws over the other wires.
 class WireItem : public QGraphicsItem
 {
 public:
@@ -223,6 +231,9 @@ public:
     void setCurrentText(const QString &text); // "" hides the label
     [[nodiscard]] QString currentText() const;
     [[nodiscard]] CurrentLabelItem *currentLabel() const;
+    // An orange (Overloaded) or red (Overheating) halo under the wire, conductor colour kept.
+    void setHeat(WireHeat heat);
+    [[nodiscard]] WireHeat heat() const;
     // The route's segments, each with the width of a wire's core around it.
     [[nodiscard]] QList<QRectF> cores() const;
     // Puts the label on its route or beside it. Spots rank by how much of labels they cover, then
@@ -248,5 +259,6 @@ private:
     QPainterPath m_shape;
     Conductor m_conductor{};
     double m_section = 0;
+    WireHeat m_heat{};
     CurrentLabelItem *m_currentLabel;
 };

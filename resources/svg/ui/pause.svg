@@ -1,0 +1,7 @@
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Pause icon: two upright rounded bars, in the accent blue of the other toolbar icons. -->
+<svg xmlns="http://www.w3.org/2000/svg" version="1.2" baseProfile="tiny"
+     width="24" height="24" viewBox="0 0 24 24">
+  <rect x="6" y="5" width="4.4" height="14" rx="1.6" fill="#2a82da"/>
+  <rect x="13.6" y="5" width="4.4" height="14" rx="1.6" fill="#2a82da"/>
+</svg>
