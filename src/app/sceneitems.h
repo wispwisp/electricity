@@ -17,6 +17,7 @@ enum class Conductor : std::uint8_t;
 struct Catalog;
 struct PlacedDevice;
 struct PlacedLoad;
+class QVariantAnimation;
 
 // An SVG picture at its view-box size, with its scene id in data(0).
 class PictureItem : public QGraphicsItem
@@ -75,7 +76,12 @@ public:
     [[nodiscard]] QGraphicsItem *designationItem() const;
     void setOn(bool on); // repaints; a new item is off
     [[nodiscard]] bool isOn() const;
-    [[nodiscard]] QRectF handleRect() const; // item coordinates, where the handle is drawn now
+    // A red outline and "!" badge; going off while tripped drops the handle over 150 ms.
+    void setTripped(bool tripped);
+    [[nodiscard]] bool isTripped() const;
+    [[nodiscard]] QRectF tripMarkRect() const;   // item coordinates; empty when not tripped
+    [[nodiscard]] QRectF testButtonRect() const; // the picture's "test-button"; empty without one
+    [[nodiscard]] QRectF handleRect() const;     // item coordinates, where the handle is drawn now
     // Item coordinates: where a press switches the device, the handle's on and off positions
     // together, so that the second click of a double click still finds the handle it moved.
     [[nodiscard]] QRectF switchRect() const;
@@ -98,11 +104,26 @@ private:
     QSizeF m_size;
     QRectF m_label;  // the picture's "label" element
     QRectF m_handle; // the picture's "handle" element, drawn on (up)
+    QRectF m_testButton;
     TextItem *m_designationItem;
+    QVariantAnimation *m_drop;
+    qreal m_travel = 1; // how far down the handle is, 0 on to 1 off
     QString m_rating;
     QString m_current;
     bool m_refused = false;
     bool m_on = false;
+    bool m_tripped = false;
+};
+
+// A red outline and "!" badge over the supply picture while the stairwell breaker is tripped, as a
+// child of the picture. Clicks go through to the picture.
+class TripMarkItem : public QGraphicsItem
+{
+public:
+    explicit TripMarkItem(QGraphicsItem *supply);
+
+    [[nodiscard]] QRectF boundingRect() const override;
+    void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
 };
 
 // A placed load: its picture, the caption under a wired load, and for a socket faint outlines of

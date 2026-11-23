@@ -117,6 +117,21 @@ QColor lampGlowColor()
     return { 0xff, 0xd5, 0x4f };
 }
 
+QColor trippedColor()
+{
+    return { 0xe5, 0x39, 0x35 };
+}
+
+QColor overloadedColor()
+{
+    return { 0xff, 0x98, 0x00 };
+}
+
+QColor faultMarkColor()
+{
+    return { 0xff, 0xc1, 0x07 };
+}
+
 QColor enclosureTextColor()
 {
     return { 214, 216, 220 };

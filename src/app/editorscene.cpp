@@ -96,6 +96,7 @@ EditorScene::EditorScene(Project &project, QUndoStack &undoStack, QObject *paren
     , m_enclosure(new PictureItem(picturePath(project.enclosure().picture),
                                   QStringLiteral("enclosure")))
     , m_supply(new PictureItem(picturePath(project.supply().picture), QStringLiteral("supply")))
+    , m_supplyMark(new TripMarkItem(m_supply))
     , m_supplyText(new TextItem(kSupplyTextPixelSize))
     , m_terminalHighlight(new QGraphicsEllipseItem(-kHighlightRadius, -kHighlightRadius,
                                                    2 * kHighlightRadius, 2 * kHighlightRadius))
@@ -103,6 +104,7 @@ EditorScene::EditorScene(Project &project, QUndoStack &undoStack, QObject *paren
 {
     m_enclosure->setFlag(QGraphicsItem::ItemIsSelectable);
     addItem(m_enclosure);
+    m_supplyMark->hide();
     addItem(m_supply);
     addItem(m_supplyText);
     for (const TerminalSpec &terminal : project.supply().terminals) {
@@ -343,8 +345,24 @@ void EditorScene::mousePressEvent(QGraphicsSceneMouseEvent *event)
     dropSelectionModifiers(event);
     if (event->button() == Qt::LeftButton)
         cancelMove(); // one still marked lost its release (to a popup, say)
+    if (event->button() == Qt::LeftButton && pressSupply(event->scenePos())) {
+        event->accept();
+        return;
+    }
     QGraphicsScene::mousePressEvent(event);
     pressItem(event);
+}
+
+// A press on the supply resets its tripped breaker, and then the editor gets nothing from it.
+bool EditorScene::pressSupply(QPointF scenePos)
+{
+    const QList<QGraphicsItem *> hits = items(scenePos);
+    const auto top = std::ranges::find_if(hits, [](const QGraphicsItem *hit) {
+        return hit->acceptedMouseButtons() != Qt::NoButton;
+    });
+    if (top == hits.end() || (*top)->data(IdKey).toString() != QStringLiteral("supply"))
+        return false;
+    return m_simulation->resetSupplyBreaker();
 }
 
 void EditorScene::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
@@ -392,8 +410,11 @@ void EditorScene::mouseReleaseEvent(QGraphicsSceneMouseEvent *event)
         finishMove(event->scenePos() - m_grabOffset);
     else if (!m_switchId.isEmpty())
         m_simulation->setOn(m_switchId, !m_simulation->isOn(m_switchId));
+    else if (!m_testId.isEmpty() && !m_simulation->pressTest(m_testId))
+        emit hint(tr("The test button works only when the RCD is on and has power"));
     m_movingId.clear();
     m_switchId.clear();
+    m_testId.clear();
 }
 
 void EditorScene::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event)
@@ -408,6 +429,10 @@ void EditorScene::mouseDoubleClickEvent(QGraphicsSceneMouseEvent *event)
     dropSelectionModifiers(event);
     if (event->button() == Qt::LeftButton)
         cancelMove();
+    if (event->button() == Qt::LeftButton && pressSupply(event->scenePos())) {
+        event->accept();
+        return;
+    }
     QGraphicsScene::mouseDoubleClickEvent(event);
     // The press of a quick second drag arrives as a double click.
     pressItem(event);
@@ -448,6 +473,9 @@ void EditorScene::pressItem(QGraphicsSceneMouseEvent *event)
         if (static_cast<const DeviceItem *>(item)->switchRect().contains(
                     item->mapFromScene(event->scenePos())))
             m_switchId = id;
+        else if (static_cast<const DeviceItem *>(item)->testButtonRect().contains(
+                         item->mapFromScene(event->scenePos())))
+            m_testId = id;
     } else if (load) {
         const LoadType *type = m_project.catalog().loadType(load->type);
         Q_ASSERT(type); // the project only holds valid loads
@@ -500,6 +528,7 @@ void EditorScene::cancelMove()
     const QString id = std::exchange(m_movingId, {});
     m_moving = false;
     m_switchId.clear();
+    m_testId.clear();
     if (id.isEmpty())
         return;
     const PlacedDevice *device = m_project.device(id);
@@ -935,7 +964,9 @@ void EditorScene::syncLive()
     const auto label = [this](double amperes) {
         return m_currentsShown && showsCurrent(amperes) ? currentText(amperes) : QString();
     };
+    // Tripped first, so that the handle drops when it goes off.
     for (auto it = m_devices.cbegin(); it != m_devices.cend(); ++it) {
+        it.value()->setTripped(m_simulation->tripCause(it.key()) != TripCause::None);
         it.value()->setOn(m_simulation->isOn(it.key()));
         it.value()->setCurrentText(label(m_simulation->deviceCurrent(it.key())));
     }
@@ -945,6 +976,7 @@ void EditorScene::syncLive()
     }
     for (auto it = m_wires.cbegin(); it != m_wires.cend(); ++it)
         it.value()->setCurrentText(label(m_simulation->wireCurrent(it.key())));
+    m_supplyMark->setVisible(m_simulation->tripCause(SupplyBreakerId) != TripCause::None);
     placeCurrentLabels();
 }
 

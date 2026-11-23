@@ -12,6 +12,7 @@
 #include <QPainter>
 #include <QPainterPathStroker>
 #include <QSvgRenderer>
+#include <QVariantAnimation>
 
 #include <algorithm>
 #include <cmath>
@@ -57,6 +58,13 @@ constexpr qreal kDeviceCurrentTop = 65;
 constexpr qreal kDeviceCurrentInset = 1; // keeps the body's outline beside the chip
 constexpr qreal kDeviceCurrentEdgeWidth = 0.5;
 const QColor kDeviceCurrentEdgeColor(0x8c, 0x91, 0x97); // as the picture's rating label
+constexpr qreal kTripOutlineWidth = 1;
+constexpr qreal kTripBadgeRadius = 4;
+constexpr qreal kDeviceBadgeInset = 5; // from the body's right edge to the badge's centre
+constexpr qreal kDeviceBadgeY = 17;
+const QPointF kSupplyBadgeCentre(49, 14);
+constexpr int kTripBadgePixelSize = 6;
+constexpr int kDropDuration = 150; // ms, a tripped handle dropping
 const QColor kWireCurrentTextColor(0xe6, 0xe8, 0xeb);
 const QColor kWireCurrentChipColor(0x1c, 0x1e, 0x21, 220);
 
@@ -109,6 +117,31 @@ QFont pixelFont(int pixelSize)
     QFont font = QApplication::font();
     font.setPixelSize(pixelSize);
     return font;
+}
+
+// A red outline around the rect.
+void drawTripOutline(QPainter *painter, const QRectF &rect)
+{
+    painter->setPen(QPen(Theme::trippedColor(), kTripOutlineWidth));
+    painter->setBrush(Qt::NoBrush);
+    const qreal inset = kTripOutlineWidth / 2;
+    painter->drawRect(rect.adjusted(inset, inset, -inset, -inset));
+}
+
+// A red disc with a white "!".
+void drawTripBadge(QPainter *painter, QPointF centre)
+{
+    painter->setRenderHint(QPainter::Antialiasing);
+    painter->setPen(Qt::NoPen);
+    painter->setBrush(Theme::trippedColor());
+    painter->drawEllipse(centre, kTripBadgeRadius, kTripBadgeRadius);
+    QFont font = pixelFont(kTripBadgePixelSize);
+    font.setBold(true);
+    painter->setFont(font);
+    painter->setPen(Qt::white);
+    painter->drawText(QRectF(centre.x() - kTripBadgeRadius, centre.y() - kTripBadgeRadius,
+                             2 * kTripBadgeRadius, 2 * kTripBadgeRadius),
+                      Qt::AlignCenter, QStringLiteral("!"));
 }
 
 // Centred in rect, and scaled down to its width if wider.
@@ -193,7 +226,15 @@ void TextItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWidge
 DeviceItem::DeviceItem(const Catalog &catalog, const QString &id)
     : m_catalog(catalog)
     , m_designationItem(new TextItem(DesignationPixelSize))
+    , m_drop(new QVariantAnimation)
 {
+    m_drop->setDuration(kDropDuration);
+    m_drop->setStartValue(0.0);
+    m_drop->setEndValue(1.0);
+    QObject::connect(m_drop, &QVariantAnimation::valueChanged, [this](const QVariant &value) {
+        m_travel = value.toReal();
+        update();
+    });
     setData(EditorScene::IdKey, id);
     setFlags(ItemIsSelectable | ItemSendsGeometryChanges);
     setZValue(PlacedZ);
@@ -204,6 +245,7 @@ DeviceItem::DeviceItem(const Catalog &catalog, const QString &id)
 
 DeviceItem::~DeviceItem()
 {
+    delete m_drop;
     delete m_designationItem;
 }
 
@@ -223,6 +265,9 @@ void DeviceItem::setDevice(const PlacedDevice &device, const QString &designatio
         };
         m_label = bounds(QStringLiteral("label"));
         m_handle = bounds(QStringLiteral("handle"));
+        m_testButton = renderer.elementExists(QStringLiteral("test-button"))
+                ? bounds(QStringLiteral("test-button"))
+                : QRectF();
     }
     m_designationItem->setText(designation);
     placeDesignation();
@@ -258,8 +303,37 @@ QGraphicsItem *DeviceItem::designationItem() const
 
 void DeviceItem::setOn(bool on)
 {
-    if (std::exchange(m_on, on) != on)
+    if (std::exchange(m_on, on) == on)
+        return;
+    m_drop->stop();
+    m_travel = on ? 0 : 1;
+    if (!on && m_tripped)
+        m_drop->start();
+    update();
+}
+
+void DeviceItem::setTripped(bool tripped)
+{
+    if (std::exchange(m_tripped, tripped) != tripped)
         update();
+}
+
+bool DeviceItem::isTripped() const
+{
+    return m_tripped;
+}
+
+QRectF DeviceItem::tripMarkRect() const
+{
+    if (!m_tripped)
+        return {};
+    return { m_size.width() - kDeviceBadgeInset - kTripBadgeRadius,
+             kDeviceBadgeY - kTripBadgeRadius, 2 * kTripBadgeRadius, 2 * kTripBadgeRadius };
+}
+
+QRectF DeviceItem::testButtonRect() const
+{
+    return m_testButton;
 }
 
 bool DeviceItem::isOn() const
@@ -269,7 +343,7 @@ bool DeviceItem::isOn() const
 
 QRectF DeviceItem::handleRect() const
 {
-    return m_on ? m_handle : m_handle.translated(0, HandleTravel);
+    return m_handle.translated(0, HandleTravel * m_travel);
 }
 
 QRectF DeviceItem::switchRect() const
@@ -307,7 +381,22 @@ QRectF DeviceItem::boundingRect() const
 void DeviceItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWidget *)
 {
     const QRectF body(QPointF(0, 0), m_size);
-    (m_on ? svgRenderer(m_path) : switchedOffRenderer(m_path)).render(painter, body);
+    const bool dropping = !m_on && m_travel < 1;
+    (m_on || dropping ? svgRenderer(m_path) : switchedOffRenderer(m_path)).render(painter, body);
+    if (dropping) {
+        // The off picture's slot where the handle was, then the on picture's handle moved down.
+        painter->save();
+        painter->setClipRect(QRectF(m_handle.left(), m_handle.top(), m_handle.width(), HandleTravel)
+                                     .adjusted(-0.5, -0.5, 0.5, 0));
+        switchedOffRenderer(m_path).render(painter, body);
+        painter->restore();
+        const qreal offset = HandleTravel * m_travel;
+        painter->save();
+        painter->setClipRect(m_handle.translated(0, offset).adjusted(-0.5, -0.5, 0.5, 0.5));
+        painter->translate(0, offset);
+        svgRenderer(m_path).render(painter, body);
+        painter->restore();
+    }
 
     painter->setFont(pixelFont(kRatingPixelSize));
     painter->setPen(Qt::black); // printed on the white label
@@ -323,10 +412,32 @@ void DeviceItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWid
                        pixelFont(kCurrentPixelSize), m_current);
     }
 
+    if (m_tripped) {
+        drawTripOutline(painter, body);
+        drawTripBadge(painter, tripMarkRect().center());
+    }
     if (isSelected())
         drawOutline(painter, body, Theme::selectionColor());
     if (m_refused)
         drawRefused(painter, body);
+}
+
+TripMarkItem::TripMarkItem(QGraphicsItem *supply)
+    : QGraphicsItem(supply)
+{
+    setData(EditorScene::IdKey, QStringLiteral("supplyTripMark"));
+    setAcceptedMouseButtons(Qt::NoButton);
+}
+
+QRectF TripMarkItem::boundingRect() const
+{
+    return parentItem()->boundingRect();
+}
+
+void TripMarkItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWidget *)
+{
+    drawTripOutline(painter, boundingRect());
+    drawTripBadge(painter, kSupplyBadgeCentre);
 }
 
 QVariant DeviceItem::itemChange(GraphicsItemChange change, const QVariant &value)

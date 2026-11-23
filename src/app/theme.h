@@ -25,6 +25,10 @@ QColor refusedColor();
 // A running appliance's halo, and a lit lamp's glow.
 QColor liveColor();
 QColor lampGlowColor();
+// A tripped device's outline and badge; also overheating and danger.
+QColor trippedColor();
+QColor overloadedColor();
+QColor faultMarkColor();
 // Designations on the enclosure's dark interior.
 QColor enclosureTextColor();
 // Wires, as on the supply picture (ADR 0013): the conductor colour, yellow stripes on PE, and a

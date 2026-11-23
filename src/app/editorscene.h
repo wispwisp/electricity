@@ -19,6 +19,7 @@ class Project;
 class QUndoStack;
 class Simulation;
 class TextItem;
+class TripMarkItem;
 class WireItem;
 enum class LoadPlacement : std::uint8_t;
 struct LoadType;
@@ -144,6 +145,9 @@ private:
     // A left press on a device or a load may become a move; on a device's handle, if it doesn't,
     // the release switches the device.
     void pressItem(QGraphicsSceneMouseEvent *event);
+    // A left press on the supply picture resets the stairwell breaker if it is tripped; true if it
+    // did, and the press is taken.
+    bool pressSupply(QPointF scenePos);
     // Shows the load being moved where a release with its picture centred on centre would put it,
     // tinted if it can't go there; a socket carries its appliances.
     void moveLoadItem(const PlacedLoad &load, QPointF centre);
@@ -171,6 +175,7 @@ private:
     QUndoStack &m_undoStack;
     PictureItem *m_enclosure;
     PictureItem *m_supply;
+    TripMarkItem *m_supplyMark;
     TextItem *m_supplyText;
     QList<TextItem *> m_supplyLetters; // in the order of the supply's terminals
     QList<PictureItem *> m_barCells;
@@ -183,6 +188,7 @@ private:
     LoadItem *m_loadPreview = nullptr; // while a load is dragged over the scene
     QString m_movingId;                // the device or load under a left press, "" if none
     QString m_switchId;                // m_movingId when the press is on its handle, else ""
+    QString m_testId;                  // m_movingId when the press is on its test button, else ""
     QPointF m_grabOffset; // press point minus the device body centre or the load picture centre
     QList<QAction *> m_contextActions;
     QMenu *m_contextMenu = nullptr;

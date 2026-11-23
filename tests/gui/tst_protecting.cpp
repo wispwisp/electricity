@@ -49,12 +49,26 @@ private slots:
     void newerConditionShowsThenFallsBack();
     void messageOfADeletedObjectGoes();
     void hintThenBackToTheEvent();
+    void tripShowsOnTheDevice();
+    void clickOnTrippedHandleResets();
+    void handSwitchOffShowsNoMark();
+    void tripMarkKeepsTerminalsAndHandleClear();
+    void testButtonTripsRcd();
+    void testButtonWithoutPowerHints();
+    void dragFromTestButtonMoves();
+    void wireToolTestButtonDoesNothing();
+    void stairwellTripShowsOnSupplyAndClickResets();
+    void supplyClickWhenNotTrippedDoesNothing();
 
 private:
     void zoomOut();
     [[nodiscard]] DeviceItem *deviceItem(const QString &id) const;
     [[nodiscard]] QPoint onHandle(const QString &id) const;
     void clickHandle(const QString &id);
+    [[nodiscard]] QPoint onTestButton(const QString &id) const;
+    [[nodiscard]] QPoint onSupply() const;
+    // Where the item's handle is drawn when the device is off.
+    [[nodiscard]] QRectF offHandle(const QString &id) const;
     [[nodiscard]] QString message() const;
     // The tutorial loads, zoomed out, with QF1, QD1 and QF3 on and a short circuit on Socket 1:
     // QF3 trips.
@@ -92,6 +106,26 @@ QPoint TestProtecting::onHandle(const QString &id) const
 void TestProtecting::clickHandle(const QString &id)
 {
     QTest::mouseClick(canvas->viewport(), Qt::LeftButton, {}, onHandle(id));
+}
+
+QPoint TestProtecting::onTestButton(const QString &id) const
+{
+    const DeviceItem *item = deviceItem(id);
+    return viewportPoint(canvas, item->mapToScene(item->testButtonRect().center()));
+}
+
+QPoint TestProtecting::onSupply() const
+{
+    const QGraphicsItem *supply = sceneItem(scene, QStringLiteral("supply"));
+    return viewportPoint(canvas, supply->mapToScene(supply->boundingRect().center()));
+}
+
+QRectF TestProtecting::offHandle(const QString &id) const
+{
+    const DeviceItem *item = deviceItem(id);
+    const QRectF travel = item->switchRect();
+    const QSizeF size = item->handleRect().size();
+    return { travel.left(), travel.bottom() - size.height(), size.width(), size.height() };
 }
 
 QString TestProtecting::message() const
@@ -297,6 +331,160 @@ void TestProtecting::hintThenBackToTheEvent()
                viewportPoint(canvas, scene->slotRect(0, 1, 1).center()));
     QCOMPARE(message(), QStringLiteral("No room here: another device is in the way."));
     QTRY_COMPARE_WITH_TIMEOUT(message(), kQf3Short, 7000);
+}
+
+void TestProtecting::tripShowsOnTheDevice()
+{
+    tripQf3();
+    const DeviceItem *item = deviceItem(QStringLiteral("d4"));
+    QVERIFY(item->isTripped());
+    QVERIFY(!item->isOn());
+    QTRY_COMPARE(item->handleRect(), offHandle(QStringLiteral("d4")));
+    QVERIFY(!item->tripMarkRect().isEmpty());
+    QVERIFY(saveScreenshot(*window, "f09", "tripped"));
+}
+
+void TestProtecting::clickOnTrippedHandleResets()
+{
+    QList<SimulationEvent> events;
+    connect(&window->simulation(), &Simulation::occurred, this,
+            [&events](const SimulationEvent &event) { events << event; });
+    const auto tripped = [&events] {
+        return std::ranges::count_if(events, [](const SimulationEvent &event) {
+            return event.kind == SimulationEvent::Kind::Tripped && event.id == QStringLiteral("d4");
+        });
+    };
+    tripQf3();
+    const DeviceItem *item = deviceItem(QStringLiteral("d4"));
+    QCOMPARE(tripped(), 1);
+
+    clickHandle("d4"); // the fault is still there
+    QVERIFY(item->isTripped());
+    QVERIFY(!item->isOn());
+    QCOMPARE(tripped(), 2);
+
+    QVERIFY(window->simulation().setFault(QStringLiteral("l3"), Fault::None));
+    clickHandle("d4");
+    QVERIFY(item->isOn());
+    QVERIFY(!item->isTripped());
+    QVERIFY(item->tripMarkRect().isEmpty());
+    QCOMPARE(tripped(), 2);
+}
+
+void TestProtecting::handSwitchOffShowsNoMark()
+{
+    clickHandle("d1");
+    clickHandle("d1");
+    const DeviceItem *item = deviceItem(QStringLiteral("d1"));
+    QVERIFY(!item->isOn());
+    QVERIFY(!item->isTripped());
+    QVERIFY(item->tripMarkRect().isEmpty());
+}
+
+void TestProtecting::tripMarkKeepsTerminalsAndHandleClear()
+{
+    const Catalog &catalog = window->project().catalog();
+    for (const char *name : { "d1", "d2", "d3" }) {
+        const QString id = QString::fromLatin1(name);
+        DeviceItem *item = deviceItem(id);
+        item->setTripped(true);
+        const QRectF mark = item->tripMarkRect();
+        QVERIFY2(!mark.isEmpty(), name);
+        QVERIFY2(!mark.intersects(item->handleRect()), name);
+        const PlacedDevice *device = window->project().device(id);
+        const DeviceVariant *variant = catalog.deviceType(device->type)->variant(device->poles);
+        for (const TerminalSpec &terminal : variant->terminals) {
+            const QRectF around(terminal.position - QPointF(3.6, 3.6), QSizeF(7.2, 7.2));
+            QVERIFY2(!mark.intersects(around), qPrintable(id + QLatin1Char(':') + terminal.name));
+        }
+        item->setTripped(false);
+    }
+}
+
+void TestProtecting::testButtonTripsRcd()
+{
+    clickHandle("d1");
+    clickHandle("d2");
+    QTest::mouseClick(canvas->viewport(), Qt::LeftButton, {}, onTestButton("d2"));
+    const DeviceItem *item = deviceItem(QStringLiteral("d2"));
+    QCOMPARE(window->simulation().tripCause(u"d2"), TripCause::Test);
+    QVERIFY(item->isTripped());
+    QCOMPARE(message(), QStringLiteral("QD1 tripped: test button"));
+    clickHandle("d2");
+    QVERIFY(item->isOn());
+    QVERIFY(!item->isTripped());
+}
+
+void TestProtecting::testButtonWithoutPowerHints()
+{
+    clickHandle("d2");
+    QTest::mouseClick(canvas->viewport(), Qt::LeftButton, {}, onTestButton("d2"));
+    QVERIFY(!deviceItem(QStringLiteral("d2"))->isTripped());
+    QCOMPARE(message(),
+             QStringLiteral("The test button works only when the RCD is on and has power"));
+}
+
+void TestProtecting::dragFromTestButtonMoves()
+{
+    clickHandle("d1");
+    clickHandle("d2");
+    // The device follows the cursor by the offset of the press from its centre.
+    const QPoint from = onTestButton("d2");
+    const QPoint offset = from - viewportPoint(canvas, scene->slotRect(0, 2, 2).center());
+    mouseDrag(canvas->viewport(), from,
+              viewportPoint(canvas, scene->slotRect(0, 8, 2).center()) + offset);
+    QCOMPARE(window->project().device(u"d2")->module, 8);
+    QVERIFY(!deviceItem(QStringLiteral("d2"))->isTripped());
+}
+
+void TestProtecting::wireToolTestButtonDoesNothing()
+{
+    clickHandle("d1");
+    clickHandle("d2");
+    window->findChild<QAction *>(QStringLiteral("wireAction"))->setChecked(true);
+    QVERIFY(scene->isWireMode());
+    QTest::mouseClick(canvas->viewport(), Qt::LeftButton, {}, onTestButton("d2"));
+    QVERIFY(!deviceItem(QStringLiteral("d2"))->isTripped());
+    QVERIFY(window->simulation().isOn(QStringLiteral("d2")));
+}
+
+void TestProtecting::stairwellTripShowsOnSupplyAndClickResets()
+{
+    Project &project = window->project();
+    const QGraphicsItem *mark = sceneItem(scene, QStringLiteral("supplyTripMark"));
+    QVERIFY(mark);
+    QVERIFY(!mark->isVisible());
+    Wire wire{ {}, QStringLiteral("supply:L"), QStringLiteral("supply:N"), 2.5, Conductor::L };
+    wire.conductor = project.conductorFor(wire.from, wire.to);
+    wire.length = 0.3;
+    const QString id = project.addWire(wire);
+    QVERIFY(!id.isEmpty());
+    QCOMPARE(window->simulation().tripCause(SupplyBreakerId), TripCause::ShortCircuit);
+    QVERIFY(mark->isVisible());
+    QCOMPARE(message(), QStringLiteral("Stairwell breaker tripped: short circuit, 571 A on C50"));
+    QVERIFY(saveScreenshot(*window, "f09", "stairwell"));
+
+    QTest::mouseClick(canvas->viewport(), Qt::LeftButton, {}, onSupply());
+    QCOMPARE(window->simulation().tripCause(SupplyBreakerId), TripCause::ShortCircuit);
+    QVERIFY(mark->isVisible());
+
+    sceneItem(scene, id)->setSelected(true);
+    canvas->setFocus();
+    QTest::keyClick(canvas, Qt::Key_Delete);
+    QVERIFY(!project.wire(id));
+    QTest::mouseClick(canvas->viewport(), Qt::LeftButton, {}, onSupply());
+    QCOMPARE(window->simulation().tripCause(SupplyBreakerId), TripCause::None);
+    QVERIFY(!mark->isVisible());
+    QCOMPARE(message(), QStringLiteral("Ready"));
+}
+
+void TestProtecting::supplyClickWhenNotTrippedDoesNothing()
+{
+    clickHandle("d1");
+    QTest::mouseClick(canvas->viewport(), Qt::LeftButton, {}, onSupply());
+    QCOMPARE(window->simulation().tripCause(SupplyBreakerId), TripCause::None);
+    QVERIFY(window->simulation().isOn(QStringLiteral("d1")));
+    QCOMPARE(message(), QStringLiteral("Ready"));
 }
 
 QTEST_MAIN(TestProtecting)

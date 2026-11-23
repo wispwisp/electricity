@@ -1,19 +1,23 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "app/appsetup.h"
+#include "app/sceneitems.h"
 #include "app/svgpixmap.h"
 #include "app/theme.h"
 #include "core/catalog.h"
+#include "core/project.h"
 #include "screenshot.h"
 #include "testsettings.h"
 
 #include <QApplication>
 #include <QFile>
+#include <QGraphicsScene>
 #include <QImage>
 #include <QPainter>
 #include <QRegularExpression>
 #include <QSvgRenderer>
 #include <QTest>
 
+#include <algorithm>
 #include <array>
 
 class TestCatalogArt : public QObject
@@ -30,6 +34,7 @@ private slots:
     void enclosurePicturesMatchCatalogSize();
     void rendersLoadPicturesAt32px();
     void switchedOffPicturesMoveOnlyTheHandle();
+    void trippedLookOnBothThemes();
 };
 
 namespace {
@@ -296,6 +301,46 @@ void TestCatalogArt::switchedOffPicturesMoveOnlyTheHandle()
     }
     QVERIFY(saveScreenshot(row(items, Theme::darkPalette().color(QPalette::Window), 180),
                            QStringLiteral("f08"), QStringLiteral("handles-on-off")));
+}
+
+void TestCatalogArt::trippedLookOnBothThemes()
+{
+    const Catalog &catalog = embeddedCatalog();
+    QList<QPixmap> sheets;
+    for (const Theme::Mode mode : { Theme::Mode::Dark, Theme::Mode::Light }) {
+        Theme::apply(mode);
+        QGraphicsScene scene;
+        qreal x = 0;
+        for (const DeviceType &type : catalog.deviceTypes) {
+            for (const DeviceVariant &variant : type.variants) {
+                auto *item = new DeviceItem(catalog, QStringLiteral("d"));
+                item->setDevice(PlacedDevice{ {}, type.id, variant.poles, {}, 0, 0 },
+                                type.designation);
+                item->setTripped(true);
+                QVERIFY(!item->tripMarkRect().isEmpty());
+                item->setPos(x, 0);
+                scene.addItem(item);
+                x += item->boundingRect().width() + 8;
+            }
+        }
+        const QRectF area = scene.itemsBoundingRect().adjusted(-8, -8, 8, 8);
+        QPixmap pixmap(area.size().toSize() * 4);
+        pixmap.fill(QApplication::palette().color(QPalette::Window));
+        QPainter painter(&pixmap);
+        painter.setRenderHint(QPainter::Antialiasing);
+        scene.render(&painter, QRectF(pixmap.rect()), area);
+        painter.end();
+        sheets << pixmap;
+    }
+    Theme::apply(Theme::Mode::Dark);
+    QPixmap both(std::max(sheets[0].width(), sheets[1].width()),
+                 sheets[0].height() + sheets[1].height());
+    both.fill(Qt::transparent);
+    QPainter painter(&both);
+    painter.drawPixmap(0, 0, sheets[0]);
+    painter.drawPixmap(0, sheets[0].height(), sheets[1]);
+    painter.end();
+    QVERIFY(saveScreenshot(both, QStringLiteral("f09"), QStringLiteral("tripped-sheet")));
 }
 
 QTEST_MAIN(TestCatalogArt)
