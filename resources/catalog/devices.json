@@ -3,6 +3,8 @@
   "deviceTypes": [
     {
       "id": "breaker",
+      "protection": {"timeConstant": 73, "tripFactor": 1.3,
+                     "curves": {"B": [3, 5], "C": [5, 10], "D": [10, 20]}},
       "designation": "QF",
       "name": "Circuit breaker",
       "description": "Switches a line on and off. Turns it off by itself on overload or short circuit.",
@@ -33,6 +35,7 @@
     },
     {
       "id": "rcd",
+      "protection": {"timeConstant": 73},
       "designation": "QD",
       "name": "Residual current device (RCD)",
       "description": "Turns the power off when current leaks to earth, for example through a person. Does not protect against overload.",
@@ -56,6 +59,8 @@
     },
     {
       "id": "rcbo",
+      "protection": {"timeConstant": 73, "tripFactor": 1.3,
+                     "curves": {"B": [3, 5], "C": [5, 10], "D": [10, 20]}},
       "designation": "QFD",
       "name": "Residual current circuit breaker (RCBO)",
       "description": "Breaker and RCD in one device: turns off on overload, short circuit and current leakage.",
@@ -86,11 +91,20 @@
   "supplies": [
     {
       "id": "supply-1p", "picture": "supply-1p.svg",
+      "upstreamBreaker": {"curve": "C", "ratedCurrent": 50},
       "terminals": [
         {"name": "L", "x": 9, "y": 28, "role": "L"},
         {"name": "N", "x": 27, "y": 28, "role": "N"},
         {"name": "PE", "x": 45, "y": 28, "role": "PE"}
       ]
     }
-  ]
+  ],
+  "wires": {
+    "timeConstant": 120,
+    "ratings": [
+      {"section": 1.5, "ampacity": 19}, {"section": 2.5, "ampacity": 27},
+      {"section": 4, "ampacity": 38}, {"section": 6, "ampacity": 46},
+      {"section": 10, "ampacity": 70}, {"section": 16, "ampacity": 85}
+    ]
+  }
 }

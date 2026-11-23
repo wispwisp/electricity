@@ -5,6 +5,7 @@
 #include <QDate>
 #include <QJsonObject>
 #include <QList>
+#include <QMap>
 #include <QPointF>
 #include <QSizeF>
 #include <QString>
@@ -38,12 +39,28 @@ struct DeviceVariant
     QList<ContactSpec> contacts; // in catalog order
 };
 
+struct InstantTripBand
+{
+    double lower = 0; // × In: from here a trip is reported as a short circuit
+    double upper = 0; // × In: an instant (magnetic) trip (ADR 0008)
+    friend bool operator==(const InstantTripBand &, const InstantTripBand &) = default;
+};
+
+struct ProtectionSpec
+{
+    double timeConstant = 0;               // s, of the heat state
+    std::optional<double> tripFactor;      // thermal trip at (factor·In)²; none: never on heat
+    QMap<QString, InstantTripBand> curves; // by curve letter; empty: no instant trip on current
+    friend bool operator==(const ProtectionSpec &, const ProtectionSpec &) = default;
+};
+
 struct DeviceType
 {
     QString id, name, description;
     QString designation;       // reference designation prefix, e.g. "QF"
     QJsonObject allowedValues; // parameter name -> array of allowed values
     QList<DeviceVariant> variants;
+    std::optional<ProtectionSpec> protection; // none: never trips, never heats
     [[nodiscard]] const DeviceVariant *variant(QStringView poles) const; // nullptr if absent
 };
 
@@ -61,6 +78,8 @@ struct SupplyType
     QString id;
     QString picture;
     QList<TerminalSpec> terminals;
+    QString upstreamCurve;     // the stairwell breaker on its L (ADR 0008); empty: none
+    double upstreamRating = 0; // A
 };
 
 struct EnclosureType
@@ -104,6 +123,12 @@ struct Product
     QDate accessed;
 };
 
+struct WireRating
+{
+    double section = 0;  // mm²
+    double ampacity = 0; // A, Iz (ADR 0016)
+};
+
 struct Catalog
 {
     QList<DeviceType> deviceTypes;
@@ -113,9 +138,12 @@ struct Catalog
     QList<Preset> presets;
     QList<Product> products;
     QList<LoadType> loads;
+    double wireTimeConstant = 0; // s
+    QList<WireRating> wireRatings;
     [[nodiscard]] const DeviceType *deviceType(QStringView id) const; // nullptr if absent
     [[nodiscard]] const SupplyType *supply(QStringView id) const;     // nullptr if absent
     [[nodiscard]] const LoadType *loadType(QStringView id) const;     // nullptr if absent
+    [[nodiscard]] double ampacity(double section) const; // A; 0 if the section has none
 };
 
 struct CatalogSources

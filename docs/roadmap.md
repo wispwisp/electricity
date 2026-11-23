@@ -21,7 +21,7 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
 | F06 | Wiring | ☑ |
 | F07 | Loads | ☑ |
 | F08 | Live simulation: supply, switching, currents | ☑ |
-| F09 | Protection and faults | ☐ |
+| F09 | Protection and faults | ◐ |
 | F10 | Project files | ☐ |
 | F11 | Tutorial: single-phase apartment panel | ☐ |
 | F12 | Properties and engineering details | ☐ |
@@ -189,13 +189,13 @@ overheat ([0008](adr/0008-simulation-engine.md)).
   tripped handle animation; glow for heating; wire orange/red; status bar
   events; reset by clicking the handle.
 - App: simulation timer and time-speed control (paused, ×1, ×10, ×60), moved from F08.
-- With solved currents, the 7 kW cooktop on 15 m of 1.5 mm² draws ≈ 27.7 A, barely over the 27.6 A overheating threshold, so pick a case that clears it well; the washing-machine overload on QF4 is ≈ 22.1 A and trips in about 2.7 min of simulated time instead of [0016](adr/0016-electrical-reference-data.md)'s 2 min.
+- Solved values: the washing-machine overload on QF4 is ≈ 22.0 A and trips after ≈ 163 s of simulated time; the 9 kW cooktop draws ≈ 34.6 A.
 - Status bar: show "Ready" and events in a permanent status-bar label, replacing F03's empty-StatusTip filter in `MainWindow::event` (it would leave real status tips stuck, and `retranslateUi()` resets the message on language change).
 
 **Scenario test:** on the tutorial fixture, overload QF4 by plugging a
 washing machine and stepping time → QF4 trips with cause overload; short a
-socket → QF3 trips instantly; leakage on kettle → QD1 trips; a 7 kW cooktop
-(≈30 A) on a C32 breaker with 1.5 mm² wire (Iz 19 A) → wire reaches
+socket → QF3 trips instantly; leakage on kettle → QD1 trips; a 9 kW cooktop
+(≈34.6 A) on a C32 breaker with 1.5 mm² wire (Iz 19 A) → wire reaches
 "overheating" (threshold 1.45·Iz ≈ 27.6 A) while C32 never trips (its
 thermal threshold is 1.3·32 ≈ 41.6 A). Screenshots per case.
 
@@ -227,6 +227,7 @@ step ([0017](adr/0017-tutorial-engine.md)).
 - Allow filter: since F05, edits enter from four places (palette drop and device move in `EditorScene`, delete in `MainWindow`, edits in `PropertiesPanel`); put one gate in front of all of them.
 - Allow filter: handle clicks and load buttons also go through the filter.
 - Allow filter: load drops and moves in `EditorScene` and load edits in `PropertiesPanel` also go through the filter.
+- Allow filter: the load menu's fault actions, the RCD test button and a click on the tripped supply block also go through the filter.
 
 **Scenario test:** walk the whole tutorial by real clicks and drags, asserting
 each step's completion; screenshot every step in Russian; spot-check
@@ -242,6 +243,7 @@ in the properties panel, palette and context menus
   upstream breaker, cos φ, fault resistance, designations editable, full
   catalog, event log dock, currents table. All edits undoable and affect
   the simulation.
+- Earth fault is in everyone's load menu since F09; move it behind engineering details if wanted ([0014](adr/0014-progressive-disclosure.md)). Wire τ (120 s, [0030](adr/0030-protection-faults-and-time.md)) editable; it must stay ≥ the breakers' τ, or say what a shorter one means.
 
 **Scenario test:** with the setting off, assert advanced fields hidden;
 turn on, change supply impedance and a breaker curve, assert model and

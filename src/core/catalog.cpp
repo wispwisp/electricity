@@ -42,6 +42,15 @@ const LoadType *Catalog::loadType(QStringView id) const
     return nullptr;
 }
 
+double Catalog::ampacity(double section) const
+{
+    for (const WireRating &r : wireRatings) {
+        if (r.section == section)
+            return r.ampacity;
+    }
+    return 0;
+}
+
 using namespace Qt::StringLiterals;
 
 namespace {
@@ -142,6 +151,62 @@ std::optional<Conductor> terminalRole(const QJsonObject &o, const QString &where
     return role;
 }
 
+// Reads a device type's optional "protection" object.
+std::optional<ProtectionSpec> parseProtection(const QJsonObject &o, const DeviceType &type,
+                                              const QString &where, QStringList &errors)
+{
+    if (!o.contains("protection"))
+        return std::nullopt;
+    const QJsonObject po = o.value("protection").toObject();
+    ProtectionSpec spec;
+    spec.timeConstant = po.value("timeConstant").toDouble();
+    if (spec.timeConstant <= 0)
+        errors << u"%1: protection time constant must be positive"_s.arg(where);
+    if (po.contains("tripFactor")) {
+        spec.tripFactor = po.value("tripFactor").toDouble();
+        if (*spec.tripFactor <= 0)
+            errors << u"%1: trip factor must be positive"_s.arg(where);
+    }
+    const QJsonObject curves = po.value("curves").toObject();
+    for (auto it = curves.begin(); it != curves.end(); ++it) {
+        const QJsonArray band = it.value().toArray();
+        const bool valid = band.size() == 2 && band.at(0).isDouble() && band.at(1).isDouble()
+                && band.at(0).toDouble() > 0 && band.at(0).toDouble() <= band.at(1).toDouble();
+        if (!valid) {
+            errors << u"%1: curve %2 needs 0 < lower <= upper"_s.arg(where, it.key());
+            continue;
+        }
+        spec.curves.insert(it.key(), { band.at(0).toDouble(), band.at(1).toDouble() });
+    }
+    for (const auto &curve : type.allowedValues.value("curve").toArray()) {
+        if (!curves.contains(curve.toString()))
+            errors << u"%1: allowed curve %2 has no band"_s.arg(where, curve.toString());
+    }
+    return spec;
+}
+
+void loadWires(const QJsonObject &root, Catalog &catalog, QStringList &errors)
+{
+    if (!root.contains("wires"))
+        return;
+    const QJsonObject o = root.value("wires").toObject();
+    catalog.wireTimeConstant = o.value("timeConstant").toDouble();
+    if (catalog.wireTimeConstant <= 0)
+        errors << u"wires: time constant must be positive"_s;
+    QSet<double> sections;
+    for (const auto &rv : o.value("ratings").toArray()) {
+        const QJsonObject ro = rv.toObject();
+        const WireRating rating{ ro.value("section").toDouble(), ro.value("ampacity").toDouble() };
+        const QString section = QString::number(rating.section);
+        if (rating.ampacity <= 0)
+            errors << u"wires: ampacity of %1 mm\u00b2 must be positive"_s.arg(section);
+        if (sections.contains(rating.section))
+            errors << u"wires: duplicate section %1"_s.arg(section);
+        sections.insert(rating.section);
+        catalog.wireRatings << rating;
+    }
+}
+
 void loadDevices(const QJsonObject &root, Catalog &catalog, QStringList &errors)
 {
     QSet<QString> ids;
@@ -158,6 +223,7 @@ void loadDevices(const QJsonObject &root, Catalog &catalog, QStringList &errors)
         requireText(type.id, u"id"_s, where, errors);
         requireText(type.name, u"name"_s, where, errors);
         requireText(type.designation, u"designation"_s, where, errors);
+        type.protection = parseProtection(o, type, where, errors);
         for (const auto &vv : o.value("variants").toArray()) {
             const QJsonObject vo = vv.toObject();
             DeviceVariant variant;
@@ -234,7 +300,7 @@ void loadDevices(const QJsonObject &root, Catalog &catalog, QStringList &errors)
     ids.clear();
     for (const auto &sv : root.value("supplies").toArray()) {
         const QJsonObject o = sv.toObject();
-        SupplyType supply{ o.value("id").toString(), o.value("picture").toString(), {} };
+        SupplyType supply{ o.value("id").toString(), o.value("picture").toString(), {}, {}, 0 };
         checkUnique(ids, supply.id, errors);
         const QString where = u"supply %1"_s.arg(supply.id);
         QSet<QString> names;
@@ -248,8 +314,21 @@ void loadDevices(const QJsonObject &root, Catalog &catalog, QStringList &errors)
             names.insert(terminal.name);
             supply.terminals << terminal;
         }
+        if (o.contains("upstreamBreaker")) {
+            const QJsonObject uo = o.value("upstreamBreaker").toObject();
+            supply.upstreamCurve = uo.value("curve").toString();
+            supply.upstreamRating = uo.value("ratedCurrent").toDouble();
+            const DeviceType *breaker = catalog.deviceType(u"breaker");
+            if (!breaker || !breaker->protection
+                || !breaker->protection->curves.contains(supply.upstreamCurve))
+                errors << u"%1: upstream breaker curve %2 unknown"_s.arg(where,
+                                                                         supply.upstreamCurve);
+            if (supply.upstreamRating <= 0)
+                errors << u"%1: upstream breaker rating must be positive"_s.arg(where);
+        }
         catalog.supplies << supply;
     }
+    loadWires(root, catalog, errors);
 }
 
 void loadEnclosures(const QJsonObject &root, Catalog &catalog, QStringList &errors)

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "core/catalog.h"
 #include "core/catalogstrings.h"
+#include "core/project.h"
 
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -119,6 +120,58 @@ QByteArray appendCopy(const QByteArray &json, const QString &key)
 }
 
 // Edits the first product of the first series.
+// Puts a protection object on the fixture's breaker type.
+QByteArray withProtection(const QByteArray &json, const QJsonObject &protection)
+{
+    return patchedFirst(json, u"deviceTypes"_s,
+                        [&](QJsonObject &type) { type["protection"] = protection; });
+}
+
+QJsonObject goodProtection()
+{
+    return QJsonObject{ { "timeConstant", 73 },
+                        { "tripFactor", 1.3 },
+                        { "curves", QJsonObject{ { "C", QJsonArray{ 5, 10 } } } } };
+}
+
+QJsonObject withField(QJsonObject o, const QString &key, const QJsonValue &value)
+{
+    o[key] = value;
+    return o;
+}
+
+// Adds a supply to the fixture, with an upstream breaker when one is given.
+QByteArray withSupply(const QByteArray &json, const std::optional<QJsonObject> &upstream)
+{
+    return patched(json, [&](QJsonObject &root) {
+        QJsonObject supply{
+            { "id", "supply-1p" },
+            { "picture", "supply-1p.svg" },
+            { "terminals",
+              QJsonArray{
+                      QJsonObject{ { "name", "L" }, { "x", 9 }, { "y", 28 }, { "role", "L" } } } }
+        };
+        if (upstream)
+            supply["upstreamBreaker"] = *upstream;
+        root["supplies"] = QJsonArray{ supply };
+    });
+}
+
+QByteArray withWires(const QByteArray &json, const QJsonObject &wires)
+{
+    return patched(json, [&](QJsonObject &root) { root["wires"] = wires; });
+}
+
+QJsonObject wiresWith(const QJsonArray &ratings)
+{
+    return QJsonObject{ { "timeConstant", 120 }, { "ratings", ratings } };
+}
+
+QJsonObject rating(double section, double ampacity)
+{
+    return QJsonObject{ { "section", section }, { "ampacity", ampacity } };
+}
+
 QByteArray patchedProduct(const QByteArray &json, const std::function<void(QJsonObject &)> &edit)
 {
     return patchedFirst(json, u"series"_s, [&](QJsonObject &series) {
@@ -171,6 +224,9 @@ private slots:
     void rejectsInvalidLoads();
     void loadTypesMatchSpec();
     void deviceContactsMatchSpec();
+    void loadsProtection();
+    void protectionMatchesSpec();
+    void everyWireSectionHasAnAmpacity();
     void onlyTheCeilingLampIsALight();
     void enclosureSizesMatchSpec();
     void loadStringsAreRegisteredForTranslation();
@@ -290,6 +346,79 @@ void TestCatalog::rejectsInvalidCatalog_data()
                         s.devices, QJsonArray{ QJsonArray{ "1", "2" }, QJsonArray{ "2", "1" } });
             },
             u"device type breaker 1P: terminal 2 is in two contacts"_s);
+    row(
+            "protection time constant",
+            [](CatalogSources &s) {
+                s.devices = withProtection(s.devices,
+                                           withField(goodProtection(), u"timeConstant"_s, 0));
+            },
+            u"device type breaker: protection time constant must be positive"_s);
+    row(
+            "trip factor",
+            [](CatalogSources &s) {
+                s.devices = withProtection(s.devices,
+                                           withField(goodProtection(), u"tripFactor"_s, -1));
+            },
+            u"device type breaker: trip factor must be positive"_s);
+    row(
+            "curve band order",
+            [](CatalogSources &s) {
+                s.devices = withProtection(s.devices,
+                                           withField(goodProtection(), u"curves"_s,
+                                                     QJsonObject{ { "C", QJsonArray{ 10, 5 } } }));
+            },
+            u"device type breaker: curve C needs 0 < lower <= upper"_s);
+    row(
+            "curve band not two numbers",
+            [](CatalogSources &s) {
+                s.devices = withProtection(s.devices,
+                                           withField(goodProtection(), u"curves"_s,
+                                                     QJsonObject{ { "C", QJsonArray{ 5 } } }));
+            },
+            u"device type breaker: curve C needs 0 < lower <= upper"_s);
+    row(
+            "allowed curve without a band",
+            [](CatalogSources &s) {
+                s.devices = withProtection(s.devices,
+                                           withField(goodProtection(), u"curves"_s,
+                                                     QJsonObject{ { "B", QJsonArray{ 3, 5 } } }));
+            },
+            u"device type breaker: allowed curve C has no band"_s);
+    row(
+            "upstream curve unknown",
+            [](CatalogSources &s) {
+                s.devices = withProtection(s.devices, goodProtection());
+                s.devices = withSupply(s.devices,
+                                       QJsonObject{ { "curve", "D" }, { "ratedCurrent", 50 } });
+            },
+            u"supply supply-1p: upstream breaker curve D unknown"_s);
+    row(
+            "upstream rating",
+            [](CatalogSources &s) {
+                s.devices = withProtection(s.devices, goodProtection());
+                s.devices = withSupply(s.devices,
+                                       QJsonObject{ { "curve", "C" }, { "ratedCurrent", 0 } });
+            },
+            u"supply supply-1p: upstream breaker rating must be positive"_s);
+    row(
+            "wire time constant",
+            [](CatalogSources &s) {
+                s.devices = withWires(
+                        s.devices, withField(wiresWith({ rating(1.5, 19) }), u"timeConstant"_s, 0));
+            },
+            u"wires: time constant must be positive"_s);
+    row(
+            "wire ampacity",
+            [](CatalogSources &s) {
+                s.devices = withWires(s.devices, wiresWith({ rating(1.5, 0) }));
+            },
+            u"wires: ampacity of 1.5 mm\u00b2 must be positive"_s);
+    row(
+            "wire duplicate section",
+            [](CatalogSources &s) {
+                s.devices = withWires(s.devices, wiresWith({ rating(1.5, 19), rating(1.5, 20) }));
+            },
+            u"wires: duplicate section 1.5"_s);
     row(
             "unknown type",
             [](CatalogSources &s) {
@@ -816,6 +945,72 @@ void TestCatalog::deviceContactsMatchSpec()
     QCOMPARE(contacts(u"breaker", u"2P"), (QList<ContactSpec>{ { "1", "2" }, { "3", "4" } }));
     QCOMPARE(contacts(u"rcd", u"2P"), (QList<ContactSpec>{ { "1", "2" }, { "N1", "N2" } }));
     QCOMPARE(contacts(u"rcbo", u"1P+N"), (QList<ContactSpec>{ { "1", "2" }, { "N1", "N2" } }));
+}
+
+void TestCatalog::loadsProtection()
+{
+    const CatalogLoad plain = loadCatalog(fixture());
+    QVERIFY2(plain.errors.isEmpty(), qPrintable(plain.errors.join(u'\n')));
+    QVERIFY(!plain.catalog.deviceType(u"breaker")->protection);
+    QCOMPARE(plain.catalog.wireTimeConstant, 0.0);
+
+    CatalogSources sources = fixture();
+    sources.devices = withProtection(sources.devices, goodProtection());
+    sources.devices
+            = withSupply(sources.devices, QJsonObject{ { "curve", "C" }, { "ratedCurrent", 50 } });
+    sources.devices = patched(sources.devices, [](QJsonObject &root) {
+        root["wires"] = wiresWith({ rating(1.5, 19), rating(2.5, 27) });
+    });
+    const CatalogLoad load = loadCatalog(sources);
+    QVERIFY2(load.errors.isEmpty(), qPrintable(load.errors.join(u'\n')));
+    const std::optional<ProtectionSpec> &spec = load.catalog.deviceType(u"breaker")->protection;
+    QVERIFY(spec);
+    QCOMPARE(spec->timeConstant, 73.0);
+    QCOMPARE(spec->tripFactor, std::optional<double>(1.3));
+    QCOMPARE(spec->curves, (QMap<QString, InstantTripBand>{ { "C", { 5, 10 } } }));
+    const SupplyType *supply = load.catalog.supply(u"supply-1p");
+    QCOMPARE(supply->upstreamCurve, QStringLiteral("C"));
+    QCOMPARE(supply->upstreamRating, 50.0);
+    QCOMPARE(load.catalog.wireTimeConstant, 120.0);
+    QCOMPARE(load.catalog.ampacity(2.5), 27.0);
+}
+
+void TestCatalog::protectionMatchesSpec()
+{
+    const Catalog &catalog = embeddedCatalog();
+    const QMap<QString, InstantTripBand> curves{ { "B", { 3, 5 } },
+                                                 { "C", { 5, 10 } },
+                                                 { "D", { 10, 20 } } };
+    for (QStringView id : { u"breaker", u"rcbo" }) {
+        const std::optional<ProtectionSpec> &spec = catalog.deviceType(id)->protection;
+        QVERIFY(spec);
+        QCOMPARE(spec->timeConstant, 73.0);
+        QCOMPARE(spec->tripFactor, std::optional<double>(1.3));
+        QCOMPARE(spec->curves, curves);
+    }
+    const std::optional<ProtectionSpec> &rcd = catalog.deviceType(u"rcd")->protection;
+    QVERIFY(rcd);
+    QCOMPARE(rcd->timeConstant, 73.0);
+    QVERIFY(!rcd->tripFactor);
+    QVERIFY(rcd->curves.isEmpty());
+    QCOMPARE(catalog.supply(u"supply-1p")->upstreamCurve, QStringLiteral("C"));
+    QCOMPARE(catalog.supply(u"supply-1p")->upstreamRating, 50.0);
+    QCOMPARE(catalog.wireTimeConstant, 120.0);
+    const QList<WireRating> expected{ { 1.5, 19 }, { 2.5, 27 }, { 4, 38 },
+                                      { 6, 46 },   { 10, 70 },  { 16, 85 } };
+    QCOMPARE(catalog.wireRatings.size(), expected.size());
+    for (qsizetype i = 0; i < expected.size(); ++i) {
+        QCOMPARE(catalog.wireRatings.at(i).section, expected.at(i).section);
+        QCOMPARE(catalog.wireRatings.at(i).ampacity, expected.at(i).ampacity);
+    }
+}
+
+void TestCatalog::everyWireSectionHasAnAmpacity()
+{
+    const Catalog &catalog = embeddedCatalog();
+    for (const double section : WireSections)
+        QVERIFY2(catalog.ampacity(section) > 0, qPrintable(QString::number(section)));
+    QCOMPARE(catalog.ampacity(3), 0.0);
 }
 
 void TestCatalog::onlyTheCeilingLampIsALight()
