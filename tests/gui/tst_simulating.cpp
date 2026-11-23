@@ -428,6 +428,7 @@ void TestSimulating::lampGlowsOnlyWhenOnAndPowered()
     canvas->centerOn(loadItem("l1")->sceneBoundingRect().center() + QPointF(20, 20));
     QVERIFY(saveScreenshot(*window, "f08", "lamp-glow-closeup"));
     Theme::apply(Theme::Mode::Light);
+    QCoreApplication::processEvents(); // the palette reaches widgets through posted events
     QVERIFY(saveScreenshot(*window, "f08", "lamp-glow-light-closeup"));
 }
 
@@ -445,6 +446,7 @@ void TestSimulating::applianceRunsThroughItsSocket()
     canvas->centerOn(loadItem("l9")->sceneBoundingRect().center() + QPointF(20, 0));
     QVERIFY(saveScreenshot(*window, "f08", "appliance-halo-closeup"));
     Theme::apply(Theme::Mode::Light);
+    QCoreApplication::processEvents(); // the palette reaches widgets through posted events
     QVERIFY(saveScreenshot(*window, "f08", "appliance-halo-light-closeup"));
     Theme::apply(Theme::Mode::Dark);
     zoomOut();
