@@ -177,6 +177,37 @@ void loadDevices(const QJsonObject &root, Catalog &catalog, QStringList &errors)
                 names.insert(terminal.name);
                 variant.terminals << terminal;
             }
+            QSet<QString> contacted;
+            for (const auto &contactValue : vo.value("contacts").toArray()) {
+                const QJsonArray pair = contactValue.toArray();
+                if (pair.size() != 2 || !pair.at(0).isString() || !pair.at(1).isString()) {
+                    errors << u"%1 %2: a contact joins two terminals"_s.arg(where, variant.poles);
+                    continue;
+                }
+                const ContactSpec contact{ pair.at(0).toString(), pair.at(1).toString() };
+                bool valid = true;
+                for (const QString &name : { contact.top, contact.bottom }) {
+                    if (!names.contains(name)) {
+                        errors << u"%1 %2: contact terminal %3 unknown"_s.arg(where, variant.poles,
+                                                                              name);
+                        valid = false;
+                    }
+                }
+                if (!valid)
+                    continue;
+                if (contact.top == contact.bottom) {
+                    errors << u"%1 %2: contact joins %3 to itself"_s.arg(where, variant.poles,
+                                                                         contact.top);
+                    continue;
+                }
+                for (const QString &name : { contact.top, contact.bottom }) {
+                    if (contacted.contains(name))
+                        errors << u"%1 %2: terminal %3 is in two contacts"_s.arg(
+                                where, variant.poles, name);
+                    contacted.insert(name);
+                }
+                variant.contacts << contact;
+            }
             type.variants << variant;
         }
         catalog.deviceTypes << type;
@@ -331,6 +362,7 @@ void loadLoads(const QJsonObject &root, Catalog &catalog, QStringList &errors)
         load.size = { o.value("width").toDouble(), o.value("height").toDouble() };
         load.power = o.value("power").toInt();
         load.plugsIn = o.value("plugsIn").toBool();
+        load.light = o.value("light").toBool();
         for (const auto &pv : o.value("places").toArray()) {
             const QJsonObject po = pv.toObject();
             load.places << QPointF(po.value("x").toDouble(), po.value("y").toDouble());

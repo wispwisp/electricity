@@ -23,12 +23,19 @@ struct TerminalSpec
     friend bool operator==(const TerminalSpec &, const TerminalSpec &) = default;
 };
 
+struct ContactSpec
+{
+    QString top, bottom; // terminal names a closed contact joins
+    friend bool operator==(const ContactSpec &, const ContactSpec &) = default;
+};
+
 struct DeviceVariant
 {
     QString poles;
     int modules = 0;
     QString picture;
     QList<TerminalSpec> terminals;
+    QList<ContactSpec> contacts; // in catalog order
 };
 
 struct DeviceType
@@ -77,6 +84,7 @@ struct LoadType
     QSizeF size;                   // the picture's view box
     int power = 0;                 // default W; 0 for the socket
     bool plugsIn = false;          // a plug-in appliance: no terminals, goes into a socket
+    bool light = false;            // glows warm when it runs (the ceiling lamp)
     QList<TerminalSpec> terminals; // wired loads: L, N, PE with matching roles
     QList<QPointF> places;         // the socket's two plug places; empty for other loads
 };

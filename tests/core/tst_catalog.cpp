@@ -140,6 +140,18 @@ QByteArray patchedParameters(const QByteArray &json, const QString &key,
     });
 }
 
+// Sets "contacts" on the first variant of the first device type.
+QByteArray withContacts(const QByteArray &json, const QJsonArray &contacts)
+{
+    return patchedFirst(json, u"deviceTypes"_s, [&](QJsonObject &type) {
+        QJsonArray variants = type.value("variants").toArray();
+        QJsonObject variant = variants.at(0).toObject();
+        variant["contacts"] = contacts;
+        variants.replace(0, variant);
+        type["variants"] = variants;
+    });
+}
+
 } // namespace
 
 class TestCatalog : public QObject
@@ -147,6 +159,7 @@ class TestCatalog : public QObject
     Q_OBJECT
 private slots:
     void loadsValidCatalog();
+    void loadsDeviceContacts();
     void rejectsInvalidCatalog_data();
     void rejectsInvalidCatalog();
     void embeddedCatalogLoadsWithoutErrors();
@@ -157,6 +170,8 @@ private slots:
     void rejectsInvalidLoads_data();
     void rejectsInvalidLoads();
     void loadTypesMatchSpec();
+    void deviceContactsMatchSpec();
+    void onlyTheCeilingLampIsALight();
     void enclosureSizesMatchSpec();
     void loadStringsAreRegisteredForTranslation();
     void presetsMatchSpec();
@@ -192,6 +207,20 @@ void TestCatalog::loadsValidCatalog()
     QCOMPARE(product.type, QStringLiteral("breaker"));
     QCOMPARE(product.sourceUrl, QStringLiteral("https://example.com/b"));
     QCOMPARE(product.accessed, QDate(2026, 11, 20));
+}
+
+void TestCatalog::loadsDeviceContacts()
+{
+    const CatalogLoad plain = loadCatalog(fixture());
+    QVERIFY2(plain.errors.isEmpty(), qPrintable(plain.errors.join(u'\n')));
+    QVERIFY(plain.catalog.deviceType(u"breaker")->variant(u"1P")->contacts.isEmpty());
+
+    CatalogSources sources = fixture();
+    sources.devices = withContacts(sources.devices, QJsonArray{ QJsonArray{ "1", "2" } });
+    const CatalogLoad load = loadCatalog(sources);
+    QVERIFY2(load.errors.isEmpty(), qPrintable(load.errors.join(u'\n')));
+    QCOMPARE(load.catalog.deviceType(u"breaker")->variant(u"1P")->contacts,
+             (QList<ContactSpec>{ { "1", "2" } }));
 }
 
 void TestCatalog::rejectsInvalidCatalog_data()
@@ -236,6 +265,31 @@ void TestCatalog::rejectsInvalidCatalog_data()
                 });
             },
             u"duplicate terminal 1"_s);
+    row(
+            "contact not a pair",
+            [](CatalogSources &s) {
+                s.devices = withContacts(s.devices, QJsonArray{ QJsonArray{ "1" } });
+            },
+            u"device type breaker 1P: a contact joins two terminals"_s);
+    row(
+            "contact unknown terminal",
+            [](CatalogSources &s) {
+                s.devices = withContacts(s.devices, QJsonArray{ QJsonArray{ "1", "9" } });
+            },
+            u"device type breaker 1P: contact terminal 9 unknown"_s);
+    row(
+            "contact to itself",
+            [](CatalogSources &s) {
+                s.devices = withContacts(s.devices, QJsonArray{ QJsonArray{ "1", "1" } });
+            },
+            u"device type breaker 1P: contact joins 1 to itself"_s);
+    row(
+            "terminal in two contacts",
+            [](CatalogSources &s) {
+                s.devices = withContacts(
+                        s.devices, QJsonArray{ QJsonArray{ "1", "2" }, QJsonArray{ "2", "1" } });
+            },
+            u"device type breaker 1P: terminal 2 is in two contacts"_s);
     row(
             "unknown type",
             [](CatalogSources &s) {
@@ -750,6 +804,26 @@ void TestCatalog::loadTypesMatchSpec()
         const QList<QPointF> socketPlaces{ { 4.5, 40.5 }, { 49.5, 40.5 } };
         QCOMPARE(l.places, isSocket ? socketPlaces : QList<QPointF>());
     }
+}
+
+void TestCatalog::deviceContactsMatchSpec()
+{
+    const Catalog &catalog = embeddedCatalog();
+    const auto contacts = [&](QStringView type, QStringView poles) {
+        return catalog.deviceType(type)->variant(poles)->contacts;
+    };
+    QCOMPARE(contacts(u"breaker", u"1P"), (QList<ContactSpec>{ { "1", "2" } }));
+    QCOMPARE(contacts(u"breaker", u"2P"), (QList<ContactSpec>{ { "1", "2" }, { "3", "4" } }));
+    QCOMPARE(contacts(u"rcd", u"2P"), (QList<ContactSpec>{ { "1", "2" }, { "N1", "N2" } }));
+    QCOMPARE(contacts(u"rcbo", u"1P+N"), (QList<ContactSpec>{ { "1", "2" }, { "N1", "N2" } }));
+}
+
+void TestCatalog::onlyTheCeilingLampIsALight()
+{
+    const Catalog &catalog = embeddedCatalog();
+    QCOMPARE(catalog.loads.size(), 10);
+    for (const LoadType &load : catalog.loads)
+        QCOMPARE(load.light, load.id == u"ceiling-lamp");
 }
 
 void TestCatalog::enclosureSizesMatchSpec()

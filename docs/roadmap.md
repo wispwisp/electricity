@@ -20,7 +20,7 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
 | F05 | Panel editor: enclosure, rails, placing devices | ☑ |
 | F06 | Wiring | ☑ |
 | F07 | Loads | ☑ |
-| F08 | Live simulation: supply, switching, currents | ☐ |
+| F08 | Live simulation: supply, switching, currents | ◐ |
 | F09 | Protection and faults | ☐ |
 | F10 | Project files | ☐ |
 | F11 | Tutorial: single-phase apartment panel | ☐ |
@@ -169,8 +169,7 @@ currents, lamps light up ([0008](adr/0008-simulation-engine.md)).
   energized flags; extensive unit tests (series, parallel, shared neutral,
   open contact, floating parts).
 - App: click device handle to switch; click lamp/appliance to switch on/off;
-  current labels on devices and wires (toggle); lamps glow when energized;
-  simulation timer and time-speed control (paused, ×1, ×10, ×60).
+  current labels on devices and wires (toggle); lamps glow when energized.
 - Loads: a plugged appliance draws its power between its socket's L and N; an unplugged one draws nothing.
 
 **Scenario test:** build the tutorial panel from a fixture, flip QF1, QD1,
@@ -189,6 +188,8 @@ overheat ([0008](adr/0008-simulation-engine.md)).
 - App: context menu faults on loads (short, leakage, earth fault, remove);
   tripped handle animation; glow for heating; wire orange/red; status bar
   events; reset by clicking the handle.
+- App: simulation timer and time-speed control (paused, ×1, ×10, ×60), moved from F08.
+- With solved currents, the 7 kW cooktop on 15 m of 1.5 mm² draws ≈ 27.7 A, barely over the 27.6 A overheating threshold, so pick a case that clears it well; the washing-machine overload on QF4 is ≈ 22.1 A and trips in about 2.7 min of simulated time instead of [0016](adr/0016-electrical-reference-data.md)'s 2 min.
 - Status bar: show "Ready" and events in a permanent status-bar label, replacing F03's empty-StatusTip filter in `MainWindow::event` (it would leave real status tips stuck, and `retranslateUi()` resets the message on language change).
 
 **Scenario test:** on the tutorial fixture, overload QF4 by plugging a
@@ -205,6 +206,7 @@ thermal threshold is 1.3·32 ≈ 41.6 A). Screenshots per case.
 
 - Loading: add a load/replace call to `Project` that sets the device-id counter past every `d<n>` in the file, so ids are never reused ([0024](adr/0024-placed-devices-and-designations.md)).
 - `Project::placement()` accepts only parameters that exactly match the type's allowed keys, so a parameter added to the catalog later (F12, F16) needs a per-version migration that fills it in for older files.
+- Save each device's handle position from the simulation state ([0010](adr/0010-project-file-format.md)); decide whether load on/off is saved.
 - Loads: save `loads` with type, position, power, socket and place; set the load id counter past every `l<n>` in the file; migrate power when a load type's default changes.
 
 **Scenario test:** build a small panel, save to a temp file, New, Open it
@@ -221,6 +223,7 @@ step ([0017](adr/0017-tutorial-engine.md)).
   setup fixtures), all 13 steps, texts translated to ru/kk/en.
 - Help → Tutorial to restart; Skip.
 - Allow filter: since F05, edits enter from four places (palette drop and device move in `EditorScene`, delete in `MainWindow`, edits in `PropertiesPanel`); put one gate in front of all of them.
+- Allow filter: handle clicks and load buttons also go through the filter.
 - Allow filter: load drops and moves in `EditorScene` and load edits in `PropertiesPanel` also go through the filter.
 
 **Scenario test:** walk the whole tutorial by real clicks and drags, asserting
