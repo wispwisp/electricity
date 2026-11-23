@@ -96,6 +96,7 @@ private slots:
     void clickElsewhereOnLoadSelectsWithoutSwitching();
     void dragFromButtonMovesLoad();
     void doubleClickOnButtonFlipsTwice();
+    void buttonReadsOnBothThemes();
     void lampGlowsOnlyWhenOnAndPowered();
     void applianceRunsThroughItsSocket();
     void deletingSocketStopsItsAppliancesUntilUndo();
@@ -527,6 +528,42 @@ void TestSimulating::doubleClickOnButtonFlipsTwice()
     QCOMPARE(loadItem("l1")->zValue(), LoadItem::PlacedZ);
     QVERIFY(!scene->mouseGrabberItem());
     QCOMPARE(window->undoStack().count(), 0);
+}
+
+// With no power reaching the loads only the button shows the switch: filled when on, hollow when
+// off, and its symbol readable, on both themes.
+void TestSimulating::buttonReadsOnBothThemes()
+{
+    addTutorialLoads(window->project());
+    window->simulation().setOn(QStringLiteral("l1"), true);
+    QVERIFY(loadItem("l1")->isOn());
+    QVERIFY(!loadItem("l2")->isOn());
+    QVERIFY(!loadItem("l1")->isRunning());
+    closeUp(5, loadItem("l1")->mapToScene(QPointF(52.5, 30)));
+    const auto contrast = [](const QColor &a, const QColor &b) {
+        return std::abs(qGray(a.rgb()) - qGray(b.rgb()));
+    };
+    for (const Theme::Mode mode : { Theme::Mode::Dark, Theme::Mode::Light }) {
+        Theme::apply(mode);
+        QCoreApplication::processEvents(); // the palette reaches widgets through posted events
+        const QImage image = canvas->viewport()->grab().toImage();
+        // from the button's centre, 3 is inside the disc, 2 on the symbol's arc and 4 on the ring
+        const auto pixel = [&](const char *id, QPointF offset) {
+            const LoadItem *item = loadItem(id);
+            const QPointF point = item->mapToScene(item->buttonRect().center() + offset);
+            return image.pixelColor(viewportPoint(canvas, point));
+        };
+        // the empty canvas between the two lamps, level with their buttons
+        const QColor canvasColor = image.pixelColor(
+                viewportPoint(canvas, loadItem("l1")->mapToScene(QPointF(40.5, 30))));
+        const char *theme = mode == Theme::Mode::Dark ? "dark" : "light";
+        QVERIFY2(contrast(pixel("l1", { 0, 3 }), canvasColor) > 100, theme);
+        QVERIFY2(contrast(pixel("l1", { 0, 2 }), pixel("l1", { 0, 3 })) > 100, theme);
+        QVERIFY2(contrast(pixel("l2", { 0, 3 }), canvasColor) < 30, theme);
+        QVERIFY2(contrast(pixel("l2", { 0, 2 }), canvasColor) > 100, theme);
+        QVERIFY2(contrast(pixel("l2", { 4, 0 }), canvasColor) > 100, theme);
+        QVERIFY(saveScreenshot(*window, "f08", QStringLiteral("buttons-%1-closeup").arg(theme)));
+    }
 }
 
 void TestSimulating::lampGlowsOnlyWhenOnAndPowered()

@@ -37,8 +37,6 @@ constexpr qreal kButtonInset = 6; // from the picture's bottom-right corner to t
 constexpr qreal kButtonRingWidth = 0.6;
 constexpr qreal kGlowMargin = 4.5;
 constexpr int kGlowAlpha = 70; // per ring, so the innermost ones add up to nearly solid
-const QColor kButtonOnColor(0xe6, 0xe8, 0xeb);
-const QColor kButtonOffColor(0x2b, 0x2d, 0x31);
 constexpr qreal kPlaceOutlineWidth = 0.75;
 constexpr qreal kCordWidth = 1.2;
 const QColor kCordColor(0x1c, 0x1e, 0x21);
@@ -78,15 +76,17 @@ void drawOutline(QPainter *painter, const QRectF &rect, const QColor &color)
     painter->drawRect(rect.adjusted(inset, inset, -inset, -inset));
 }
 
-// A power symbol: an arc open at the top with a line through the gap.
+// A power symbol: an arc open at the top with a line through the gap. On, a disc of the text
+// colour; off, a ring of it around the canvas colour, so that on reads as filled on both themes.
 void drawButton(QPainter *painter, const QRectF &rect, bool on)
 {
-    const QColor glyph = on ? kButtonOffColor : kButtonOnColor;
+    const QColor ink = QApplication::palette().color(QPalette::Text);
+    const QColor paper = QApplication::palette().color(QPalette::Base);
     painter->setRenderHint(QPainter::Antialiasing);
-    painter->setPen(QPen(kButtonOnColor, kButtonRingWidth));
-    painter->setBrush(on ? kButtonOnColor : kButtonOffColor);
+    painter->setPen(QPen(ink, kButtonRingWidth));
+    painter->setBrush(on ? ink : paper);
     painter->drawEllipse(rect);
-    painter->setPen(QPen(glyph, kButtonRingWidth, Qt::SolidLine, Qt::RoundCap));
+    painter->setPen(QPen(on ? paper : ink, kButtonRingWidth, Qt::SolidLine, Qt::RoundCap));
     painter->setBrush(Qt::NoBrush);
     const QRectF arc = QRectF(rect.center() - QPointF(2, 2), QSizeF(4, 4));
     painter->drawArc(arc, 120 * 16, 300 * 16);
