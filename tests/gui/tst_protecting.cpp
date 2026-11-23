@@ -52,6 +52,7 @@ private slots:
     void dangerMessageWhileItLasts();
     void newerConditionShowsThenFallsBack();
     void messageOfADeletedObjectGoes();
+    void tripMessageKeepsTheRatingAtTheTrip();
     void hintThenBackToTheEvent();
     void tripShowsOnTheDevice();
     void clickOnTrippedHandleResets();
@@ -468,6 +469,17 @@ void TestProtecting::messageOfADeletedObjectGoes()
 
     QTest::keyClick(window.get(), Qt::Key_Z, Qt::ControlModifier);
     QVERIFY(window->project().device(u"d4"));
+    QCOMPARE(window->simulation().tripCause(u"d4"), TripCause::ShortCircuit);
+    QCOMPARE(message(), kQf3Short);
+}
+
+void TestProtecting::tripMessageKeepsTheRatingAtTheTrip()
+{
+    tripQf3();
+    PlacedDevice device = *window->project().device(u"d4");
+    device.parameters[QStringLiteral("ratedCurrent")] = 25;
+    QVERIFY(window->project().updateDevice(device));
+    QCOMPARE(ratingText(*window->project().device(u"d4")), QStringLiteral("C25"));
     QCOMPARE(window->simulation().tripCause(u"d4"), TripCause::ShortCircuit);
     QCOMPARE(message(), kQf3Short);
 }

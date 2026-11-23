@@ -60,6 +60,14 @@ QString smallCurrentText(double amperes)
                        : currentText(amperes);
 }
 
+// The device's rating with In as it was at the trip, as edits don't reset a trip: "C16".
+QString ratingAtTrip(const PlacedDevice &device, double ratedCurrent)
+{
+    PlacedDevice atTrip = device;
+    atTrip.parameters[QStringLiteral("ratedCurrent")] = ratedCurrent;
+    return ratingText(atTrip);
+}
+
 QString trippedText(const Project &project, const SimulationEvent &event)
 {
     const bool stairwell = event.id == SupplyBreakerId;
@@ -79,7 +87,7 @@ QString trippedText(const Project &project, const SimulationEvent &event)
     }
     const QString rating = stairwell
             ? project.supply().upstreamCurve + QString::number(project.supply().upstreamRating)
-            : ratingText(*device);
+            : ratingAtTrip(*device, event.limit);
     const QString current = currentText(event.current);
     return event.cause == TripCause::ShortCircuit
             ? EventText::tr("%1 tripped: short circuit, %2 on %3").arg(name, current, rating)
