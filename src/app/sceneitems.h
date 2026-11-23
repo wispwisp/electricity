@@ -79,6 +79,10 @@ public:
     // Item coordinates: where a press switches the device, the handle's on and off positions
     // together, so that the second click of a double click still finds the handle it moved.
     [[nodiscard]] QRectF switchRect() const;
+    // A chip on the body below the handle slot; "" hides it.
+    void setCurrentText(const QString &text);
+    [[nodiscard]] QString currentText() const;
+    [[nodiscard]] QRectF currentRect() const; // item coordinates; empty when hidden
 
     [[nodiscard]] QRectF boundingRect() const override;
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
@@ -96,6 +100,7 @@ private:
     QRectF m_handle; // the picture's "handle" element, drawn on (up)
     TextItem *m_designationItem;
     QString m_rating;
+    QString m_current;
     bool m_refused = false;
     bool m_on = false;
 };
@@ -155,26 +160,58 @@ private:
     bool m_running = false;
 };
 
+// A wire's current: light text on a dark chip, the same in both themes, centred on its position.
+// Clicks go through to the wire under it.
+class CurrentLabelItem : public QGraphicsItem
+{
+public:
+    static constexpr qreal LabelZ = 1.8; // above wires and designations
+
+    CurrentLabelItem();
+    void setText(const QString &text); // "" hides it
+    [[nodiscard]] QString text() const;
+
+    [[nodiscard]] QRectF boundingRect() const override;
+    void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
+
+private:
+    QString m_text;
+    QFont m_font;
+};
+
 // A wire along its route, which is in scene coordinates: a dark edge, the conductor colour and, on
-// PE, yellow stripes.
+// PE, yellow stripes. Its current label is a separate top-level item, so that it draws over the
+// other wires.
 class WireItem : public QGraphicsItem
 {
 public:
     static constexpr qreal WireZ = 1.5;
 
     explicit WireItem(const QString &id);
+    ~WireItem() override;
     void setWire(const QPolygonF &route, Conductor conductor, double section);
     [[nodiscard]] QPolygonF route() const;
     [[nodiscard]] Conductor conductor() const;
+    void setCurrentText(const QString &text); // "" hides the label
+    [[nodiscard]] QString currentText() const;
+    [[nodiscard]] CurrentLabelItem *currentLabel() const;
+    // Puts the label on the spot along the route that covers least of the rects in avoid; of equal
+    // spots, on the longest segment first and nearest its middle, so after setWire() on the middle
+    // of the longest segment. Returns the label's scene rect.
+    QRectF placeCurrentLabel(const QList<QRectF> &avoid);
 
     [[nodiscard]] QRectF boundingRect() const override;
     // the route stroked at least 6 wide, for clicking
     [[nodiscard]] QPainterPath shape() const override;
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
 
+protected:
+    QVariant itemChange(GraphicsItemChange change, const QVariant &value) override;
+
 private:
     QPolygonF m_route;
     QPainterPath m_shape;
     Conductor m_conductor{};
     double m_section = 0;
+    CurrentLabelItem *m_currentLabel;
 };

@@ -159,6 +159,16 @@ MainWindow::MainWindow(QWidget *parent)
     m_fitAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_0));
     connect(m_fitAction, &QAction::triggered, canvas, &CanvasView::fitToPanel);
 
+    m_showCurrentsAction = new QAction(this);
+    m_showCurrentsAction->setObjectName(QStringLiteral("showCurrentsAction"));
+    m_showCurrentsAction->setCheckable(true);
+    m_showCurrentsAction->setChecked(Settings::savedShowCurrents());
+    m_scene->setCurrentsShown(m_showCurrentsAction->isChecked());
+    connect(m_showCurrentsAction, &QAction::toggled, this, [this](bool shown) {
+        m_scene->setCurrentsShown(shown);
+        Settings::saveShowCurrents(shown);
+    });
+
     m_editMenu = menuBar()->addMenu(QString());
     m_editMenu->setObjectName(QStringLiteral("editMenu"));
     m_editMenu->addAction(m_undoAction);
@@ -168,6 +178,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_viewMenu = menuBar()->addMenu(QString());
     m_viewMenu->setObjectName(QStringLiteral("viewMenu"));
     m_viewMenu->addAction(m_fitAction);
+    m_viewMenu->addAction(m_showCurrentsAction);
 
     m_editToolBar = addToolBar(QString());
     m_editToolBar->setObjectName(QStringLiteral("editToolBar"));
@@ -277,6 +288,7 @@ void MainWindow::retranslateUi()
     m_deleteAction->setText(tr("Delete"));
     m_viewMenu->setTitle(tr("View"));
     m_fitAction->setText(tr("Fit to window"));
+    m_showCurrentsAction->setText(tr("Show currents"));
     m_settingsMenu->setTitle(tr("Settings"));
     m_themeMenu->setTitle(tr("Theme"));
     m_darkAction->setText(tr("Dark"));

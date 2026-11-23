@@ -36,4 +36,14 @@ void saveTheme(Theme::Mode mode)
                     mode == Theme::Mode::Light ? QStringLiteral("light") : QStringLiteral("dark"));
 }
 
+bool savedShowCurrents()
+{
+    return open().value(QStringLiteral("showCurrents"), true).toBool();
+}
+
+void saveShowCurrents(bool shown)
+{
+    open().setValue(QStringLiteral("showCurrents"), shown);
+}
+
 } // namespace Settings

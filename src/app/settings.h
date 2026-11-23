@@ -14,5 +14,8 @@ void saveLanguage(Language language);
 // Dark when unset or unknown.
 Theme::Mode savedTheme();
 void saveTheme(Theme::Mode mode);
+// True when unset.
+bool savedShowCurrents();
+void saveShowCurrents(bool shown);
 
 } // namespace Settings

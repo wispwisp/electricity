@@ -48,6 +48,7 @@ private:
     QComboBox *m_wireSectionCombo = nullptr;
     QAction *m_deleteAction = nullptr;
     QAction *m_fitAction = nullptr;
+    QAction *m_showCurrentsAction = nullptr;
     QMenu *m_settingsMenu = nullptr;
     QMenu *m_themeMenu = nullptr;
     QMenu *m_languageMenu = nullptr;

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "app/editorscene.h"
 
+#include "app/currenttext.h"
 #include "app/editcommands.h"
 #include "app/palettewidget.h"
 #include "app/sceneitems.h"
@@ -272,6 +273,7 @@ void EditorScene::retranslate()
 {
     m_supplyText->setText(tr("Supply"));
     syncLoads(); // also updates the scene rect for the text's width
+    syncLive();
 }
 
 Simulation &EditorScene::simulation()
@@ -279,13 +281,25 @@ Simulation &EditorScene::simulation()
     return *m_simulation;
 }
 
+void EditorScene::setCurrentsShown(bool shown)
+{
+    m_currentsShown = shown;
+    syncLive();
+}
+
+bool EditorScene::currentsShown() const
+{
+    return m_currentsShown;
+}
+
 // ~QGraphicsScene deletes the selected items and would emit selectionChanged to listeners that
-// call back into this already destroyed EditorScene. Device items go first: each deletes its
-// designation item, which ~QGraphicsScene would otherwise delete in any order.
+// call back into this already destroyed EditorScene. Device and wire items go first: each deletes
+// its designation or current label, which ~QGraphicsScene would otherwise delete in any order.
 EditorScene::~EditorScene()
 {
     blockSignals(true);
     qDeleteAll(m_devices);
+    qDeleteAll(m_wires);
     removePreview();
 }
 
@@ -913,15 +927,34 @@ void EditorScene::syncWires()
         m_wires.insert(wires[i].id, item);
     }
     qDeleteAll(previous);
+    placeCurrentLabels();
 }
 
 void EditorScene::syncLive()
 {
-    for (auto it = m_devices.cbegin(); it != m_devices.cend(); ++it)
+    const auto label = [this](double amperes) {
+        return m_currentsShown && showsCurrent(amperes) ? currentText(amperes) : QString();
+    };
+    for (auto it = m_devices.cbegin(); it != m_devices.cend(); ++it) {
         it.value()->setOn(m_simulation->isOn(it.key()));
+        it.value()->setCurrentText(label(m_simulation->deviceCurrent(it.key())));
+    }
     for (auto it = m_loads.cbegin(); it != m_loads.cend(); ++it) {
         it.value()->setOn(m_simulation->isOn(it.key()));
         it.value()->setRunning(m_simulation->isEnergized(it.key()));
+    }
+    for (auto it = m_wires.cbegin(); it != m_wires.cend(); ++it)
+        it.value()->setCurrentText(label(m_simulation->wireCurrent(it.key())));
+    placeCurrentLabels();
+}
+
+void EditorScene::placeCurrentLabels()
+{
+    QList<QRectF> taken = routeObstacles();
+    for (const Wire &wire : m_project.wires()) {
+        WireItem *item = m_wires.value(wire.id);
+        if (item && !item->currentText().isEmpty())
+            taken << item->placeCurrentLabel(taken);
     }
 }
 

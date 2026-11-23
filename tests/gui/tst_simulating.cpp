@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "app/appsetup.h"
 #include "app/canvasview.h"
+#include "app/currenttext.h"
 #include "app/editorscene.h"
 #include "app/language.h"
 #include "app/mainwindow.h"
@@ -13,17 +14,46 @@
 #include "core/project.h"
 #include "core/simulation.h"
 #include "editorhelpers.h"
+#include "menuclicks.h"
 #include "screenshot.h"
 #include "testsettings.h"
 
 #include <QAction>
 #include <QApplication>
+#include <QMenu>
 #include <QSvgRenderer>
 #include <QTest>
 #include <QToolBar>
 #include <QUndoStack>
 
+#include <algorithm>
+#include <array>
 #include <memory>
+
+namespace {
+struct WireEnds
+{
+    const char *from;
+    const char *to;
+};
+
+// With QF1, QD1, QF2 and Lamp 1 on: the wires that carry the lamp's current, and some that don't.
+constexpr auto kLampWires = std::to_array<WireEnds>({ { "supply:L", "d1:1" },
+                                                      { "supply:N", "d1:3" },
+                                                      { "d1:2", "d2:1" },
+                                                      { "d1:4", "d2:N1" },
+                                                      { "d2:2", "d3:1" },
+                                                      { "d2:N2", "nbar:1" },
+                                                      { "d3:2", "l1:L" },
+                                                      { "nbar:2", "l1:N" } });
+constexpr auto kIdleWires = std::to_array<WireEnds>({ { "pebar:2", "l1:PE" },
+                                                      { "l1:L", "l2:L" },
+                                                      { "l1:N", "l2:N" },
+                                                      { "l1:PE", "l2:PE" },
+                                                      { "d3:1", "d4:1" },
+                                                      { "d4:1", "d5:1" },
+                                                      { "supply:PE", "pebar:1" } });
+} // namespace
 
 class TestSimulating : public QObject
 {
@@ -51,6 +81,17 @@ private slots:
     void applianceRunsThroughItsSocket();
     void deletingSocketStopsItsAppliancesUntilUndo();
     void wireToolClicksDoNotSwitchLoads();
+    void currentTextFormats_data();
+    void currentTextFormats();
+    void showsCurrentFromFiveMilliamperes();
+    void labelsWhereCurrentFlows();
+    void labelsDrawAboveWiresAndLetClicksThrough();
+    void wireLabelsKeepClear();
+    void deviceLabelKeepsHandleRatingAndTerminalsClear();
+    void showCurrentsTogglesAndPersists();
+    void labelsFollowLanguage();
+    void labelsInLightTheme();
+    void shortShowsWholeAmperes();
 
 private:
     [[nodiscard]] LoadItem *loadItem(const QString &id) const;
@@ -73,6 +114,14 @@ private:
     void checkOff(const QString &id) const;
     // The device is on in the simulation and on its item, with its handle drawn up.
     void checkOn(const QString &id) const;
+    // The wire from one terminal to another, or nullptr.
+    [[nodiscard]] WireItem *wireItem(const WireEnds &ends) const;
+    // The tutorial loads in the zoomed-out view, with QF1, QD1, QF2 and Lamp 1 switched on.
+    void lightLamp1();
+    // QF1, QD1, QF2 and Lamp 1 on, everything else off.
+    void checkLamp1Switches() const;
+    // A view at the scale centred on the scene point, to read the labels.
+    void closeUp(qreal scale, QPointF centre);
     template<typename T>
     T *named(const char *name) const
     {
@@ -168,6 +217,39 @@ void TestSimulating::checkOn(const QString &id) const
     QCOMPARE(item->handleRect(), pictureElement(id, QStringLiteral("handle")));
 }
 
+WireItem *TestSimulating::wireItem(const WireEnds &ends) const
+{
+    const QList<Wire> &wires = window->project().wires();
+    const auto it = std::ranges::find_if(wires, [&ends](const Wire &wire) {
+        return wire.from == QLatin1StringView(ends.from) && wire.to == QLatin1StringView(ends.to);
+    });
+    return it == wires.end() ? nullptr : dynamic_cast<WireItem *>(sceneItem(scene, it->id));
+}
+
+void TestSimulating::lightLamp1()
+{
+    addTutorialLoads(window->project());
+    zoomOut();
+    for (const char *id : { "d1", "d2", "d3" })
+        clickHandle(id);
+    QTest::mouseClick(canvas->viewport(), Qt::LeftButton, {}, onButton("l1"));
+    QVERIFY(loadItem("l1")->isRunning());
+}
+
+void TestSimulating::checkLamp1Switches() const
+{
+    for (const char *id : { "d1", "d2", "d3", "l1" })
+        QVERIFY2(window->simulation().isOn(QString::fromLatin1(id)), id);
+    for (const char *id : { "d4", "d5", "l2" })
+        QVERIFY2(!window->simulation().isOn(QString::fromLatin1(id)), id);
+}
+
+void TestSimulating::closeUp(qreal scale, QPointF centre)
+{
+    canvas->setTransform(QTransform::fromScale(scale, scale));
+    canvas->centerOn(centre);
+}
+
 void TestSimulating::initTestCase()
 {
     useTemporarySettings();
@@ -196,6 +278,7 @@ void TestSimulating::cleanup()
     window.reset();
     installLanguage(Language::English);
     Theme::apply(Theme::Mode::Dark);
+    Settings::saveShowCurrents(true);
 }
 
 void TestSimulating::devicesStartOffWithHandleDown()
@@ -502,6 +585,259 @@ void TestSimulating::wireToolClicksDoNotSwitchLoads()
     QVERIFY(scene->isWireMode());
     QTest::mouseClick(canvas->viewport(), Qt::LeftButton, {}, onButton("l1"));
     QVERIFY(!window->simulation().isOn(u"l1"));
+}
+
+void TestSimulating::currentTextFormats_data()
+{
+    QTest::addColumn<double>("amperes");
+    QTest::addColumn<QString>("text");
+    QTest::newRow("lamp") << 0.043472 << QStringLiteral("0.04 A");
+    QTest::newRow("just under 10 A") << 9.994 << QStringLiteral("9.99 A");
+    QTest::newRow("rounds up to 10 A") << 9.996 << QStringLiteral("10.0 A");
+    QTest::newRow("kettle and microwave") << 13.409 << QStringLiteral("13.4 A");
+    QTest::newRow("rounds up to 100 A") << 99.96 << QStringLiteral("100 A");
+    QTest::newRow("short") << 556.9 << QStringLiteral("557 A");
+}
+
+void TestSimulating::currentTextFormats()
+{
+    QFETCH(double, amperes);
+    QFETCH(QString, text);
+    QCOMPARE(currentText(amperes), text);
+}
+
+void TestSimulating::showsCurrentFromFiveMilliamperes()
+{
+    QVERIFY(!showsCurrent(0.0049));
+    QVERIFY(showsCurrent(0.005));
+}
+
+void TestSimulating::labelsWhereCurrentFlows()
+{
+    lightLamp1();
+    for (const char *id : { "d1", "d2", "d3" })
+        QCOMPARE(deviceItem(id)->currentText(), QStringLiteral("0.04 A"));
+    for (const char *id : { "d4", "d5" })
+        QCOMPARE(deviceItem(id)->currentText(), QString());
+    for (const WireEnds &ends : kLampWires) {
+        const WireItem *wire = wireItem(ends);
+        QVERIFY2(wire, ends.from);
+        QCOMPARE(wire->currentText(), QStringLiteral("0.04 A"));
+        QVERIFY2(wire->currentLabel()->isVisible(), ends.from);
+    }
+    for (const WireEnds &ends : kIdleWires) {
+        const WireItem *wire = wireItem(ends);
+        QVERIFY2(wire, ends.from);
+        QCOMPARE(wire->currentText(), QString());
+        QVERIFY2(!wire->currentLabel()->isVisible(), ends.from);
+    }
+    QVERIFY(saveScreenshot(*window, "f08", "labels"));
+    closeUp(3, QPointF(70, 120));
+    QVERIFY(saveScreenshot(*window, "f08", "labels-closeup"));
+    closeUp(3, QPointF(60, 260));
+    QVERIFY(saveScreenshot(*window, "f08", "labels-lamp-closeup"));
+}
+
+void TestSimulating::labelsDrawAboveWiresAndLetClicksThrough()
+{
+    lightLamp1();
+    const WireItem *wire = wireItem({ "d3:2", "l1:L" });
+    QVERIFY(wire);
+    const CurrentLabelItem *label = wire->currentLabel();
+    QVERIFY(label->isVisible());
+    QCOMPARE(label->data(EditorScene::IdKey).toString(), QStringLiteral("currentLabel"));
+    QCOMPARE(label->zValue(), CurrentLabelItem::LabelZ);
+    QVERIFY(label->zValue() > WireItem::WireZ);
+    QVERIFY(label->zValue() > DeviceItem::LabelZ);
+    QCOMPARE(label->acceptedMouseButtons(), Qt::NoButton);
+
+    QTest::mouseClick(canvas->viewport(), Qt::LeftButton, {},
+                      viewportPoint(canvas, label->sceneBoundingRect().center()));
+    QCOMPARE(scene->selectedWireId(), wire->data(EditorScene::IdKey).toString());
+}
+
+// No wire label covers another or a device's designation, rating, handle, terminals or current.
+void TestSimulating::wireLabelsKeepClear()
+{
+    lightLamp1();
+    const Project &project = window->project();
+    QList<QRectF> keepClear;
+    for (const PlacedDevice &device : project.devices()) {
+        const DeviceItem *item = deviceItem(device.id);
+        const DeviceVariant *variant
+                = project.catalog().deviceType(device.type)->variant(device.poles);
+        keepClear << item->designationItem()->sceneBoundingRect()
+                  << item->mapRectToScene(pictureElement(device.id, QStringLiteral("label")))
+                  << item->mapRectToScene(item->handleRect())
+                  << item->mapRectToScene(item->currentRect());
+        for (const TerminalSpec &terminal : variant->terminals) {
+            const QRectF keepOut(terminal.position - QPointF(3.6, 3.6), QSizeF(7.2, 7.2));
+            keepClear << item->mapRectToScene(keepOut);
+        }
+    }
+    int shown = 0;
+    for (const Wire &wire : project.wires()) {
+        const auto *item = dynamic_cast<WireItem *>(sceneItem(scene, wire.id));
+        if (!item->currentLabel()->isVisible())
+            continue;
+        ++shown;
+        const QRectF label = item->currentLabel()->sceneBoundingRect();
+        for (const QRectF &rect : std::as_const(keepClear))
+            QVERIFY2(!label.intersects(rect), qPrintable(wire.id));
+        keepClear << label;
+    }
+    QCOMPARE(shown, int(kLampWires.size()));
+}
+
+void TestSimulating::deviceLabelKeepsHandleRatingAndTerminalsClear()
+{
+    lightLamp1();
+    const Project &project = window->project();
+    QHash<QString, QRectF> shown;
+    for (const char *id : { "d1", "d3" }) {
+        const DeviceItem *item = deviceItem(id);
+        const QRectF label = item->currentRect();
+        QVERIFY2(!label.isEmpty(), id);
+        const QRectF body = item->boundingRect().adjusted(0, DeviceItem::DesignationHeight, 0, 0);
+        QVERIFY2(body.contains(label), id);
+        QVERIFY2(!label.intersects(item->handleRect()), id);
+        QVERIFY2(!label.intersects(pictureElement(id, QStringLiteral("label"))), id);
+        const PlacedDevice *device = project.device(QString::fromLatin1(id));
+        const DeviceVariant *variant
+                = project.catalog().deviceType(device->type)->variant(device->poles);
+        for (const TerminalSpec &terminal : variant->terminals) {
+            const QRectF keepOut(terminal.position - QPointF(3.6, 3.6), QSizeF(7.2, 7.2));
+            QVERIFY2(!label.intersects(keepOut), id);
+        }
+        shown.insert(QString::fromLatin1(id), label);
+    }
+
+    clickHandle("d3");
+    clickHandle("d1");
+    for (const char *id : { "d1", "d3" }) {
+        checkOff(id);
+        const DeviceItem *item = deviceItem(id);
+        QVERIFY2(item->currentRect().isEmpty(), id); // no current through open contacts
+        QVERIFY2(!shown.value(QString::fromLatin1(id)).intersects(item->handleRect()), id);
+    }
+}
+
+void TestSimulating::showCurrentsTogglesAndPersists()
+{
+    lightLamp1();
+    auto *viewMenu = named<QMenu>("viewMenu");
+    auto *action = named<QAction>("showCurrentsAction");
+    QVERIFY(viewMenu && action);
+    QCOMPARE(viewMenu->actions().indexOf(action),
+             viewMenu->actions().indexOf(named<QAction>("fitAction")) + 1);
+    QCOMPARE(action->text(), QStringLiteral("Show currents"));
+    QVERIFY(action->isCheckable());
+    QVERIFY(action->isChecked());
+    QVERIFY(scene->currentsShown());
+    QCOMPARE(deviceItem("d1")->currentText(), QStringLiteral("0.04 A"));
+
+    clickMenuBarItem(*window, viewMenu);
+    clickMenuItem(viewMenu, action);
+    QVERIFY(!action->isChecked());
+    QVERIFY(!scene->currentsShown());
+    for (const PlacedDevice &device : window->project().devices()) {
+        QVERIFY2(deviceItem(device.id)->currentText().isEmpty(), qPrintable(device.id));
+        QVERIFY2(deviceItem(device.id)->currentRect().isEmpty(), qPrintable(device.id));
+    }
+    for (const Wire &wire : window->project().wires()) {
+        const auto *item = dynamic_cast<WireItem *>(sceneItem(scene, wire.id));
+        QVERIFY2(item, qPrintable(wire.id));
+        QVERIFY2(item->currentText().isEmpty(), qPrintable(wire.id));
+        QVERIFY2(!item->currentLabel()->isVisible(), qPrintable(wire.id));
+    }
+    QVERIFY(!Settings::savedShowCurrents());
+    checkLamp1Switches();
+    closeUp(3, QPointF(70, 120));
+    QVERIFY(saveScreenshot(*window, "f08", "currents-hidden"));
+
+    {
+        MainWindow another;
+        const auto *anotherAction
+                = another.findChild<QAction *>(QStringLiteral("showCurrentsAction"));
+        QVERIFY(anotherAction);
+        QVERIFY(!anotherAction->isChecked());
+        const auto *anotherCanvas = another.findChild<CanvasView *>(QStringLiteral("canvasView"));
+        QVERIFY(!qobject_cast<EditorScene *>(anotherCanvas->scene())->currentsShown());
+    }
+
+    // A menu doesn't trigger an item released where the cursor was when it opened, and the first
+    // click left the cursor on this item.
+    QTest::mouseMove(canvas->viewport());
+    clickMenuBarItem(*window, viewMenu);
+    clickMenuItem(viewMenu, action);
+    QVERIFY(action->isChecked());
+    QVERIFY(scene->currentsShown());
+    QCOMPARE(deviceItem("d1")->currentText(), QStringLiteral("0.04 A"));
+    QCOMPARE(wireItem({ "d3:2", "l1:L" })->currentText(), QStringLiteral("0.04 A"));
+    QVERIFY(Settings::savedShowCurrents());
+}
+
+void TestSimulating::labelsFollowLanguage()
+{
+    lightLamp1();
+    const WireEnds lampL{ "d3:2", "l1:L" };
+    const QPointF deviceLabel = deviceItem("d1")->currentRect().center();
+    const QPointF wireLabel = wireItem(lampL)->currentLabel()->pos();
+    auto *languageMenu = named<QMenu>("languageMenu");
+
+    clickMenuBarItem(*window, languageMenu);
+    clickMenuItem(languageMenu, named<QAction>("languageAction_ru"));
+    QCOMPARE(currentLanguage(), Language::Russian);
+    QCOMPARE(deviceItem("d1")->currentText(), QStringLiteral("0,04 А"));
+    QCOMPARE(wireItem(lampL)->currentText(), QStringLiteral("0,04 А"));
+    QCOMPARE(named<QAction>("showCurrentsAction")->text(), QStringLiteral("Показывать токи"));
+    checkLamp1Switches();
+    QCOMPARE(deviceItem("d1")->currentRect().center(), deviceLabel);
+    QCOMPARE(wireItem(lampL)->currentLabel()->pos(), wireLabel);
+    closeUp(3, QPointF(70, 120));
+    QVERIFY(saveScreenshot(*window, "f08", "labels-ru"));
+
+    clickMenuBarItem(*window, languageMenu);
+    clickMenuItem(languageMenu, named<QAction>("languageAction_kk"));
+    QCOMPARE(currentLanguage(), Language::Kazakh);
+    QCOMPARE(deviceItem("d1")->currentText(), QStringLiteral("0,04 А"));
+    QCOMPARE(wireItem(lampL)->currentText(), QStringLiteral("0,04 А"));
+    QCOMPARE(named<QAction>("showCurrentsAction")->text(), QStringLiteral("Токтарды көрсету"));
+    checkLamp1Switches();
+    QCOMPARE(deviceItem("d1")->currentRect().center(), deviceLabel);
+    QCOMPARE(wireItem(lampL)->currentLabel()->pos(), wireLabel);
+    closeUp(3, QPointF(70, 120));
+    QVERIFY(saveScreenshot(*window, "f08", "labels-kk"));
+}
+
+void TestSimulating::labelsInLightTheme()
+{
+    lightLamp1();
+    Theme::apply(Theme::Mode::Light);
+    QCoreApplication::processEvents(); // the palette reaches widgets through posted events
+    QCOMPARE(deviceItem("d1")->currentText(), QStringLiteral("0.04 A"));
+    QVERIFY(wireItem({ "d3:2", "l1:L" })->currentLabel()->isVisible());
+    QVERIFY(saveScreenshot(*window, "f08", "labels-light"));
+    closeUp(3, QPointF(70, 120));
+    QVERIFY(saveScreenshot(*window, "f08", "labels-light-closeup"));
+    closeUp(3, QPointF(60, 260));
+    QVERIFY(saveScreenshot(*window, "f08", "labels-light-lamp-closeup"));
+}
+
+void TestSimulating::shortShowsWholeAmperes()
+{
+    Project &project = window->project();
+    const WireEnds shortEnds{ "d3:2", "nbar:5" };
+    const QString from = QString::fromLatin1(shortEnds.from);
+    const QString to = QString::fromLatin1(shortEnds.to);
+    Wire wire{ {}, from, to, 1.5, project.conductorFor(from, to) };
+    wire.length = 0.3;
+    QVERIFY(!project.addWire(wire).isEmpty());
+    for (const char *id : { "d1", "d2", "d3" })
+        clickHandle(id);
+    QCOMPARE(deviceItem("d3")->currentText(), QStringLiteral("557 A"));
+    QCOMPARE(wireItem(shortEnds)->currentText(), QStringLiteral("557 A"));
+    QVERIFY(saveScreenshot(*window, "f08", "labels-short"));
 }
 
 QTEST_MAIN(TestSimulating)

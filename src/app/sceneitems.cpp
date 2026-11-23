@@ -44,6 +44,18 @@ const QColor kCordColor(0x1c, 0x1e, 0x21);
 constexpr qreal kCordEdgeWidth = 0.8; // 0.4 on each side of the core
 const QColor kCordEdgeColor(0xe6, 0xe8, 0xeb);
 constexpr qreal kMinCaptionScale = 4.0 / DeviceItem::DesignationPixelSize; // as 4-pixel text
+constexpr int kCurrentPixelSize = 5;
+constexpr qreal kCurrentChipHeight = 7;
+constexpr qreal kCurrentChipPadding = 1; // beside the text
+constexpr qreal kCurrentChipRadius = 1;
+constexpr qreal kCurrentLabelGap = 1; // kept around a wire's label
+// Below the slot of an off handle (36–62) and above the bottom terminals (78.4 and lower).
+constexpr qreal kDeviceCurrentTop = 65;
+constexpr qreal kDeviceCurrentInset = 1; // keeps the body's outline beside the chip
+constexpr qreal kDeviceCurrentEdgeWidth = 0.5;
+const QColor kDeviceCurrentEdgeColor(0x8c, 0x91, 0x97); // as the picture's rating label
+const QColor kWireCurrentTextColor(0xe6, 0xe8, 0xeb);
+const QColor kWireCurrentChipColor(0x1c, 0x1e, 0x21, 220);
 
 // Grows with the section like a conductor's diameter, from 1.8 at 1.5 mm² to 3.2 at 16 mm², so
 // that with its edge the thickest wire is 4 wide and wires on neighbouring 4.5-unit lanes keep
@@ -92,6 +104,21 @@ QFont pixelFont(int pixelSize)
     QFont font = QApplication::font();
     font.setPixelSize(pixelSize);
     return font;
+}
+
+// Centred in rect, and scaled down to its width if wider.
+void drawFittedText(QPainter *painter, const QRectF &rect, const QFont &font, const QString &text)
+{
+    const qreal width = QFontMetricsF(font).horizontalAdvance(text);
+    const qreal scale = std::min(1.0, rect.width() / width);
+    painter->save();
+    painter->translate(rect.center());
+    painter->scale(scale, scale);
+    painter->setFont(font);
+    const QSizeF size = rect.size() / scale;
+    painter->drawText(QRectF(QPointF(-size.width() / 2, -size.height() / 2), size), Qt::AlignCenter,
+                      text);
+    painter->restore();
 }
 } // namespace
 
@@ -245,6 +272,28 @@ QRectF DeviceItem::switchRect() const
     return m_handle.united(m_handle.translated(0, HandleTravel));
 }
 
+void DeviceItem::setCurrentText(const QString &text)
+{
+    if (std::exchange(m_current, text) != text)
+        update();
+}
+
+QString DeviceItem::currentText() const
+{
+    return m_current;
+}
+
+// As wide as the text, but no wider than the body, so that neighbours' chips keep apart.
+QRectF DeviceItem::currentRect() const
+{
+    if (m_current.isEmpty())
+        return {};
+    const qreal text = QFontMetricsF(pixelFont(kCurrentPixelSize)).horizontalAdvance(m_current);
+    const qreal width
+            = std::min(text + 2 * kCurrentChipPadding, m_size.width() - 2 * kDeviceCurrentInset);
+    return { (m_size.width() - width) / 2, kDeviceCurrentTop, width, kCurrentChipHeight };
+}
+
 QRectF DeviceItem::boundingRect() const
 {
     return { 0, -DesignationHeight, m_size.width(), m_size.height() + DesignationHeight };
@@ -258,6 +307,16 @@ void DeviceItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWid
     painter->setFont(pixelFont(kRatingPixelSize));
     painter->setPen(Qt::black); // printed on the white label
     painter->drawText(m_label, Qt::AlignCenter, m_rating);
+
+    if (!m_current.isEmpty()) {
+        const QRectF chip = currentRect();
+        painter->setPen(QPen(kDeviceCurrentEdgeColor, kDeviceCurrentEdgeWidth));
+        painter->setBrush(Qt::white);
+        painter->drawRoundedRect(chip, kCurrentChipRadius, kCurrentChipRadius);
+        painter->setPen(Qt::black);
+        drawFittedText(painter, chip.adjusted(kCurrentChipPadding, 0, -kCurrentChipPadding, 0),
+                       pixelFont(kCurrentPixelSize), m_current);
+    }
 
     if (isSelected())
         drawOutline(painter, body, Theme::selectionColor());
@@ -468,11 +527,57 @@ void LoadItem::fitCaption()
         m_captionScale = room / width;
 }
 
+CurrentLabelItem::CurrentLabelItem()
+    : m_font(pixelFont(kCurrentPixelSize))
+{
+    setData(EditorScene::IdKey, QStringLiteral("currentLabel"));
+    setZValue(LabelZ);
+    setAcceptedMouseButtons(Qt::NoButton);
+    hide();
+}
+
+void CurrentLabelItem::setText(const QString &text)
+{
+    if (text == m_text)
+        return;
+    prepareGeometryChange();
+    m_text = text;
+    setVisible(!m_text.isEmpty());
+}
+
+QString CurrentLabelItem::text() const
+{
+    return m_text;
+}
+
+QRectF CurrentLabelItem::boundingRect() const
+{
+    const qreal width = QFontMetricsF(m_font).horizontalAdvance(m_text) + 2 * kCurrentChipPadding;
+    return { -width / 2, -kCurrentChipHeight / 2, width, kCurrentChipHeight };
+}
+
+void CurrentLabelItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWidget *)
+{
+    const QRectF chip = boundingRect();
+    painter->setPen(Qt::NoPen);
+    painter->setBrush(kWireCurrentChipColor);
+    painter->drawRoundedRect(chip, kCurrentChipRadius, kCurrentChipRadius);
+    painter->setFont(m_font);
+    painter->setPen(kWireCurrentTextColor);
+    painter->drawText(chip, Qt::AlignCenter, m_text);
+}
+
 WireItem::WireItem(const QString &id)
+    : m_currentLabel(new CurrentLabelItem)
 {
     setData(EditorScene::IdKey, id);
     setFlag(ItemIsSelectable);
     setZValue(WireZ);
+}
+
+WireItem::~WireItem()
+{
+    delete m_currentLabel;
 }
 
 void WireItem::setWire(const QPolygonF &route, Conductor conductor, double section)
@@ -489,6 +594,7 @@ void WireItem::setWire(const QPolygonF &route, Conductor conductor, double secti
     stroker.setCapStyle(Qt::RoundCap);
     stroker.setJoinStyle(Qt::RoundJoin);
     m_shape = stroker.createStroke(path);
+    placeCurrentLabel({});
 }
 
 QPolygonF WireItem::route() const
@@ -499,6 +605,21 @@ QPolygonF WireItem::route() const
 Conductor WireItem::conductor() const
 {
     return m_conductor;
+}
+
+void WireItem::setCurrentText(const QString &text)
+{
+    m_currentLabel->setText(text);
+}
+
+QString WireItem::currentText() const
+{
+    return m_currentLabel->text();
+}
+
+CurrentLabelItem *WireItem::currentLabel() const
+{
+    return m_currentLabel;
 }
 
 // The shape is at least as wide as anything painted.
@@ -537,4 +658,49 @@ void WireItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWidge
         painter->setPen(stripes);
         painter->drawPolyline(m_route);
     }
+}
+
+QVariant WireItem::itemChange(GraphicsItemChange change, const QVariant &value)
+{
+    if (change == ItemSceneHasChanged) {
+        if (auto *newScene = value.value<QGraphicsScene *>())
+            newScene->addItem(m_currentLabel);
+    }
+    return QGraphicsItem::itemChange(change, value);
+}
+
+QRectF WireItem::placeCurrentLabel(const QList<QRectF> &avoid)
+{
+    QList<QLineF> segments;
+    for (qsizetype i = 1; i < m_route.size(); ++i)
+        segments << QLineF(m_route[i - 1], m_route[i]);
+    std::ranges::stable_sort(segments, std::ranges::greater(), &QLineF::length);
+    const QRectF label = m_currentLabel->boundingRect();
+    QList<QPointF> candidates;
+    for (const QLineF &segment : std::as_const(segments)) {
+        // Routes are orthogonal; the label stays within the segment.
+        const qreal step = (segment.dy() == 0 ? label.width() : label.height()) + kCurrentLabelGap;
+        const qreal room = (segment.length() - step) / 2;
+        if (room < 0)
+            continue;
+        const QPointF unit = (segment.p2() - segment.p1()) / segment.length();
+        for (qreal offset = 0; offset <= room; offset += step)
+            candidates << segment.center() + unit * offset << segment.center() - unit * offset;
+    }
+    if (candidates.isEmpty())
+        candidates << (segments.isEmpty() ? QPointF() : segments.first().center());
+    const auto overlap = [&](QPointF centre) {
+        const QRectF rect = label.translated(centre).adjusted(-kCurrentLabelGap, -kCurrentLabelGap,
+                                                              kCurrentLabelGap, kCurrentLabelGap);
+        qreal area = 0;
+        for (const QRectF &r : avoid) {
+            const QRectF common = r & rect;
+            area += common.width() * common.height();
+        }
+        return area;
+    };
+    // The first of the least covering, so the clear spot nearest the preferred one if any.
+    const QPointF centre = *std::ranges::min_element(candidates, std::less(), overlap);
+    m_currentLabel->setPos(centre);
+    return label.translated(centre);
 }

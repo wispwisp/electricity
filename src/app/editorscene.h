@@ -79,9 +79,12 @@ public:
     void escapeWireTool();
     // Actions of the menu shown by a right-click on a device, a load or a wire.
     void setDeviceContextActions(const QList<QAction *> &actions);
-    // the "Supply" text and the load captions
+    // the "Supply" text, the load captions and the current labels
     void retranslate();
     [[nodiscard]] Simulation &simulation(); // created and owned by the scene
+    // the current labels on devices and wires; shown by default
+    void setCurrentsShown(bool shown);
+    [[nodiscard]] bool currentsShown() const;
 
 signals:
     void hint(const QString &text);
@@ -109,8 +112,12 @@ private:
     void syncLoads();
     // Re-routes every wire, with a device being moved still at its slot in the model.
     void syncWires();
-    // Shows the simulation's switch settings: each device's handle up or down.
+    // Shows the simulation's switch settings and results: each device's handle up or down, each
+    // load's button and glow, and the current labels where current flows.
     void syncLive();
+    // Each shown wire label, in wire order, clear of what wires go around and of the labels before
+    // it where its route allows.
+    void placeCurrentLabels();
     // The terminal's position and the side its wires leave from.
     [[nodiscard]] RouteEnd routeEnd(const QString &terminalId) const;
     // What wires go around: device bodies with their designations, the supply with its letters,
@@ -169,6 +176,7 @@ private:
     QHash<QString, LoadItem *> m_loads;
     QHash<QString, WireItem *> m_wires;
     Simulation *m_simulation = nullptr;
+    bool m_currentsShown = true;
     DeviceItem *m_preview = nullptr;   // while a preset is dragged over the scene
     LoadItem *m_loadPreview = nullptr; // while a load is dragged over the scene
     QString m_movingId;                // the device or load under a left press, "" if none
