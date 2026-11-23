@@ -195,14 +195,17 @@ public:
     void setCurrentText(const QString &text); // "" hides the label
     [[nodiscard]] QString currentText() const;
     [[nodiscard]] CurrentLabelItem *currentLabel() const;
+    // The route's segments, each with the width of a wire's core around it.
+    [[nodiscard]] QList<QRectF> cores() const;
     // Puts the label on its route or beside it. Spots rank by how much of labels they cover, then
-    // by whether the label would read as another wire's (centred on one of otherRoutes, or beside
-    // the route over one), then by how much of obstacles they cover; of equal spots, on the route
-    // before beside it, on the longest segment first and nearest its middle, so after setWire() on
-    // the middle of the longest segment. When every spot covers a label, it steps out beside the
-    // longest segment's middle until it covers none. Returns the label's scene rect.
+    // by whether the label would read as another wire's (centred on one of otherWires' cores, or
+    // beside the route over one), then by how much of obstacles they cover; of equal spots, on the
+    // route before beside it, on the longest segment first and nearest its middle, so after
+    // setWire() on the middle of the longest segment. When every spot covers a label, it steps out
+    // from beside the longest segment's middle until it covers none. Returns the label's scene
+    // rect.
     QRectF placeCurrentLabel(const QList<QRectF> &labels, const QList<QRectF> &obstacles,
-                             const QList<QPolygonF> &otherRoutes);
+                             const QList<QRectF> &otherWires);
 
     [[nodiscard]] QRectF boundingRect() const override;
     // the route stroked at least 6 wide, for clicking

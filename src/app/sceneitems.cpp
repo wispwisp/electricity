@@ -15,6 +15,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <tuple>
 #include <utility>
 
@@ -257,8 +258,8 @@ QGraphicsItem *DeviceItem::designationItem() const
 
 void DeviceItem::setOn(bool on)
 {
-    m_on = on;
-    update();
+    if (std::exchange(m_on, on) != on)
+        update();
 }
 
 bool DeviceItem::isOn() const
@@ -673,14 +674,31 @@ QVariant WireItem::itemChange(GraphicsItemChange change, const QVariant &value)
     return QGraphicsItem::itemChange(change, value);
 }
 
+QList<QRectF> WireItem::cores() const
+{
+    QList<QRectF> cores;
+    for (qsizetype i = 1; i < m_route.size(); ++i) {
+        cores << QRectF(m_route[i - 1], m_route[i])
+                         .normalized()
+                         .adjusted(-kWireCoreReach, -kWireCoreReach, kWireCoreReach,
+                                   kWireCoreReach);
+    }
+    return cores;
+}
+
 QRectF WireItem::placeCurrentLabel(const QList<QRectF> &labels, const QList<QRectF> &obstacles,
-                                   const QList<QPolygonF> &otherRoutes)
+                                   const QList<QRectF> &otherWires)
 {
     QList<QLineF> segments;
     for (qsizetype i = 1; i < m_route.size(); ++i)
         segments << QLineF(m_route[i - 1], m_route[i]);
     std::ranges::stable_sort(segments, std::ranges::greater(), &QLineF::length);
     const QRectF label = m_currentLabel->boundingRect();
+    // Routes are orthogonal. From a segment's centre line to a label beside it.
+    const auto aside = [&label](const QLineF &segment) {
+        return segment.dy() == 0 ? QPointF(0, label.height() / 2 + kCurrentLabelAside)
+                                 : QPointF(label.width() / 2 + kCurrentLabelAside, 0);
+    };
     struct Spot
     {
         QPointF centre;
@@ -689,32 +707,23 @@ QRectF WireItem::placeCurrentLabel(const QList<QRectF> &labels, const QList<QRec
     QList<Spot> spots;
     QList<Spot> beside;
     for (const QLineF &segment : std::as_const(segments)) {
-        // Routes are orthogonal. From the middle outwards while the label stays within the segment;
-        // on a segment shorter than the label, only its middle.
+        const auto add = [&](QPointF spot) {
+            spots << Spot{ spot, false };
+            beside << Spot{ spot - aside(segment), true } << Spot{ spot + aside(segment), true };
+        };
+        // From the middle outwards while the label stays within the segment; on a segment shorter
+        // than the label, only its middle.
         const bool horizontal = segment.dy() == 0;
         const qreal step = (horizontal ? label.width() : label.height()) + kCurrentLabelGap;
         const QPointF along = horizontal ? QPointF(step, 0) : QPointF(0, step);
-        const QPointF aside = horizontal ? QPointF(0, label.height() / 2 + kCurrentLabelAside)
-                                         : QPointF(label.width() / 2 + kCurrentLabelAside, 0);
         const int steps = std::max(0, int((segment.length() - step) / 2 / step));
-        for (int i = 0; i <= steps; ++i) {
-            for (const QPointF spot :
-                 { segment.center() + along * i, segment.center() - along * i }) {
-                spots << Spot{ spot, false };
-                beside << Spot{ spot - aside, true } << Spot{ spot + aside, true };
-            }
+        add(segment.center());
+        for (int i = 1; i <= steps; ++i) {
+            add(segment.center() + along * i);
+            add(segment.center() - along * i);
         }
     }
     spots << beside;
-    QList<QRectF> wires; // the other routes' segments with their cores
-    for (const QPolygonF &route : otherRoutes) {
-        for (qsizetype i = 1; i < route.size(); ++i) {
-            wires << QRectF(route[i - 1], route[i])
-                             .normalized()
-                             .adjusted(-kWireCoreReach, -kWireCoreReach, kWireCoreReach,
-                                       kWireCoreReach);
-        }
-    }
     const auto covered = [&label](QPointF centre, const QList<QRectF> &rects) {
         const QRectF rect = label.translated(centre).adjusted(-kCurrentLabelGap, -kCurrentLabelGap,
                                                               kCurrentLabelGap, kCurrentLabelGap);
@@ -728,27 +737,36 @@ QRectF WireItem::placeCurrentLabel(const QList<QRectF> &labels, const QList<QRec
     // The label would read as another wire's: on the route, centred within half a lane of one;
     // beside it, over one.
     const auto onOtherWire = [&](const Spot &spot) {
-        constexpr qreal centre = kWireLaneWidth / 2 - kWireCoreReach;
+        constexpr qreal reach = kWireLaneWidth / 2 - kWireCoreReach; // with the core, half a lane
         const QRectF area = spot.beside
                 ? label.translated(spot.centre)
-                : QRectF(spot.centre, QSizeF()).adjusted(-centre, -centre, centre, centre);
-        return std::ranges::any_of(wires,
+                : QRectF(spot.centre, QSizeF()).adjusted(-reach, -reach, reach, reach);
+        return std::ranges::any_of(otherWires,
                                    [&area](const QRectF &wire) { return wire.intersects(area); });
     };
-    // Covering a label is worst, then reading as another wire's; of equal spots the first.
-    const auto score = [&](const Spot &spot) {
-        return std::tuple(covered(spot.centre, labels), onOtherWire(spot),
-                          covered(spot.centre, obstacles));
-    };
-    QPointF centre = spots.isEmpty()
-            ? QPointF()
-            : std::ranges::min_element(spots, std::ranges::less(), score)->centre;
-    if (!segments.isEmpty()) {
+    // Covering a label is worst, then reading as another wire's; of equal spots the first. A spot
+    // with none of these is the best there can be, so the first such spot wins.
+    using Rank = std::tuple<qreal, bool, qreal>;
+    Rank best(std::numeric_limits<qreal>::infinity(), true, 0);
+    QPointF centre;
+    for (const Spot &spot : std::as_const(spots)) {
+        const Rank rank(covered(spot.centre, labels), onOtherWire(spot),
+                        covered(spot.centre, obstacles));
+        if (rank < best) {
+            best = rank;
+            centre = spot.centre;
+        }
+        if (best == Rank())
+            break;
+    }
+    // Last resort, when every spot covers a label: out from beside the longest segment's middle, a
+    // unit at a time, so that the label ends as near its wire as the labels allow.
+    if (!segments.isEmpty() && covered(centre, labels) > 0) {
         const QLineF &longest = segments.first();
-        const QPointF out = longest.dy() == 0 ? QPointF(0, -label.height() - kCurrentLabelGap)
-                                              : QPointF(-label.width() - kCurrentLabelGap, 0);
-        for (QPointF spot = longest.center() + out; covered(centre, labels) > 0; spot += out)
-            centre = spot;
+        const QPointF out = longest.dy() == 0 ? QPointF(0, -1) : QPointF(-1, 0);
+        centre = longest.center() - aside(longest);
+        while (covered(centre, labels) > 0)
+            centre += out;
     }
     m_currentLabel->setPos(centre);
     return label.translated(centre);

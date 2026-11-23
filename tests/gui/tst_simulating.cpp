@@ -20,7 +20,9 @@
 
 #include <QAction>
 #include <QApplication>
+#include <QElapsedTimer>
 #include <QMenu>
+#include <QSignalBlocker>
 #include <QSvgRenderer>
 #include <QTest>
 #include <QToolBar>
@@ -111,6 +113,7 @@ private slots:
     void labelsFollowLanguage();
     void labelsInLightTheme();
     void shortShowsWholeAmperes();
+    void fullPanelSwitchesWithoutLag();
     void roadmapScenario();
 
 private:
@@ -940,6 +943,80 @@ void TestSimulating::shortShowsWholeAmperes()
     QCOMPARE(deviceItem("d3")->currentText(), QStringLiteral("557 A"));
     QCOMPARE(wireItem(shortEnds)->currentText(), QStringLiteral("557 A"));
     QVERIFY(saveScreenshot(*window, "f08", "labels-short"));
+}
+
+// A full apartment panel, everything on and every current label shown: a click on a load's button
+// still answers within the 100 ms that reads as instant.
+void TestSimulating::fullPanelSwitchesWithoutLag()
+{
+    Project &project = window->project();
+    addTutorialLoads(project);
+    // 12 more lighting lines in two more rows, fed from QF4 through jumpers, two lamps on each
+    QVERIFY(project.setEnclosure(QStringLiteral("enclosure-36")));
+    {
+        // Each edit re-routes every wire, which for the 120 edits here would take a minute in
+        // Debug, so the model is built with its signals held back and then shown in one go.
+        const QSignalBlocker blocker(project);
+        QStringList breakers{ QStringLiteral("d5") };
+        for (int row = 1; row < 3; ++row) {
+            for (int module = 0; module < 6; ++module) {
+                breakers << project.addDevice(
+                        deviceFromPreset(preset("breaker-1p-c10"), row, module));
+                QVERIFY(!breakers.last().isEmpty());
+            }
+        }
+        const auto addWire = [&project](const QString &from, const QString &to, double section) {
+            Wire wire{ {}, from, to, section, project.conductorFor(from, to) };
+            wire.length = project.newWireLength(from, to);
+            QVERIFY2(!project.addWire(wire).isEmpty(), qPrintable(from + QLatin1Char(' ') + to));
+        };
+        const LoadType *lamp = project.catalog().loadType(QStringLiteral("ceiling-lamp"));
+        for (int line = 1; line < breakers.size(); ++line) {
+            addWire(terminalId(breakers[line - 1], "1"), terminalId(breakers[line], "1"), 6);
+            QStringList lamps;
+            for (const int index : { 2 * line - 2, 2 * line - 1 }) {
+                const int row = index / 12; // 12 lamps a row
+                const QPointF position(45.0 * (index % 12) - 45, 800 + 70.0 * row);
+                lamps << project.addLoad(loadFromType(*lamp, position));
+                QVERIFY(!lamps.last().isEmpty());
+            }
+            const QString hole = QString::number(line + 4);
+            addWire(terminalId(breakers[line], "2"), terminalId(lamps[0], "L"), 1.5);
+            addWire(QStringLiteral("nbar:") + hole, terminalId(lamps[0], "N"), 1.5);
+            addWire(QStringLiteral("pebar:") + hole, terminalId(lamps[0], "PE"), 1.5);
+            for (const char *terminal : { "L", "N", "PE" })
+                addWire(terminalId(lamps[0], terminal), terminalId(lamps[1], terminal), 1.5);
+        }
+    }
+    emit project.changed();
+    QCOMPARE(project.devices().size(), 17);
+    QCOMPARE(project.loads().size(), 34);
+    QCOMPARE(project.wires().size(), 111);
+    for (const PlacedDevice &device : project.devices())
+        window->simulation().setOn(device.id, true);
+    for (const PlacedLoad &load : project.loads())
+        window->simulation().setOn(load.id, true);
+    const auto shownLabels = [&] {
+        return std::ranges::count_if(project.wires(), [&](const Wire &wire) {
+            return !dynamic_cast<WireItem *>(sceneItem(scene, wire.id))->currentText().isEmpty();
+        });
+    };
+    // every wire but PE and the two from Socket 3 on to Socket 4, which has nothing plugged in
+    QCOMPARE(shownLabels(), 78);
+
+    canvas->setTransform(QTransform::fromScale(0.6, 0.6));
+    canvas->centerOn(loadItem("l1")->sceneBoundingRect().center());
+    QVERIFY(saveScreenshot(*window, "f08", "full-panel"));
+    for (const bool on : { false, true }) {
+        QElapsedTimer timer;
+        timer.start();
+        QTest::mouseClick(canvas->viewport(), Qt::LeftButton, {}, onButton("l1"));
+        const double milliseconds = static_cast<double>(timer.nsecsElapsed()) / 1e6;
+        qInfo("click switching Lamp 1 %s: %.1f ms", on ? "on" : "off", milliseconds);
+        QCOMPARE(window->simulation().isOn(u"l1"), on);
+        QVERIFY(milliseconds < 100);
+    }
+    QCOMPARE(shownLabels(), 78);
 }
 
 void TestSimulating::roadmapScenario()

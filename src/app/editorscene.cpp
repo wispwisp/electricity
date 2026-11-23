@@ -845,6 +845,7 @@ void EditorScene::syncEnclosure()
     }
     updateSceneRect();
     syncWires();
+    placeCurrentLabels(); // the routes moved after the solve that placed the labels
 }
 
 void EditorScene::addBar(const QString &barId, const QString &mountId, int terminals)
@@ -927,7 +928,6 @@ void EditorScene::syncWires()
         m_wires.insert(wires[i].id, item);
     }
     qDeleteAll(previous);
-    placeCurrentLabels();
 }
 
 void EditorScene::syncLive()
@@ -951,17 +951,20 @@ void EditorScene::syncLive()
 void EditorScene::placeCurrentLabels()
 {
     const QList<QRectF> obstacles = routeObstacles();
+    QHash<const WireItem *, QList<QRectF>> cores;
+    for (const WireItem *item : std::as_const(m_wires))
+        cores.insert(item, item->cores());
     QList<QRectF> labels;
     for (const Wire &wire : m_project.wires()) {
         WireItem *item = m_wires.value(wire.id);
         if (!item || item->currentText().isEmpty())
             continue;
-        QList<QPolygonF> otherRoutes;
-        for (const WireItem *other : std::as_const(m_wires)) {
-            if (other != item)
-                otherRoutes << other->route();
+        QList<QRectF> otherWires;
+        for (auto it = cores.cbegin(); it != cores.cend(); ++it) {
+            if (it.key() != item)
+                otherWires << it.value();
         }
-        labels << item->placeCurrentLabel(labels, obstacles, otherRoutes);
+        labels << item->placeCurrentLabel(labels, obstacles, otherWires);
     }
 }
 

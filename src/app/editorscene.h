@@ -110,7 +110,8 @@ private:
     void syncDevices();
     // Captions are translated here, so retranslate() re-syncs too.
     void syncLoads();
-    // Re-routes every wire, with a device being moved still at its slot in the model.
+    // Re-routes every wire, with a device being moved still at its slot in the model. Their
+    // labels are placed by syncLive(), after the solve that follows every change.
     void syncWires();
     // Shows the simulation's switch settings and results: each device's handle up or down, each
     // load's button and glow, and the current labels where current flows.
