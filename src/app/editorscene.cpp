@@ -11,6 +11,8 @@
 #include "core/simulation.h"
 #include "core/wirerouter.h"
 
+#include <QAction>
+#include <QActionGroup>
 #include <QApplication>
 #include <QCoreApplication>
 #include <QGraphicsEllipseItem>
@@ -131,6 +133,24 @@ EditorScene::EditorScene(Project &project, QUndoStack &undoStack, QObject *paren
     // After the syncs above, so that a solve after a change finds every item the change added.
     m_simulation = new Simulation(m_project, this);
     connect(m_simulation, &Simulation::solved, this, &EditorScene::syncLive);
+    auto *faults = new QActionGroup(this);
+    faults->setExclusionPolicy(QActionGroup::ExclusionPolicy::ExclusiveOptional);
+    const auto faultAction = [this, faults](const char *name, Fault fault) {
+        auto *action = new QAction(this);
+        action->setObjectName(QLatin1String(name));
+        action->setCheckable(true);
+        faults->addAction(action);
+        connect(action, &QAction::triggered, this,
+                [this, fault] { m_simulation->setFault(m_menuLoadId, fault); });
+        return action;
+    };
+    m_shortCircuitAction = faultAction("shortCircuitAction", Fault::ShortCircuit);
+    m_leakageAction = faultAction("leakageAction", Fault::Leakage);
+    m_earthFaultAction = faultAction("earthFaultAction", Fault::EarthFault);
+    m_removeFaultAction = new QAction(this);
+    m_removeFaultAction->setObjectName(QStringLiteral("removeFaultAction"));
+    connect(m_removeFaultAction, &QAction::triggered, this,
+            [this] { m_simulation->setFault(m_menuLoadId, Fault::None); });
     syncEnclosure();
     syncDevices();
     retranslate();
@@ -274,6 +294,10 @@ QString EditorScene::wireStart() const
 void EditorScene::retranslate()
 {
     m_supplyText->setText(tr("Supply"));
+    m_shortCircuitAction->setText(tr("Short circuit"));
+    m_leakageAction->setText(tr("Leakage"));
+    m_earthFaultAction->setText(tr("Earth fault"));
+    m_removeFaultAction->setText(tr("Remove fault"));
     syncLoads(); // also updates the scene rect for the text's width
     syncLive();
 }
@@ -336,6 +360,18 @@ void EditorScene::mousePressEvent(QGraphicsSceneMouseEvent *event)
                 m_contextMenu = new QMenu(event->widget());
             m_contextMenu->setObjectName(QStringLiteral("deviceContextMenu"));
             m_contextMenu->clear();
+            m_menuLoadId.clear();
+            if (m_loads.contains(id)) {
+                m_menuLoadId = id;
+                const Fault fault = m_simulation->fault(id);
+                m_shortCircuitAction->setChecked(fault == Fault::ShortCircuit);
+                m_leakageAction->setChecked(fault == Fault::Leakage);
+                m_earthFaultAction->setChecked(fault == Fault::EarthFault);
+                m_removeFaultAction->setEnabled(fault != Fault::None);
+                m_contextMenu->addActions({ m_shortCircuitAction, m_leakageAction,
+                                            m_earthFaultAction, m_removeFaultAction });
+                m_contextMenu->addSeparator();
+            }
             m_contextMenu->addActions(m_contextActions);
             m_contextMenu->popup(event->screenPos());
             event->accept();
@@ -973,6 +1009,8 @@ void EditorScene::syncLive()
     for (auto it = m_loads.cbegin(); it != m_loads.cend(); ++it) {
         it.value()->setOn(m_simulation->isOn(it.key()));
         it.value()->setRunning(m_simulation->isEnergized(it.key()));
+        it.value()->setFault(m_simulation->fault(it.key()) != Fault::None,
+                             m_simulation->isDangerous(it.key()));
     }
     for (auto it = m_wires.cbegin(); it != m_wires.cend(); ++it)
         it.value()->setCurrentText(label(m_simulation->wireCurrent(it.key())));

@@ -64,7 +64,9 @@ constexpr qreal kDeviceBadgeInset = 5; // from the body's right edge to the badg
 constexpr qreal kDeviceBadgeY = 17;
 const QPointF kSupplyBadgeCentre(49, 14);
 constexpr int kTripBadgePixelSize = 6;
-constexpr int kDropDuration = 150; // ms, a tripped handle dropping
+constexpr qreal kFaultMarkSize = 7;
+constexpr qreal kFaultMarkInset = 1; // from the picture's left and bottom edges
+constexpr int kDropDuration = 150;   // ms, a tripped handle dropping
 const QColor kWireCurrentTextColor(0xe6, 0xe8, 0xeb);
 const QColor kWireCurrentChipColor(0x1c, 0x1e, 0x21, 220);
 
@@ -142,6 +144,21 @@ void drawTripBadge(QPainter *painter, QPointF centre)
     painter->drawText(QRectF(centre.x() - kTripBadgeRadius, centre.y() - kTripBadgeRadius,
                              2 * kTripBadgeRadius, 2 * kTripBadgeRadius),
                       Qt::AlignCenter, QStringLiteral("!"));
+}
+
+// A lightning bolt on a square: dark on the fault colour, white on the danger colour.
+void drawFaultMark(QPainter *painter, const QRectF &rect, bool dangerous)
+{
+    painter->setPen(Qt::NoPen);
+    painter->setBrush(dangerous ? Theme::trippedColor() : Theme::faultMarkColor());
+    painter->drawRect(rect);
+    painter->setRenderHint(QPainter::Antialiasing);
+    painter->setBrush(dangerous ? Qt::white : QColor(0x1c, 0x1e, 0x21));
+    const auto at = [&rect](qreal x, qreal y) {
+        return QPointF(rect.left() + x * rect.width(), rect.top() + y * rect.height());
+    };
+    painter->drawPolygon(QPolygonF{ at(0.6, 0.1), at(0.25, 0.55), at(0.48, 0.55), at(0.38, 0.9),
+                                    at(0.75, 0.42), at(0.52, 0.42), at(0.65, 0.1) });
 }
 
 // Centred in rect, and scaled down to its width if wider.
@@ -544,6 +561,28 @@ bool LoadItem::isRunning() const
     return m_running;
 }
 
+void LoadItem::setFault(bool faulted, bool dangerous)
+{
+    const bool changed = m_faulted != faulted || m_dangerous != dangerous;
+    m_faulted = faulted;
+    m_dangerous = dangerous;
+    if (changed)
+        update();
+}
+
+QRectF LoadItem::faultMarkRect() const
+{
+    if (!m_faulted)
+        return {};
+    return { kFaultMarkInset, m_size.height() - kFaultMarkInset - kFaultMarkSize, kFaultMarkSize,
+             kFaultMarkSize };
+}
+
+bool LoadItem::isDangerous() const
+{
+    return m_dangerous;
+}
+
 QRectF LoadItem::boundingRect() const
 {
     QRectF rect = QRectF(QPointF(0, 0), m_size) | m_band;
@@ -613,6 +652,8 @@ void LoadItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWidge
 
     if (m_switchable)
         drawButton(painter, buttonRect(), m_on);
+    if (m_faulted)
+        drawFaultMark(painter, faultMarkRect(), m_dangerous);
     if (isSelected())
         drawOutline(painter, picture, Theme::selectionColor());
     if (m_refused)

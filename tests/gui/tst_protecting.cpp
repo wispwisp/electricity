@@ -59,6 +59,14 @@ private slots:
     void wireToolTestButtonDoesNothing();
     void stairwellTripShowsOnSupplyAndClickResets();
     void supplyClickWhenNotTrippedDoesNothing();
+    void loadMenuOffersFaults();
+    void shortCircuitFromMenuTrips();
+    void leakageOnKettleTripsRcd();
+    void faultStaysWithUnpluggedAppliance();
+    void dangerMarkIsRed();
+    void faultActionsAreNotEdits();
+    void faultSurvivesDeleteAndUndo();
+    void faultMarkKeepsTerminalsAndButtonClear();
 
 private:
     void zoomOut();
@@ -70,6 +78,12 @@ private:
     // Where the item's handle is drawn when the device is off.
     [[nodiscard]] QRectF offHandle(const QString &id) const;
     [[nodiscard]] QString message() const;
+    [[nodiscard]] LoadItem *loadItem(const QString &id) const;
+    [[nodiscard]] QPoint onPicture(const QString &id) const;
+    // Right-clicks the load or device and returns the open menu.
+    QMenu *openMenu(const QPoint &pos);
+    // Chooses the named fault action of the open menu of the load.
+    void chooseFault(const QString &loadId, const char *action);
     // The tutorial loads, zoomed out, with QF1, QD1 and QF3 on and a short circuit on Socket 1:
     // QF3 trips.
     void tripQf3();
@@ -131,6 +145,33 @@ QRectF TestProtecting::offHandle(const QString &id) const
 QString TestProtecting::message() const
 {
     return window->statusBar()->currentMessage();
+}
+
+LoadItem *TestProtecting::loadItem(const QString &id) const
+{
+    return dynamic_cast<LoadItem *>(sceneItem(scene, id));
+}
+
+QPoint TestProtecting::onPicture(const QString &id) const
+{
+    const LoadItem *item = loadItem(id);
+    return viewportPoint(canvas, item->mapToScene(item->shape().boundingRect().center()));
+}
+
+QMenu *TestProtecting::openMenu(const QPoint &pos)
+{
+    QTest::mouseClick(canvas->viewport(), Qt::RightButton, {}, pos);
+    auto *menu = named<QMenu>("deviceContextMenu");
+    if (menu)
+        static_cast<void>(QTest::qWaitFor([menu] { return menu->isVisible(); }));
+    return menu;
+}
+
+void TestProtecting::chooseFault(const QString &loadId, const char *action)
+{
+    QMenu *menu = openMenu(onPicture(loadId));
+    QVERIFY(menu && menu->isVisible());
+    clickMenuItem(menu, named<QAction>(action));
 }
 
 void TestProtecting::tripQf3()
@@ -489,3 +530,152 @@ void TestProtecting::supplyClickWhenNotTrippedDoesNothing()
 
 QTEST_MAIN(TestProtecting)
 #include "tst_protecting.moc"
+
+void TestProtecting::loadMenuOffersFaults()
+{
+    QMenu *menu = openMenu(onPicture(QStringLiteral("l3")));
+    QVERIFY(menu && menu->isVisible());
+    const QList<QAction *> actions = menu->actions();
+    QCOMPARE(actions.size(), 6);
+    QCOMPARE(actions[0], named<QAction>("shortCircuitAction"));
+    QCOMPARE(actions[1], named<QAction>("leakageAction"));
+    QCOMPARE(actions[2], named<QAction>("earthFaultAction"));
+    QCOMPARE(actions[3], named<QAction>("removeFaultAction"));
+    QVERIFY(actions[4]->isSeparator());
+    QCOMPARE(actions[5], named<QAction>("deleteAction"));
+    QCOMPARE(actions[0]->text(), QStringLiteral("Short circuit"));
+    QCOMPARE(actions[1]->text(), QStringLiteral("Leakage"));
+    QCOMPARE(actions[2]->text(), QStringLiteral("Earth fault"));
+    QCOMPARE(actions[3]->text(), QStringLiteral("Remove fault"));
+    for (int i = 0; i < 3; ++i)
+        QVERIFY(!actions[i]->isChecked());
+    QVERIFY(!actions[3]->isEnabled());
+    QTest::keyClick(menu, Qt::Key_Escape);
+    QTRY_VERIFY(!menu->isVisible());
+
+    menu = openMenu(
+            viewportPoint(canvas, deviceItem(QStringLiteral("d4"))->sceneBoundingRect().center()));
+    QVERIFY(menu && menu->isVisible());
+    QCOMPARE(menu->actions(), QList<QAction *>{ named<QAction>("deleteAction") });
+    QTest::keyClick(menu, Qt::Key_Escape);
+    QTRY_VERIFY(!menu->isVisible());
+}
+
+void TestProtecting::shortCircuitFromMenuTrips()
+{
+    for (const char *id : { "d1", "d2", "d4" })
+        clickHandle(QString::fromLatin1(id));
+    chooseFault(QStringLiteral("l3"), "shortCircuitAction");
+    QCOMPARE(window->simulation().tripCause(u"d4"), TripCause::ShortCircuit);
+    QCOMPARE(window->simulation().fault(u"l3"), Fault::ShortCircuit);
+    QVERIFY(!loadItem(QStringLiteral("l3"))->faultMarkRect().isEmpty());
+
+    QMenu *menu = openMenu(onPicture(QStringLiteral("l3")));
+    QVERIFY(menu && menu->isVisible());
+    QVERIFY(named<QAction>("shortCircuitAction")->isChecked());
+    QVERIFY(!named<QAction>("leakageAction")->isChecked());
+    QVERIFY(named<QAction>("removeFaultAction")->isEnabled());
+    clickMenuItem(menu, named<QAction>("removeFaultAction"));
+    QCOMPARE(window->simulation().fault(u"l3"), Fault::None);
+    QVERIFY(loadItem(QStringLiteral("l3"))->faultMarkRect().isEmpty());
+    QCOMPARE(window->simulation().tripCause(u"d4"), TripCause::ShortCircuit);
+
+    clickHandle("d4");
+    QVERIFY(window->simulation().isOn(u"d4"));
+}
+
+void TestProtecting::leakageOnKettleTripsRcd()
+{
+    for (const char *id : { "d1", "d2", "d5" })
+        clickHandle(QString::fromLatin1(id));
+    chooseFault(QStringLiteral("l9"), "leakageAction");
+    QCOMPARE(window->simulation().tripCause(u"d2"), TripCause::Leakage);
+    QCOMPARE(message(), kQd1Leakage);
+    QVERIFY(saveScreenshot(*window, "f09", "leakage"));
+}
+
+void TestProtecting::faultStaysWithUnpluggedAppliance()
+{
+    chooseFault(QStringLiteral("l9"), "shortCircuitAction");
+    mouseDrag(canvas->viewport(), onPicture("l9"), viewportPoint(canvas, QPointF(500, 300)));
+    QVERIFY(window->project().load(u"l9")->socket.isEmpty());
+    for (const char *id : { "d1", "d2", "d5" })
+        clickHandle(QString::fromLatin1(id));
+    for (const char *id : { "d1", "d2", "d3", "d4", "d5" })
+        QCOMPARE(window->simulation().tripCause(QString::fromLatin1(id)), TripCause::None);
+    mouseDrag(canvas->viewport(), onPicture("l9"),
+              viewportPoint(canvas, loadItem(QStringLiteral("l5"))->mapToScene(QPointF(18, 13.5))));
+    QCOMPARE(window->project().load(u"l9")->socket, QStringLiteral("l5"));
+    QCOMPARE(window->simulation().tripCause(u"d5"), TripCause::ShortCircuit);
+}
+
+void TestProtecting::dangerMarkIsRed()
+{
+    window->project().removeWire(wireId(QStringLiteral("pebar:4>l5:PE")));
+    for (const char *id : { "d1", "d2", "d5" })
+        clickHandle(QString::fromLatin1(id));
+    chooseFault(QStringLiteral("l9"), "earthFaultAction");
+    QVERIFY(window->simulation().isDangerous(u"l9"));
+    QVERIFY(loadItem(QStringLiteral("l9"))->isDangerous());
+    for (const char *id : { "d1", "d2", "d3", "d4", "d5" })
+        QCOMPARE(window->simulation().tripCause(QString::fromLatin1(id)), TripCause::None);
+    QVERIFY(saveScreenshot(*window, "f09", "danger"));
+}
+
+void TestProtecting::faultActionsAreNotEdits()
+{
+    const int edits = window->undoStack().count();
+    for (const char *id : { "d1", "d2", "d4" })
+        clickHandle(QString::fromLatin1(id));
+    chooseFault(QStringLiteral("l3"), "shortCircuitAction");
+    QCOMPARE(window->simulation().tripCause(u"d4"), TripCause::ShortCircuit);
+    QCOMPARE(window->undoStack().count(), edits);
+
+    window->undoStack().undo();
+    window->undoStack().redo();
+    QCOMPARE(window->simulation().fault(u"l3"), Fault::ShortCircuit);
+    QCOMPARE(window->simulation().tripCause(u"d4"), TripCause::ShortCircuit);
+    QVERIFY(window->simulation().isOn(u"d1"));
+    QVERIFY(window->simulation().isOn(u"d2"));
+}
+
+void TestProtecting::faultSurvivesDeleteAndUndo()
+{
+    // Not the first row: the same row of the same menu, clicked by the previous test, would reach
+    // the menu as a double click.
+    chooseFault(QStringLiteral("l3"), "leakageAction");
+    QCOMPARE(window->simulation().fault(u"l3"), Fault::Leakage);
+    QTest::mouseClick(canvas->viewport(), Qt::LeftButton, {}, onPicture("l3"));
+    QCOMPARE(scene->selectedLoadId(), QStringLiteral("l3"));
+    QTest::keyClick(canvas, Qt::Key_Delete);
+    QVERIFY(!window->project().load(u"l3"));
+    QCOMPARE(window->simulation().fault(u"l3"), Fault::Leakage);
+    window->undoStack().undo();
+    QVERIFY(window->project().load(u"l3"));
+    QCOMPARE(window->simulation().fault(u"l3"), Fault::Leakage);
+    QVERIFY(!loadItem(QStringLiteral("l3"))->faultMarkRect().isEmpty());
+}
+
+void TestProtecting::faultMarkKeepsTerminalsAndButtonClear()
+{
+    dropLoad(canvas, named<PaletteWidget>("paletteTree"), "cooktop",
+             viewportPoint(canvas, QPointF(400, 400)));
+    const QString cooktop = window->project().loads().last().id;
+    const Catalog &catalog = window->project().catalog();
+    for (const QString &id :
+         { QStringLiteral("l1"), QStringLiteral("l3"), cooktop, QStringLiteral("l9") }) {
+        LoadItem *item = loadItem(id);
+        QVERIFY2(item, qPrintable(id));
+        item->setFault(true, false);
+        const QRectF mark = item->faultMarkRect();
+        QVERIFY2(!mark.isEmpty(), qPrintable(id));
+        QVERIFY2(!mark.intersects(item->buttonRect()), qPrintable(id));
+        const LoadType *type = catalog.loadType(window->project().load(id)->type);
+        for (const TerminalSpec &terminal : type->terminals) {
+            const QRectF around(terminal.position - QPointF(3.6, 3.6), QSizeF(7.2, 7.2));
+            QVERIFY2(!mark.intersects(around), qPrintable(id + QLatin1Char(':') + terminal.name));
+        }
+        item->setFault(false, false);
+        QVERIFY2(item->faultMarkRect().isEmpty(), qPrintable(id));
+    }
+}

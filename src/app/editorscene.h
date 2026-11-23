@@ -12,6 +12,7 @@ class DeviceItem;
 class LoadItem;
 class PictureItem;
 class QAction;
+class QActionGroup;
 class QGraphicsEllipseItem;
 class QGraphicsLineItem;
 class QMenu;
@@ -191,6 +192,11 @@ private:
     QString m_testId;                  // m_movingId when the press is on its test button, else ""
     QPointF m_grabOffset; // press point minus the device body centre or the load picture centre
     QList<QAction *> m_contextActions;
+    QAction *m_shortCircuitAction;
+    QAction *m_leakageAction;
+    QAction *m_earthFaultAction;
+    QAction *m_removeFaultAction;
+    QString m_menuLoadId; // the load whose menu is open, the fault actions' target
     QMenu *m_contextMenu = nullptr;
     QPoint m_pressScreenPos;
     bool m_moving = false; // the press has moved beyond the start drag distance

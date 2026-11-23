@@ -153,6 +153,11 @@ public:
     // a warm glow for a light, a green halo otherwise
     void setRunning(bool running);
     [[nodiscard]] bool isRunning() const;
+    // a lightning mark bottom-left in the picture, red when the fault is dangerous
+    void setFault(bool faulted, bool dangerous);
+    // item coordinates; empty without a fault
+    [[nodiscard]] QRectF faultMarkRect() const;
+    [[nodiscard]] bool isDangerous() const;
 
     // what it paints: the picture, the caption band, the empty places, the cords and, for a
     // switchable load, the glow
@@ -179,6 +184,8 @@ private:
     bool m_light = false;
     bool m_on = false;
     bool m_running = false;
+    bool m_faulted = false;
+    bool m_dangerous = false;
 };
 
 // A wire's current: light text on a dark chip, the same in both themes, centred on its position.
