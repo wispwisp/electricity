@@ -5,6 +5,7 @@
 #include "core/project.h"
 
 #include <algorithm>
+#include <cmath>
 #include <optional>
 #include <utility>
 
@@ -60,6 +61,16 @@ std::optional<double> residualLimit(const PlacedDevice &device)
     if (milliamperes.isUndefined())
         return std::nullopt;
     return milliamperes.toDouble() / 1000;
+}
+
+// A section without an ampacity stays Normal.
+WireHeat wireHeatFor(double heat, double ampacity)
+{
+    if (ampacity <= 0)
+        return WireHeat::Normal;
+    if (heat >= std::pow(OverheatingFactor * ampacity, 2))
+        return WireHeat::Overheating;
+    return heat > ampacity * ampacity ? WireHeat::Overloaded : WireHeat::Normal;
 }
 
 } // namespace
@@ -177,6 +188,53 @@ double Simulation::elapsed() const
     return m_elapsed;
 }
 
+void Simulation::step(double seconds)
+{
+    // Currents only change in a solve, and a solve only follows a trip, so heat runs exactly from
+    // one thermal trip to the next (ADR 0030).
+    bool tripped = false;
+    while (seconds > 0) {
+        double moment = seconds;
+        QList<SimulationEvent> due = earliestThermalTrips(moment);
+        advance(moment);
+        seconds -= moment;
+        if (due.isEmpty())
+            continue;
+        for (SimulationEvent &event : due) {
+            event.time = m_elapsed;
+            trip(event);
+        }
+        solve();
+        tripped = true;
+    }
+    if (!tripped)
+        emit heated();
+    emitEvents();
+}
+
+WireHeat Simulation::wireHeat(QStringView wireId) const
+{
+    return m_wireHeat.value(wireId);
+}
+
+double Simulation::heatLevel(QStringView deviceId) const
+{
+    const PlacedDevice *device = m_project.device(deviceId);
+    const DeviceType *type = device ? m_project.catalog().deviceType(device->type) : nullptr;
+    if (!type || !type->protection)
+        return 0;
+    if (!type->protection->tripFactor)
+        return isOverloaded(deviceId) ? 1 : 0;
+    const double rated = device->parameters.value(u"ratedCurrent").toDouble();
+    const double trip = std::pow(*type->protection->tripFactor * rated, 2);
+    return std::clamp((m_heat.value(deviceId) - rated * rated) / (trip - rated * rated), 0.0, 1.0);
+}
+
+bool Simulation::isOverloaded(QStringView deviceId) const
+{
+    return m_overloaded.contains(deviceId.toString());
+}
+
 void Simulation::solve()
 {
     solveNetwork();
@@ -184,9 +242,7 @@ void Simulation::solve()
         solveNetwork();
     storeResults();
     emit solved();
-    const QList<SimulationEvent> events = std::exchange(m_events, {});
-    for (const SimulationEvent &event : events)
-        emit occurred(event);
+    emitEvents();
 }
 
 void Simulation::solveNetwork()
@@ -394,6 +450,125 @@ void Simulation::storeResults()
     m_dangerous = dangerous;
 }
 
+void Simulation::emitEvents()
+{
+    const QList<SimulationEvent> events = std::exchange(m_events, {});
+    for (const SimulationEvent &event : events)
+        emit occurred(event);
+}
+
+QList<SimulationEvent> Simulation::earliestThermalTrips(double &seconds) const
+{
+    QList<SimulationEvent> due;
+    const auto consider = [&](const QString &id, double current, double rated,
+                              const ProtectionSpec &protection, const QString &curve) {
+        if (!protection.tripFactor)
+            return;
+        const double limit = std::pow(*protection.tripFactor * rated, 2);
+        const double squared = current * current;
+        // heat that settles at I² at or under the limit never trips, however hot it is now
+        if (squared <= limit)
+            return;
+        const double heat = m_heat.value(id);
+        const double t = heat >= limit
+                ? 0
+                : protection.timeConstant * std::log((squared - heat) / (squared - limit));
+        if (t > seconds)
+            return;
+        if (t < seconds)
+            due.clear();
+        seconds = t;
+        const bool shortCircuit = protection.curves.contains(curve)
+                && current >= protection.curves.value(curve).lower * rated;
+        due.append({ .id = id,
+                     .cause = shortCircuit ? TripCause::ShortCircuit : TripCause::Overload,
+                     .current = current,
+                     .limit = rated });
+    };
+
+    const SupplyType &supply = m_project.supply();
+    if (const ProtectionSpec *protection = supplyBreakerProtection();
+        protection && !m_trips.contains(SupplyBreakerId))
+        consider(SupplyBreakerId.toString(), supplyBreakerCurrent(), supply.upstreamRating,
+                 *protection, supply.upstreamCurve);
+    for (const PlacedDevice &d : m_project.devices()) {
+        const DeviceType *type = m_project.catalog().deviceType(d.type);
+        if (type && type->protection && isOn(d.id))
+            consider(d.id, m_deviceCurrents.value(d.id),
+                     d.parameters.value(u"ratedCurrent").toDouble(), *type->protection,
+                     d.parameters.value(u"curve").toString());
+    }
+    return due;
+}
+
+void Simulation::advance(double seconds)
+{
+    if (seconds <= 0)
+        return;
+    m_elapsed += seconds;
+    // exact for a steady current: H ← I² + (H − I²)·e^(−t/τ)
+    const auto heat = [&](const QString &id, double current, double tau) {
+        const double squared = current * current;
+        const double h = squared + (m_heat.value(id) - squared) * std::exp(-seconds / tau);
+        m_heat.insert(id, h);
+        return h;
+    };
+
+    if (const ProtectionSpec *protection = supplyBreakerProtection())
+        heat(SupplyBreakerId.toString(), supplyBreakerCurrent(), protection->timeConstant);
+    for (const PlacedDevice &d : m_project.devices()) {
+        const DeviceType *type = m_project.catalog().deviceType(d.type);
+        if (!type || !type->protection)
+            continue;
+        const double current = m_deviceCurrents.value(d.id);
+        const double h = heat(d.id, current, type->protection->timeConstant);
+        if (type->protection->tripFactor)
+            continue;
+        // an RCD never trips on heat; it only warns
+        const double rated = d.parameters.value(u"ratedCurrent").toDouble();
+        const bool overloaded = h > rated * rated;
+        if (overloaded == m_overloaded.contains(d.id))
+            continue;
+        if (overloaded)
+            m_overloaded.insert(d.id);
+        else
+            m_overloaded.remove(d.id);
+        m_events.append({ .kind = overloaded ? SimulationEvent::Kind::Overloaded
+                                             : SimulationEvent::Kind::Cleared,
+                          .id = d.id,
+                          .current = current,
+                          .limit = rated,
+                          .time = m_elapsed });
+    }
+    for (const Wire &w : m_project.wires()) {
+        const double current = m_wireCurrents.value(w.id);
+        const double ampacity = m_project.catalog().ampacity(w.section);
+        const WireHeat state
+                = wireHeatFor(heat(w.id, current, m_project.catalog().wireTimeConstant), ampacity);
+        if (state == m_wireHeat.value(w.id))
+            continue;
+        m_wireHeat.insert(w.id, state);
+        const SimulationEvent::Kind kind = state == WireHeat::Normal
+                ? SimulationEvent::Kind::Cleared
+                : (state == WireHeat::Overloaded ? SimulationEvent::Kind::Overloaded
+                                                 : SimulationEvent::Kind::Overheating);
+        m_events.append({ .kind = kind,
+                          .id = w.id,
+                          .current = current,
+                          .limit = ampacity,
+                          .time = m_elapsed });
+    }
+}
+
+const ProtectionSpec *Simulation::supplyBreakerProtection() const
+{
+    const DeviceType *breaker = m_project.catalog().deviceType(u"breaker");
+    if (!breaker || !breaker->protection
+        || !breaker->protection->curves.contains(m_project.supply().upstreamCurve))
+        return nullptr;
+    return &*breaker->protection;
+}
+
 QList<ContactSpec> Simulation::closedContacts(const PlacedDevice &device) const
 {
     const DeviceType *type = m_project.catalog().deviceType(device.type);
@@ -418,6 +593,9 @@ QList<Complex> Simulation::poleCurrents(const PlacedDevice &device) const
 
 double Simulation::supplyBreakerCurrent() const
 {
+    // the source is gone, so V(supply L) = 0 would read as E / Zs
+    if (m_trips.contains(SupplyBreakerId))
+        return 0;
     double largest = 0;
     for (const TerminalSpec &t : m_project.supply().terminals) {
         if (t.role == Conductor::L)

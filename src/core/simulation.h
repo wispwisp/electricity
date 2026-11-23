@@ -7,6 +7,7 @@
 #include <QList>
 #include <QMap>
 #include <QObject>
+#include <QSet>
 #include <QString>
 
 #include <cstdint>
@@ -14,6 +15,7 @@
 class Project;
 struct ContactSpec;
 struct PlacedDevice;
+struct ProtectionSpec;
 
 inline constexpr double SupplyVoltage = 230;        // V
 inline constexpr double SupplyImpedance = 0.4;      // Ω, on supply L (ADR 0007)
@@ -22,11 +24,13 @@ inline constexpr double CopperResistivity = 0.0175; // Ω·mm²/m
 inline constexpr double FaultResistance = 0.001;  // Ω, short circuit L–N and earth fault L–PE
 inline constexpr double LeakageResistance = 1000; // Ω, L to earth: about a person (ADR 0007)
 inline constexpr double TouchVoltageLimit = 50;   // V (ПУЭ 1.7.53)
+inline constexpr double OverheatingFactor = 1.45; // × Iz (ADR 0008)
 inline constexpr int MaxTripRounds = 32;
 inline constexpr QStringView SupplyBreakerId = u"supply"; // the stairwell breaker
 
 enum class Fault : std::uint8_t { None, ShortCircuit, Leakage, EarthFault };
 enum class TripCause : std::uint8_t { None, Overload, ShortCircuit, Leakage, Test };
+enum class WireHeat : std::uint8_t { Normal, Overloaded, Overheating };
 
 struct SimulationEvent
 {
@@ -41,9 +45,10 @@ struct SimulationEvent
     double time = 0;    // s, elapsed() when it happened
 };
 
-// The live circuit of a project: on/off settings, trips and faults by object id and the latest
-// solve (ADR 0008, 0029, 0030). Solves at once, after every Project::changed() and after every
-// setting that changes; instant trips happen inside the solve.
+// The live circuit of a project: on/off settings, trips, faults and heat by object id and the
+// latest solve (ADR 0008, 0029, 0030). Solves at once, after every Project::changed() and after
+// every setting that changes; instant trips happen inside the solve. Heat and thermal trips move
+// only with step().
 class Simulation : public QObject
 {
     Q_OBJECT
@@ -74,10 +79,20 @@ public:
     [[nodiscard]] double touchVoltage(QStringView loadId) const; // V; 0 unless its fault acts
     [[nodiscard]] bool isDangerous(QStringView loadId) const;    // touchVoltage > TouchVoltageLimit
     [[nodiscard]] double elapsed() const;                        // simulated s
+    // advances simulated time by seconds (> 0): heat and cooling, each thermal trip at its exact
+    // moment
+    void step(double seconds);
+    [[nodiscard]] WireHeat wireHeat(QStringView wireId) const; // as of the latest step
+    // 0..1: a breaker's or RCBO's heat on its way from In² to its trip point; an RCD's 1 while
+    // overloaded; 0 for anything else
+    [[nodiscard]] double heatLevel(QStringView deviceId) const;
+    [[nodiscard]] bool isOverloaded(QStringView deviceId) const; // an RCD above In²
 
 signals:
-    void solved();                               // after every solve
-    void occurred(const SimulationEvent &event); // after the solved() of the solve that settled it
+    void solved(); // after every solve
+    void heated(); // after a step that tripped nothing; a step that trips emits solved() instead
+    // after the solved() or heated() of the solve or step that settled it
+    void occurred(const SimulationEvent &event);
 
 private:
     struct LoadResult
@@ -96,17 +111,29 @@ private:
     // a Cleared event; false if it wasn't tripped
     bool clearTrip(const QString &id);
     void storeResults();
+    void emitEvents();
+    // the thermal trips due first within seconds, all at one moment, which seconds becomes; their
+    // time is left to set
+    [[nodiscard]] QList<SimulationEvent> earliestThermalTrips(double &seconds) const;
+    // heat of every device, wire and the stairwell breaker over seconds of steady currents, then
+    // the wire and RCD states
+    void advance(double seconds);
+    // the breaker type's, which the stairwell breaker uses; nullptr if the supply has none
+    [[nodiscard]] const ProtectionSpec *supplyBreakerProtection() const;
     [[nodiscard]] QList<ContactSpec> closedContacts(const PlacedDevice &device) const;
     [[nodiscard]] Complex voltage(const QString &terminal) const; // of the latest network solve
     // of the closed contacts, top to bottom
     [[nodiscard]] QList<Complex> poleCurrents(const PlacedDevice &device) const;
-    [[nodiscard]] double supplyBreakerCurrent() const; // A, |E − V(supply L)| / Zs
+    [[nodiscard]] double supplyBreakerCurrent() const; // A, |E − V(supply L)| / Zs; 0 if tripped
 
     const Project &m_project;
     // kept after the object is removed, so an undo restores them
     QHash<QString, bool> m_on;
     QHash<QString, TripCause> m_trips; // tripped devices and the stairwell breaker
     QHash<QString, Fault> m_faults;
+    QHash<QString, double> m_heat; // A², of devices, wires and the stairwell breaker
+    QHash<QString, WireHeat> m_wireHeat;
+    QSet<QString> m_overloaded;  // RCDs
     double m_elapsed = 0;        // simulated s
     QHash<QString, int> m_nodes; // conductor key -> node of the latest network solve
     QList<Complex> m_voltages;   // V, by node

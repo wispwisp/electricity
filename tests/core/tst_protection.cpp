@@ -51,6 +51,35 @@ double leakageCurrent()
     return seriesCurrent(wireResistance(1, 2.5) + Contact + wireResistance(15, 1.5) + PersonOhms);
 }
 
+constexpr double BreakerTau = 73; // s, breakers, RCBOs, RCDs and the stairwell breaker
+constexpr double WireTau = 120;   // s
+
+// A load is a fixed resistance U²/P.
+double loadResistance(int power)
+{
+    return 230.0 * 230.0 / power;
+}
+
+double parallel(double a, double b)
+{
+    return a * b / (a + b);
+}
+
+// The current of addCooktopCircuit's circuit: its two feeder wires, its two load wires, d1's
+// contact, the N tie and the cooktop, in series.
+double cooktopCurrent(int power, double length = 15, double section = 1.5, double feeder = 2.5)
+{
+    return seriesCurrent(2 * wireResistance(1, feeder) + 2 * wireResistance(length, section)
+                         + 2 * Contact + loadResistance(power));
+}
+
+// The seconds a steady current takes to bring heat (A²) from h0 to the limit:
+// H = I² + (H0 − I²)·e^(−t/τ) solved for t.
+double secondsToHeat(double tau, double current, double limit, double h0 = 0)
+{
+    return tau * std::log((current * current - h0) / (current * current - limit));
+}
+
 } // namespace
 
 class TestProtection : public QObject
@@ -84,6 +113,20 @@ private slots:
     void projectEditsKeepTripsAndFaults();
     void setFaultRefusesUnknownLoadsAndRepeats();
     void eventsOncePerChange();
+    void thermalTripTimeFollowsTau();
+    void sameTripTimeAtAnyStep_data();
+    void sameTripTimeAtAnyStep();
+    void noStepNoThermalTrip();
+    void hotBreakerTripsSooner();
+    void heatCoolsWithoutCurrent();
+    void weakShortTripsOnHeatAsShortCircuit();
+    void rcdOverloadNeverTrips();
+    void oversizedBreakerLetsThinWireOverheat();
+    void correctPairingsNeverWarnBeforeTheirBreakerTrips_data();
+    void correctPairingsNeverWarnBeforeTheirBreakerTrips();
+    void stairwellBreakerTripsOnOverload();
+    void heatSurvivesRemoveAndRestore();
+    void heatedOncePerQuietStep();
 
 private:
     // ratedCurrent 0 keeps the preset's
@@ -98,10 +141,21 @@ private:
     // supply:N → d1:N1 (1 m, 2.5 mm²), d1:2 → l1:L and l1:N → d1:N2 (15 m, 1.5 mm²); with pe,
     // l1:PE → pebar:1 (15 m, 1.5 mm²) and pebar:2 → supply:PE (1 m, 2.5 mm²).
     void addRcdCircuit(const char *presetId = "rcd-2p-40-30", bool pe = true);
+    // d1, a 1P C breaker of this In at (0, 0), feeding a cooktop l1 of this power at (0, 270):
+    // w1 supply:L → d1:1 and w4 nbar:2 → supply:N (1 m, feeder mm²), the load wires w2 d1:2 → l1:L
+    // and w3 l1:N → nbar:1 (length m, section mm²). Everything stays off.
+    void addCooktopCircuit(int ratedCurrent, int power, double length = 15, double section = 1.5,
+                           double feeder = 2.5);
     [[nodiscard]] bool near(double actual, double expected) const;
+    // A thermal trip time worked out by hand: with the solved current off by up to near()'s
+    // Gmin bound, it lies between the times for the bound's two ends, besides 1e-6 s of rounding.
+    [[nodiscard]] bool nearTripTime(double actual, double current, double limit,
+                                    double h0 = 0) const;
     // only Gmin leaks through every wire, device and load
     [[nodiscard]] bool everyCurrentGone() const;
     [[nodiscard]] static QList<SimulationEvent> events(const QSignalSpy &spy);
+    // only those of this object
+    [[nodiscard]] static QList<SimulationEvent> events(const QSignalSpy &spy, QStringView id);
 
     std::unique_ptr<Project> m_project;
     std::unique_ptr<Simulation> m_simulation;
@@ -171,6 +225,17 @@ void TestProtection::addRcdCircuit(const char *presetId, bool pe)
     }
 }
 
+void TestProtection::addCooktopCircuit(int ratedCurrent, int power, double length, double section,
+                                       double feeder)
+{
+    addDevice("breaker-1p-c10", 0, 0, ratedCurrent);
+    addLoad("cooktop", QPointF(0, 270), power);
+    addWire(u"supply:L"_s, u"d1:1"_s, 1, feeder);
+    addWire(u"d1:2"_s, u"l1:L"_s, length, section);
+    addWire(u"l1:N"_s, u"nbar:1"_s, length, section);
+    addWire(u"nbar:2"_s, u"supply:N"_s, 1, feeder);
+}
+
 // Gmin draws at most Gmin · 230 V from each terminal, so a solved current can be off the hand
 // worked series value by up to that much per terminal, besides rounding.
 bool TestProtection::near(double actual, double expected) const
@@ -179,6 +244,17 @@ bool TestProtection::near(double actual, double expected) const
     if (std::abs(actual - expected) <= 1e-9 * std::abs(expected) + leakage)
         return true;
     qWarning("%.12g, expected %.12g", actual, expected);
+    return false;
+}
+
+bool TestProtection::nearTripTime(double actual, double current, double limit, double h0) const
+{
+    const double leakage = static_cast<double>(m_project->terminalIds().size()) * Gmin * 230;
+    const double earliest = secondsToHeat(BreakerTau, current + leakage, limit, h0);
+    const double latest = secondsToHeat(BreakerTau, current - leakage, limit, h0);
+    if (actual >= earliest - 1e-6 && actual <= latest + 1e-6)
+        return true;
+    qWarning("%.12g s, expected %.12g to %.12g s", actual, earliest, latest);
     return false;
 }
 
@@ -199,6 +275,13 @@ QList<SimulationEvent> TestProtection::events(const QSignalSpy &spy)
     QList<SimulationEvent> list;
     for (const QList<QVariant> &arguments : spy)
         list << arguments.at(0).value<SimulationEvent>();
+    return list;
+}
+
+QList<SimulationEvent> TestProtection::events(const QSignalSpy &spy, QStringView id)
+{
+    QList<SimulationEvent> list = events(spy);
+    list.removeIf([id](const SimulationEvent &event) { return event.id != id; });
     return list;
 }
 
@@ -764,6 +847,371 @@ void TestProtection::eventsOncePerChange()
     QCOMPARE(occurred.count(), 3); // Cleared d1, Dangerous l1
     addDevice("breaker-1p-c10", 0, 4);
     QCOMPARE(occurred.count(), 3);
+}
+
+void TestProtection::thermalTripTimeFollowsTau()
+{
+    addCooktopCircuit(10, 4600);
+    m_simulation->setOn(u"d1"_s, true);
+    m_simulation->setOn(u"l1"_s, true);
+    const double current = cooktopCurrent(4600); // about 18.75 A, over 1.3 · In = 13 A
+    QVERIFY(near(m_simulation->deviceCurrent(u"d1"), current));
+    QSignalSpy occurred(m_simulation.get(), &Simulation::occurred);
+    m_simulation->step(1000);
+
+    QCOMPARE(m_simulation->tripCause(u"d1"), TripCause::Overload);
+    QVERIFY(!m_simulation->isOn(u"d1"));
+    QCOMPARE(m_simulation->elapsed(), 1000.0);
+    const QList<SimulationEvent> list = events(occurred, u"d1");
+    QCOMPARE(list.size(), 1);
+    QCOMPARE(list[0].kind, SimulationEvent::Kind::Tripped);
+    QCOMPARE(list[0].cause, TripCause::Overload);
+    QVERIFY(near(list[0].current, current));
+    QCOMPARE(list[0].limit, 10.0);
+    // about 48.2 s from cold
+    QVERIFY(nearTripTime(list[0].time, current, 13.0 * 13.0));
+}
+
+void TestProtection::sameTripTimeAtAnyStep_data()
+{
+    QTest::addColumn<double>("step");
+    QTest::newRow("0.05 s") << 0.05;
+    QTest::newRow("0.5 s") << 0.5;
+    QTest::newRow("3 s") << 3.0;
+    QTest::newRow("1000 s") << 1000.0;
+}
+
+void TestProtection::sameTripTimeAtAnyStep()
+{
+    QFETCH(double, step);
+    addCooktopCircuit(10, 4600);
+    m_simulation->setOn(u"d1"_s, true);
+    m_simulation->setOn(u"l1"_s, true);
+    QSignalSpy occurred(m_simulation.get(), &Simulation::occurred);
+    while (m_simulation->elapsed() < 1000)
+        m_simulation->step(step);
+
+    const QList<SimulationEvent> list = events(occurred, u"d1");
+    QCOMPARE(list.size(), 1);
+    QCOMPARE(list[0].cause, TripCause::Overload);
+    QVERIFY(nearTripTime(list[0].time, cooktopCurrent(4600), 13.0 * 13.0));
+}
+
+void TestProtection::noStepNoThermalTrip()
+{
+    addCooktopCircuit(10, 4600);
+    m_simulation->setOn(u"d1"_s, true);
+    m_simulation->setOn(u"l1"_s, true);
+
+    QVERIFY(m_simulation->deviceCurrent(u"d1") > 13);
+    QVERIFY(m_simulation->isOn(u"d1"));
+    QCOMPARE(m_simulation->tripCause(u"d1"), TripCause::None);
+    QCOMPARE(m_simulation->heatLevel(u"d1"), 0.0);
+    QCOMPARE(m_simulation->elapsed(), 0.0);
+}
+
+void TestProtection::hotBreakerTripsSooner()
+{
+    addCooktopCircuit(10, 4600);
+    m_simulation->setOn(u"d1"_s, true);
+    m_simulation->setOn(u"l1"_s, true);
+    const double current = cooktopCurrent(4600);
+    const double limit = 13.0 * 13.0;
+    const double cold = secondsToHeat(BreakerTau, current, limit); // about 48.2 s
+    m_simulation->step(50);
+    QCOMPARE(m_simulation->tripCause(u"d1"), TripCause::Overload);
+
+    // it cools from the trip on: for the rest of that step and 30 s more
+    QVERIFY(m_simulation->setOn(u"l1"_s, false));
+    m_simulation->step(30);
+    QVERIFY(m_simulation->setOn(u"l1"_s, true));
+    QVERIFY(m_simulation->setOn(u"d1"_s, true));
+    QVERIFY(m_simulation->isOn(u"d1"));
+    QSignalSpy occurred(m_simulation.get(), &Simulation::occurred);
+    m_simulation->step(1000);
+
+    const double h0 = limit * std::exp(-(80 - cold) / BreakerTau);
+    const double hot = secondsToHeat(BreakerTau, current, limit, h0);
+    QVERIFY(hot < cold);
+    QCOMPARE(m_simulation->tripCause(u"d1"), TripCause::Overload);
+    const QList<SimulationEvent> list = events(occurred, u"d1");
+    QCOMPARE(list.size(), 1);
+    QCOMPARE(list[0].kind, SimulationEvent::Kind::Tripped);
+    QCOMPARE(list[0].cause, TripCause::Overload);
+    QVERIFY(nearTripTime(list[0].time - 80, current, limit, h0));
+}
+
+void TestProtection::heatCoolsWithoutCurrent()
+{
+    addCooktopCircuit(10, 4600);
+    m_simulation->setOn(u"d1"_s, true);
+    m_simulation->setOn(u"l1"_s, true);
+    m_simulation->step(50);
+    QCOMPARE(m_simulation->tripCause(u"d1"), TripCause::Overload);
+
+    // H reached (1.3 · In)² = 169 at the trip and has cooled for the rest of the step; the level
+    // goes from In² = 100 to 169
+    const double cold = secondsToHeat(BreakerTau, cooktopCurrent(4600), 169);
+    const double heat = 169 * std::exp(-(50 - cold) / BreakerTau);
+    QVERIFY(std::abs(m_simulation->heatLevel(u"d1") - (heat - 100) / 69) < 1e-6);
+
+    m_simulation->step(73);
+    QVERIFY(heat * std::exp(-1.0) < 100);
+    QCOMPARE(m_simulation->heatLevel(u"d1"), 0.0);
+}
+
+void TestProtection::weakShortTripsOnHeatAsShortCircuit()
+{
+    addCooktopCircuit(32, 7000); // the cooktop stays off
+    m_simulation->setOn(u"d1"_s, true);
+    QSignalSpy occurred(m_simulation.get(), &Simulation::occurred);
+    QVERIFY(m_simulation->setFault(u"l1"_s, Fault::ShortCircuit));
+
+    // about 299.9 A: a short circuit from 5 · In = 160 A, under the instant trip at 10 · In
+    const double current = seriesCurrent(baseResistance() + FaultOhms);
+    QVERIFY(current > 160 && current < 320);
+    QVERIFY(m_simulation->isOn(u"d1"));
+    QVERIFY(near(m_simulation->deviceCurrent(u"d1"), current));
+    QVERIFY(events(occurred, u"d1").isEmpty());
+
+    m_simulation->step(1.0);
+    QVERIFY(m_simulation->isOn(u"d1"));
+    m_simulation->step(0.5);
+    QCOMPARE(m_simulation->tripCause(u"d1"), TripCause::ShortCircuit);
+    const QList<SimulationEvent> list = events(occurred, u"d1");
+    QCOMPARE(list.size(), 1);
+    QCOMPARE(list[0].kind, SimulationEvent::Kind::Tripped);
+    QCOMPARE(list[0].cause, TripCause::ShortCircuit);
+    QVERIFY(near(list[0].current, current));
+    QCOMPARE(list[0].limit, 32.0);
+    // about 1.42 s
+    QVERIFY(nearTripTime(list[0].time, current, 41.6 * 41.6));
+}
+
+void TestProtection::rcdOverloadNeverTrips()
+{
+    QCOMPARE(addDevice("rcd-2p-40-30", 0, 0, 25), u"d1"_s);
+    QCOMPARE(addLoad("cooktop", QPointF(0, 270)), u"l1"_s); // 7 kW
+    addWire(u"supply:L"_s, u"d1:1"_s, 1, 6);
+    addWire(u"supply:N"_s, u"d1:N1"_s, 1, 6);
+    addWire(u"d1:2"_s, u"l1:L"_s, 1, 6);
+    addWire(u"l1:N"_s, u"d1:N2"_s, 1, 6);
+    m_simulation->setOn(u"d1"_s, true);
+    m_simulation->setOn(u"l1"_s, true);
+    // about 28.9 A through four wires, both contacts and the N tie, over In = 25 A
+    const double current
+            = seriesCurrent(4 * wireResistance(1, 6) + 3 * Contact + loadResistance(7000));
+    QVERIFY(current > 25);
+    QVERIFY(near(m_simulation->deviceCurrent(u"d1"), current));
+    QSignalSpy occurred(m_simulation.get(), &Simulation::occurred);
+    m_simulation->step(3600);
+
+    QVERIFY(m_simulation->isOn(u"d1"));
+    QCOMPARE(m_simulation->tripCause(u"d1"), TripCause::None);
+    QVERIFY(m_simulation->isOverloaded(u"d1"));
+    QCOMPARE(m_simulation->heatLevel(u"d1"), 1.0);
+    QList<SimulationEvent> list = events(occurred, u"d1");
+    QCOMPARE(list.size(), 1);
+    QCOMPARE(list[0].kind, SimulationEvent::Kind::Overloaded);
+    QVERIFY(near(list[0].current, current));
+    QCOMPARE(list[0].limit, 25.0);
+
+    occurred.clear();
+    QVERIFY(m_simulation->setOn(u"l1"_s, false));
+    m_simulation->step(3600);
+    QVERIFY(!m_simulation->isOverloaded(u"d1"));
+    QCOMPARE(m_simulation->heatLevel(u"d1"), 0.0);
+    list = events(occurred, u"d1");
+    QCOMPARE(list.size(), 1);
+    QCOMPARE(list[0].kind, SimulationEvent::Kind::Cleared);
+}
+
+void TestProtection::oversizedBreakerLetsThinWireOverheat()
+{
+    addCooktopCircuit(32, 9000, 15, 1.5, 10);
+    m_simulation->setOn(u"d1"_s, true);
+    m_simulation->setOn(u"l1"_s, true);
+    // about 34.7 A: under the C32's 1.3 · In = 41.6 A, over the 1.5 mm² wires' 19 A
+    const double current = cooktopCurrent(9000, 15, 1.5, 10);
+    QVERIFY(current > 19 && current < 41.6);
+    const double overloaded = secondsToHeat(WireTau, current, 19.0 * 19.0); // about 42.9 s
+    const double overheating = secondsToHeat(WireTau, current, std::pow(1.45 * 19, 2)); // 119.7 s
+    QSignalSpy occurred(m_simulation.get(), &Simulation::occurred);
+
+    const QList<std::pair<double, WireHeat>> checkpoints{
+        { overloaded - 1, WireHeat::Normal },
+        { overloaded + 1, WireHeat::Overloaded },
+        { overheating - 1, WireHeat::Overloaded },
+        { overheating + 1, WireHeat::Overheating },
+    };
+    double now = 0;
+    for (const auto &[time, state] : checkpoints) {
+        m_simulation->step(time - now);
+        now = time;
+        QCOMPARE(m_simulation->wireHeat(u"w2"), state);
+        QCOMPARE(m_simulation->wireHeat(u"w3"), state);
+        QCOMPARE(m_simulation->wireHeat(u"w1"), WireHeat::Normal); // 10 mm², 70 A
+        QCOMPARE(m_simulation->wireHeat(u"w4"), WireHeat::Normal);
+    }
+    for (const QStringView wire : { u"w2", u"w3" }) {
+        const QList<SimulationEvent> list = events(occurred, wire);
+        QCOMPARE(list.size(), 2);
+        QCOMPARE(list[0].kind, SimulationEvent::Kind::Overloaded);
+        QVERIFY(near(list[0].current, current));
+        QCOMPARE(list[0].limit, 19.0);
+        QCOMPARE(list[1].kind, SimulationEvent::Kind::Overheating);
+        QCOMPARE(list[1].limit, 19.0);
+    }
+
+    m_simulation->step(3600);
+    QVERIFY(m_simulation->isOn(u"d1"));
+    QCOMPARE(m_simulation->tripCause(u"d1"), TripCause::None);
+}
+
+void TestProtection::correctPairingsNeverWarnBeforeTheirBreakerTrips_data()
+{
+    QTest::addColumn<int>("rated");
+    QTest::addColumn<double>("section");
+    QTest::addColumn<int>("power");
+    QTest::newRow("C10, 1.5 mm², 3500 W") << 10 << 1.5 << 3500;
+    QTest::newRow("C16, 2.5 mm², 5500 W") << 16 << 2.5 << 5500;
+    QTest::newRow("C32, 6 mm², 11000 W") << 32 << 6.0 << 11000;
+    QTest::newRow("C40, 10 mm², 15000 W") << 40 << 10.0 << 15000;
+}
+
+void TestProtection::correctPairingsNeverWarnBeforeTheirBreakerTrips()
+{
+    QFETCH(int, rated);
+    QFETCH(double, section);
+    QFETCH(int, power);
+    addCooktopCircuit(rated, power, 1, section, section);
+    m_simulation->setOn(u"d1"_s, true);
+    m_simulation->setOn(u"l1"_s, true);
+    QVERIFY(cooktopCurrent(power, 1, section, section) > 1.3 * rated);
+
+    while (m_simulation->isOn(u"d1") && m_simulation->elapsed() < 600) {
+        m_simulation->step(0.5);
+        for (const Wire &w : m_project->wires())
+            QCOMPARE(m_simulation->wireHeat(w.id), WireHeat::Normal);
+    }
+    QCOMPARE(m_simulation->tripCause(u"d1"), TripCause::Overload);
+}
+
+void TestProtection::stairwellBreakerTripsOnOverload()
+{
+    QCOMPARE(addLoad("cooktop", QPointF(0, 270), 15000), u"l1"_s);
+    QCOMPARE(addLoad("cooktop", QPointF(100, 270), 15000), u"l2"_s);
+    addWire(u"supply:L"_s, u"l1:L"_s, 1, 6);
+    addWire(u"l1:L"_s, u"l2:L"_s, 1, 6);
+    addWire(u"supply:N"_s, u"l1:N"_s, 1, 6);
+    addWire(u"l1:N"_s, u"l2:N"_s, 1, 6);
+    m_simulation->setOn(u"l1"_s, true);
+    m_simulation->setOn(u"l2"_s, true);
+    // l2 hangs on l1's terminals through two more wires; about 105.9 A: over the C50's
+    // 1.3 · In = 65 A, an overload under 5 · In
+    const double wire = wireResistance(1, 6);
+    const double cooktop = loadResistance(15000);
+    const double current
+            = seriesCurrent(2 * wire + Contact + parallel(cooktop, cooktop + 2 * wire));
+    QVERIFY(current > 65 && current < 250);
+    QVERIFY(near(m_simulation->wireCurrent(u"w1"), current));
+    QSignalSpy occurred(m_simulation.get(), &Simulation::occurred);
+    m_simulation->step(40);
+
+    const double limit = 65.0 * 65.0;
+    const double cold = secondsToHeat(BreakerTau, current, limit); // about 34.5 s
+    QCOMPARE(m_simulation->tripCause(SupplyBreakerId), TripCause::Overload);
+    QList<SimulationEvent> list = events(occurred, SupplyBreakerId);
+    QCOMPARE(list.size(), 1);
+    QCOMPARE(list[0].kind, SimulationEvent::Kind::Tripped);
+    QCOMPARE(list[0].cause, TripCause::Overload);
+    QVERIFY(near(list[0].current, current));
+    QCOMPARE(list[0].limit, 50.0);
+    QVERIFY(nearTripTime(list[0].time, current, limit));
+
+    // tripped, it carries nothing and cools: reset 30 s later, it trips again sooner
+    m_simulation->step(30);
+    occurred.clear();
+    QVERIFY(m_simulation->resetSupplyBreaker());
+    m_simulation->step(1000);
+    const double h0 = limit * std::exp(-(70 - cold) / BreakerTau);
+    list = events(occurred, SupplyBreakerId);
+    QCOMPARE(list.size(), 2);
+    QCOMPARE(list[0].kind, SimulationEvent::Kind::Cleared);
+    QCOMPARE(list[1].kind, SimulationEvent::Kind::Tripped);
+    QCOMPARE(list[1].cause, TripCause::Overload);
+    QVERIFY(nearTripTime(list[1].time - 70, current, limit, h0));
+}
+
+void TestProtection::heatSurvivesRemoveAndRestore()
+{
+    addCooktopCircuit(16, 5000);
+    m_simulation->setOn(u"d1"_s, true);
+    m_simulation->setOn(u"l1"_s, true);
+    // about 20.3 A: under the C16's 1.3 · In = 20.8 A, over the 1.5 mm² wires' 19 A
+    const double current = cooktopCurrent(5000);
+    QVERIFY(current > 19 && current < 20.8);
+    m_simulation->step(600);
+    const double heat = current * current * (1 - std::exp(-600 / BreakerTau));
+    const double level = (heat - 16 * 16) / (20.8 * 20.8 - 16 * 16);
+    QVERIFY(std::abs(m_simulation->heatLevel(u"d1") - level) < 1e-6);
+    QCOMPARE(m_simulation->wireHeat(u"w2"), WireHeat::Overloaded); // since about 253 s
+    const PlacedDevice device = *m_project->device(u"d1");
+    const PlacedLoad load = *m_project->load(u"l1");
+    const QList<Wire> wires = m_project->wires();
+
+    QVERIFY(m_project->removeLoad(u"l1"));
+    QVERIFY(m_project->removeDevice(u"d1"));
+    QVERIFY(!m_project->wire(u"w2"));
+    QCOMPARE(m_project->addDevice(device), u"d1"_s);
+    QCOMPARE(m_project->addLoad(load), u"l1"_s);
+    for (const Wire &w : wires) {
+        if (!m_project->wire(w.id))
+            QCOMPARE(m_project->addWire(w), w.id);
+    }
+    QVERIFY(std::abs(m_simulation->heatLevel(u"d1") - level) < 1e-6);
+    QCOMPARE(m_simulation->wireHeat(u"w2"), WireHeat::Overloaded);
+}
+
+void TestProtection::heatedOncePerQuietStep()
+{
+    addCooktopCircuit(16, 5000); // d1 stays on; the load wires get overloaded after about 253 s
+    m_simulation->setOn(u"d1"_s, true);
+    m_simulation->setOn(u"l1"_s, true);
+    QSignalSpy heated(m_simulation.get(), &Simulation::heated);
+    QSignalSpy solved(m_simulation.get(), &Simulation::solved);
+    QStringList order;
+    connect(m_simulation.get(), &Simulation::heated, this, [&] { order << u"heated"_s; });
+    connect(m_simulation.get(), &Simulation::solved, this, [&] { order << u"solved"_s; });
+    connect(m_simulation.get(), &Simulation::occurred, this,
+            [&](const SimulationEvent &event) { order << event.id; });
+    for (int i = 0; i < 3; ++i)
+        m_simulation->step(1);
+    QCOMPARE(heated.count(), 3);
+    QCOMPARE(solved.count(), 0);
+
+    // a step's events come after its heated()
+    order.clear();
+    m_simulation->step(600);
+    QCOMPARE(heated.count(), 4);
+    QCOMPARE(solved.count(), 0);
+    QCOMPARE(order.size(), 3);
+    QCOMPARE(order[0], u"heated"_s);
+    QVERIFY(order.contains(u"w2"_s) && order.contains(u"w3"_s));
+
+    // a step that trips emits its solve's solved() instead, before the events
+    PlacedLoad bigger = *m_project->load(u"l1");
+    bigger.power = 7000;
+    QVERIFY(m_project->updateLoad(bigger));
+    heated.clear();
+    solved.clear();
+    order.clear();
+    m_simulation->step(600);
+    QCOMPARE(m_simulation->tripCause(u"d1"), TripCause::Overload);
+    QCOMPARE(heated.count(), 0);
+    QCOMPARE(solved.count(), 1);
+    QCOMPARE(order[0], u"solved"_s);
+    QVERIFY(order.contains(u"d1"_s));
 }
 
 QTEST_APPLESS_MAIN(TestProtection)
