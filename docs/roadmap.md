@@ -168,7 +168,7 @@ currents, lamps light up ([0008](adr/0008-simulation-engine.md)).
 - Core: nodal phasor solver, supply with Norton source, element currents,
   energized flags; extensive unit tests (series, parallel, shared neutral,
   open contact, floating parts).
-- App: click device handle to switch; click lamp/appliance to switch on/off;
+- App: click device handle to switch; click a lamp's or appliance's on/off button to switch it;
   current labels on devices and wires (toggle); lamps glow when energized.
 - Loads: a plugged appliance draws its power between its socket's L and N; an unplugged one draws nothing.
 
@@ -208,6 +208,7 @@ thermal threshold is 1.3·32 ≈ 41.6 A). Screenshots per case.
 - Loading: refuse a wire length ≤ 0 (`Project::addWire` accepts it today, and the simulation's `1/R` would turn the whole solve into NaN).
 - `Project::placement()` accepts only parameters that exactly match the type's allowed keys, so a parameter added to the catalog later (F12, F16) needs a per-version migration that fills it in for older files.
 - Save each device's handle position from the simulation state ([0010](adr/0010-project-file-format.md)); decide whether load on/off is saved.
+- New/Open resets the simulation's switch settings (ids restart per file, so `d1` of an opened file would otherwise inherit the old `d1` setting — a switch flipping on its own).
 - Loads: save `loads` with type, position, power, socket and place; set the load id counter past every `l<n>` in the file; migrate power when a load type's default changes.
 
 **Scenario test:** build a small panel, save to a temp file, New, Open it
