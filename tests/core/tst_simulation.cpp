@@ -396,15 +396,24 @@ void TestSimulation::shortIsLimitedBySupplyAndWires()
     addWire(u"supply:L"_s, u"d1:1"_s, 1, 2.5);
     addWire(u"d1:2"_s, u"nbar:1"_s, 0.3, 1.5);
     addWire(u"nbar:2"_s, u"supply:N"_s, 1, 2.5);
+    QSignalSpy occurred(m_simulation.get(), &Simulation::occurred);
     m_simulation->setOn(u"d1"_s, true);
 
     const double current
             = 230 / (0.4 + 2 * wireResistance(1, 2.5) + wireResistance(0.3, 1.5) + 2 * Contact);
     QVERIFY(allResultsFinite());
-    QVERIFY(near(m_simulation->deviceCurrent(u"d1"), current));
+    QCOMPARE(m_simulation->tripCause(u"d1"), TripCause::ShortCircuit);
+    QVERIFY(!m_simulation->isOn(u"d1"));
+    QCOMPARE(occurred.count(), 1);
+    const auto event = occurred.at(0).at(0).value<SimulationEvent>();
+    QCOMPARE(event.kind, SimulationEvent::Kind::Tripped);
+    QCOMPARE(event.id, u"d1"_s);
+    QVERIFY(near(event.current, current));
+    QCOMPARE(event.limit, 10.0);
+    // about 548 A also reaches the stairwell breaker's 500 A, but only the smallest breaker trips
+    QCOMPARE(m_simulation->tripCause(SupplyBreakerId), TripCause::None);
     for (const Wire &w : m_project->wires())
-        QVERIFY(near(m_simulation->wireCurrent(w.id), current));
-    QVERIFY(m_simulation->deviceCurrent(u"d1") > 100);
+        QVERIFY(m_simulation->wireCurrent(w.id) < 1e-6);
 }
 
 void TestSimulation::energizedNeedsMoreThanHalfTheVoltage()

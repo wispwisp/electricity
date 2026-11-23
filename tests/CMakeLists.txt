@@ -14,6 +14,7 @@ add_core_test(tst_loads core/tst_loads.cpp)
 add_core_test(tst_wirerouter core/tst_wirerouter.cpp)
 add_core_test(tst_nodalsolver core/tst_nodalsolver.cpp)
 add_core_test(tst_simulation core/tst_simulation.cpp)
+add_core_test(tst_protection core/tst_protection.cpp)
 
 add_test(NAME qt_version_pin_accepts_pinned
          COMMAND ${CMAKE_COMMAND} -DQt6_VERSION=6.12.0 -P ${PROJECT_SOURCE_DIR}/cmake/QtVersion.cmake)
