@@ -158,14 +158,16 @@ No popups (owner rejected option C).
 - **The time control** in the toolbar: *Pause*, *×1*, *×10*, *×60*, one of
   them checked. Every launch starts at ×10 (builder's call). The app advances
   simulated time from a 50 ms timer by 50 ms × speed (ADR 0008).
-- **The status bar** gets a fixed label (the roadmap note), showing "Ready"
-  or the latest event: trips, wire overloaded/overheating, RCD overloaded,
-  danger. A trip message stays until the device is reset or a newer message
-  comes; a condition (danger, overheating, overload) stays as long as it
-  lasts. When the shown message's condition ends, the label falls back to
-  the newest condition still going on, else "Ready" (builder's call). This
-  replaces F03's empty-StatusTip filter in `MainWindow::event`; tool hints
-  keep their temporary messages.
+- **The status bar** shows "Ready" or the latest event: trips, wire
+  overloaded/overheating, RCD overloaded, danger. A trip message stays until
+  the device is reset or a newer message comes; a condition (danger,
+  overheating, overload) stays as long as it lasts. When the shown message's
+  condition ends, the bar falls back to the newest condition still going on,
+  else "Ready" (builder's call). The event takes the place of "Ready" in the
+  existing status message rather than a separate fixed label, so a tool hint
+  covers it for its 5 s and then the event returns; this keeps the existing
+  tests that read "Ready" unchanged (owner agreed, 2026-11-23, replacing the
+  roadmap's fixed-label note). F03's empty-StatusTip filter stays.
 - **Message examples** (wording left to the builder, all three languages):
   "QF4 tripped: overload, 22.1 A on C16"; "QF3 tripped: short circuit, 371 A
   on C16"; "QD1 tripped: leakage, 230 mA, trips at 30 mA"; "QD1 tripped: test
