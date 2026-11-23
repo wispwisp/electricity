@@ -69,6 +69,7 @@ private slots:
     void leakageOnKettleTripsRcd();
     void faultStaysWithUnpluggedAppliance();
     void dangerMarkIsRed();
+    void leakageOutsideRcdIsMarkedDangerous();
     void faultActionsAreNotEdits();
     void faultSurvivesDeleteAndUndo();
     void faultMarkKeepsTerminalsAndButtonClear();
@@ -736,6 +737,45 @@ void TestProtecting::dangerMarkIsRed()
     for (const char *id : { "d1", "d2", "d3", "d4", "d5" })
         QCOMPARE(window->simulation().tripCause(QString::fromLatin1(id)), TripCause::None);
     QVERIFY(saveScreenshot(*window, "f09", "danger"));
+}
+
+void TestProtecting::leakageOutsideRcdIsMarkedDangerous()
+{
+    // The lighting line bypasses QD1 on both poles: QF2 is fed from QF1's bottom, and Lamp 1's N
+    // goes back through QF1's N pole instead of the N bar.
+    Project &project = window->project();
+    QVERIFY(project.removeWire(wireId(QStringLiteral("d2:2>d3:1"))));
+    QVERIFY(project.removeWire(wireId(QStringLiteral("nbar:2>l1:N"))));
+    struct Ends
+    {
+        const char *from;
+        const char *to;
+        double section;
+        double length;
+    };
+    for (const Ends &ends : { Ends{ "d1:2", "d3:1", 6, 0.3 }, Ends{ "l1:N", "d1:4", 1.5, 15 } }) {
+        Wire wire{ {}, QString::fromLatin1(ends.from), QString::fromLatin1(ends.to), ends.section };
+        wire.conductor = project.conductorFor(wire.from, wire.to);
+        wire.length = ends.length;
+        QVERIFY2(!project.addWire(wire).isEmpty(), ends.from);
+    }
+    switchOn({ QStringLiteral("d1"), QStringLiteral("d2"), QStringLiteral("d3"),
+               QStringLiteral("l1") });
+    chooseFault(QStringLiteral("l1"), "leakageAction");
+
+    const Simulation &simulation = window->simulation();
+    QCOMPARE(simulation.fault(u"l1"), Fault::Leakage);
+    for (const char *id : { "d1", "d2", "d3", "d4", "d5" })
+        QCOMPARE(simulation.tripCause(QString::fromLatin1(id)), TripCause::None);
+    for (const char *id : { "d1", "d2", "d3", "l1" })
+        QVERIFY2(simulation.isOn(QString::fromLatin1(id)), id);
+    QVERIFY(simulation.isDangerous(u"l1"));
+    QVERIFY(loadItem(QStringLiteral("l1"))->isDangerous());
+    // By hand: 0.5784 Ω from the source to l1:L (the supply, QF1, the 6 mm² jumper, QF2, 15 m of
+    // 1.5 mm²), then the person's 1000 Ω ∥ the lamp's 5290 Ω and its 0.1765 Ω way back: 0.27329 A,
+    // V(l1:L) = 230 − 0.27329 · 0.5784 = 229.84 V, so 229.84 mA through the person.
+    QCOMPARE(message(), QStringLiteral("Lamp 1: 230 mA through a person, no RCD turned it off"));
+    QVERIFY(saveScreenshot(*window, "f09", "danger-leakage"));
 }
 
 void TestProtecting::faultActionsAreNotEdits()
