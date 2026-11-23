@@ -78,6 +78,7 @@ private slots:
     void overloadedRcdGlows();
     void quietTimerDoesNoSolves();
     void tripDuringDragKeepsTheDrag();
+    void roadmapScenario();
 
 private:
     void zoomOut();
@@ -620,9 +621,6 @@ void TestProtecting::supplyClickWhenNotTrippedDoesNothing()
     QCOMPARE(message(), QStringLiteral("Ready"));
 }
 
-QTEST_MAIN(TestProtecting)
-#include "tst_protecting.moc"
-
 void TestProtecting::loadMenuOffersFaults()
 {
     QMenu *menu = openMenu(onPicture(QStringLiteral("l3")));
@@ -963,3 +961,96 @@ void TestProtecting::tripDuringDragKeepsTheDrag()
     QCOMPARE(preview->line(), line);
     QCOMPARE(window->project().wires().size(), wires);
 }
+
+void TestProtecting::roadmapScenario()
+{
+    Simulation &simulation = window->simulation();
+    QSignalSpy occurred(&simulation, &Simulation::occurred);
+    named<QAction>("fitAction")->trigger(); // the default zoom
+    addCooktopCircuit();                    // d6 and l11, switched off until the last case
+    // Paused while switching on, so that QF4 starts cold as the hand value assumes.
+    clickToolButton("pauseAction");
+    dropLoad(canvas, named<PaletteWidget>("paletteTree"), "washing-machine",
+             viewportPoint(canvas, loadItem(QStringLiteral("l6"))->mapToScene(QPointF(18, 13.5))));
+    const QString machine = window->project().loads().last().id;
+    QCOMPARE(window->project().load(machine)->socket, QStringLiteral("l6"));
+    switchOn({ QStringLiteral("d1"), QStringLiteral("d2"), QStringLiteral("d5"),
+               QStringLiteral("l9"), QStringLiteral("l10"), machine });
+    const double start = simulation.elapsed();
+    clickToolButton("speed60Action");
+    QTRY_COMPARE_WITH_TIMEOUT(simulation.tripCause(u"d5"), TripCause::Overload, 10000);
+    const auto tripped = [&occurred](const QString &id) {
+        for (qsizetype i = occurred.size() - 1; i >= 0; --i) {
+            const auto event = occurred.at(i).at(0).value<SimulationEvent>();
+            if (event.kind == SimulationEvent::Kind::Tripped && event.id == id)
+                return event;
+        }
+        return SimulationEvent{};
+    };
+    const SimulationEvent overload = tripped(QStringLiteral("d5"));
+    QCOMPARE(overload.cause, TripCause::Overload);
+    QVERIFY2(qAbs(overload.time - start - 163.48) < 0.05,
+             qPrintable(QString::number(overload.time - start)));
+    QCOMPARE(message(), QStringLiteral("QF4 tripped: overload, 22.0 A on C16"));
+    QVERIFY(saveScreenshot(*window, "f09", "scenario-1-overload"));
+
+    // To the empty canvas just above Socket 4.
+    mouseDrag(canvas->viewport(), onPicture(machine),
+              viewportPoint(canvas, loadItem(QStringLiteral("l6"))->mapToScene(QPointF(18, -45))));
+    QVERIFY(window->project().load(machine)->socket.isEmpty());
+    clickHandle("d5");
+    QVERIFY(simulation.isOn(u"d5"));
+    clickHandle("d4");
+    QVERIFY(simulation.isOn(u"d4"));
+    chooseFault(QStringLiteral("l3"), "shortCircuitAction");
+    QCOMPARE(simulation.tripCause(u"d4"), TripCause::ShortCircuit);
+    // Not 370 A: the kettle and the microwave are on, and their current sags the supply.
+    QCOMPARE(message(), QStringLiteral("QF3 tripped: short circuit, 367 A on C16"));
+    QVERIFY(saveScreenshot(*window, "f09", "scenario-2-short"));
+
+    QMenu *menu = openMenu(onPicture(QStringLiteral("l3")));
+    QVERIFY(menu && menu->isVisible());
+    clickMenuItem(menu, named<QAction>("removeFaultAction"));
+    QCOMPARE(simulation.fault(u"l3"), Fault::None);
+    clickHandle("d4");
+    QVERIFY(simulation.isOn(u"d4"));
+    QCOMPARE(simulation.tripCause(u"d4"), TripCause::None);
+    chooseFault(QStringLiteral("l9"), "leakageAction");
+    QCOMPARE(simulation.tripCause(u"d2"), TripCause::Leakage);
+    // Not 230 mA: the same sag lowers the kettle's voltage to 223 V.
+    QCOMPARE(message(), QStringLiteral("QD1 tripped: leakage 223 mA, trips at 30 mA"));
+    QVERIFY(saveScreenshot(*window, "f09", "scenario-3-leakage"));
+
+    menu = openMenu(onPicture(QStringLiteral("l9")));
+    QVERIFY(menu && menu->isVisible());
+    clickMenuItem(menu, named<QAction>("removeFaultAction"));
+    clickHandle("d2");
+    QVERIFY(simulation.isOn(u"d2"));
+    QVERIFY(simulation.isEnergized(u"l9"));
+    QVERIFY(simulation.loadCurrent(u"l9") > 0);
+
+    switchOn({ QStringLiteral("d6"), QStringLiteral("l11") });
+    const WireItem *wire = wireItem(QStringLiteral("d6:2>l11:L"));
+    QVERIFY(wire);
+    const double cooking = simulation.elapsed();
+    QTRY_COMPARE_WITH_TIMEOUT(wire->heat(), WireHeat::Overheating, 10000);
+    QTRY_VERIFY_WITH_TIMEOUT(simulation.elapsed() - cooking >= 600, 20000);
+    QVERIFY(simulation.isOn(u"d6"));
+    QCOMPARE(simulation.tripCause(u"d6"), TripCause::None);
+    QVERIFY(saveScreenshot(*window, "f09", "scenario-4-overheating"));
+
+    const auto switchLanguage = [this](const char *action) {
+        auto *languageMenu = named<QMenu>("languageMenu");
+        clickMenuBarItem(*window, languageMenu);
+        clickMenuItem(languageMenu, named<QAction>(action));
+    };
+    switchLanguage("languageAction_ru");
+    QCOMPARE(currentLanguage(), Language::Russian);
+    QVERIFY(saveScreenshot(*window, "f09", "scenario-ru"));
+    switchLanguage("languageAction_kk");
+    QCOMPARE(currentLanguage(), Language::Kazakh);
+    QVERIFY(saveScreenshot(*window, "f09", "scenario-kk"));
+}
+
+QTEST_MAIN(TestProtecting)
+#include "tst_protecting.moc"

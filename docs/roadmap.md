@@ -21,7 +21,7 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
 | F06 | Wiring | ☑ |
 | F07 | Loads | ☑ |
 | F08 | Live simulation: supply, switching, currents | ☑ |
-| F09 | Protection and faults | ◐ |
+| F09 | Protection and faults | ☑ |
 | F10 | Project files | ☐ |
 | F11 | Tutorial: single-phase apartment panel | ☐ |
 | F12 | Properties and engineering details | ☐ |
@@ -190,7 +190,6 @@ overheat ([0008](adr/0008-simulation-engine.md)).
   events; reset by clicking the handle.
 - App: simulation timer and time-speed control (paused, ×1, ×10, ×60), moved from F08.
 - Solved values: the washing-machine overload on QF4 is ≈ 22.0 A and trips after ≈ 163 s of simulated time; the 9 kW cooktop draws ≈ 34.6 A.
-- Status bar: show "Ready" and events in a permanent status-bar label, replacing F03's empty-StatusTip filter in `MainWindow::event` (it would leave real status tips stuck, and `retranslateUi()` resets the message on language change).
 
 **Scenario test:** on the tutorial fixture, overload QF4 by plugging a
 washing machine and stepping time → QF4 trips with cause overload; short a
