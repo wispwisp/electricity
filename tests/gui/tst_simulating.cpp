@@ -86,7 +86,9 @@ private slots:
     void showsCurrentFromFiveMilliamperes();
     void labelsWhereCurrentFlows();
     void labelsDrawAboveWiresAndLetClicksThrough();
+    void wireLabelsKeepClear_data();
     void wireLabelsKeepClear();
+    void wireLabelStepsOutOfCoveredRoute();
     void deviceLabelKeepsHandleRatingAndTerminalsClear();
     void showCurrentsTogglesAndPersists();
     void labelsFollowLanguage();
@@ -116,7 +118,9 @@ private:
     void checkOn(const QString &id) const;
     // The wire from one terminal to another, or nullptr.
     [[nodiscard]] WireItem *wireItem(const WireEnds &ends) const;
-    // The tutorial loads in the zoomed-out view, with QF1, QD1, QF2 and Lamp 1 switched on.
+    // The tutorial loads in the zoomed-out view, with the devices and loads switched on by clicks.
+    void switchOn(const QStringList &ids);
+    // The same with QF1, QD1, QF2 and Lamp 1.
     void lightLamp1();
     // QF1, QD1, QF2 and Lamp 1 on, everything else off.
     void checkLamp1Switches() const;
@@ -226,13 +230,23 @@ WireItem *TestSimulating::wireItem(const WireEnds &ends) const
     return it == wires.end() ? nullptr : dynamic_cast<WireItem *>(sceneItem(scene, it->id));
 }
 
-void TestSimulating::lightLamp1()
+void TestSimulating::switchOn(const QStringList &ids)
 {
     addTutorialLoads(window->project());
     zoomOut();
-    for (const char *id : { "d1", "d2", "d3" })
-        clickHandle(id);
-    QTest::mouseClick(canvas->viewport(), Qt::LeftButton, {}, onButton("l1"));
+    for (const QString &id : ids) {
+        if (window->project().device(id))
+            clickHandle(id);
+        else
+            QTest::mouseClick(canvas->viewport(), Qt::LeftButton, {}, onButton(id));
+        QVERIFY2(window->simulation().isOn(id), qPrintable(id));
+    }
+}
+
+void TestSimulating::lightLamp1()
+{
+    switchOn({ QStringLiteral("d1"), QStringLiteral("d2"), QStringLiteral("d3"),
+               QStringLiteral("l1") });
     QVERIFY(loadItem("l1")->isRunning());
 }
 
@@ -656,10 +670,26 @@ void TestSimulating::labelsDrawAboveWiresAndLetClicksThrough()
     QCOMPARE(scene->selectedWireId(), wire->data(EditorScene::IdKey).toString());
 }
 
-// No wire label covers another or a device's designation, rating, handle, terminals or current.
+void TestSimulating::wireLabelsKeepClear_data()
+{
+    QTest::addColumn<QStringList>("switchedOn");
+    QTest::addColumn<int>("shown");
+    // Worked out from the fixture's wiring: the wires on the path of each running load; never PE,
+    // and never the wires to a socket with nothing running in it.
+    QTest::newRow("lamp-on") << QStringList{ "d1", "d2", "d3", "l1" } << 8;
+    QTest::newRow("kettle-on") << QStringList{ "d1", "d2", "d5", "l9" } << 10;
+    QTest::newRow("all-on") << QStringList{ "d1", "d2", "d3", "d4", "d5", "l1",
+                                            "l2", "l7", "l8", "l9", "l10" }
+                            << 18;
+}
+
+// Every wire that carries current shows its label, and no label covers another, a device's
+// designation, rating, handle, terminals or current, or a load's terminals, button or caption.
 void TestSimulating::wireLabelsKeepClear()
 {
-    lightLamp1();
+    QFETCH(QStringList, switchedOn);
+    QFETCH(int, shown);
+    switchOn(switchedOn);
     const Project &project = window->project();
     QList<QRectF> keepClear;
     for (const PlacedDevice &device : project.devices()) {
@@ -675,18 +705,51 @@ void TestSimulating::wireLabelsKeepClear()
             keepClear << item->mapRectToScene(keepOut);
         }
     }
-    int shown = 0;
+    for (const PlacedLoad &load : project.loads()) {
+        const LoadItem *item = loadItem(load.id);
+        keepClear << item->mapRectToScene(item->buttonRect())
+                  << item->mapRectToScene(item->captionRect());
+        for (const TerminalSpec &terminal : project.catalog().loadType(load.type)->terminals) {
+            const QRectF keepOut(terminal.position - QPointF(3.6, 3.6), QSizeF(7.2, 7.2));
+            keepClear << item->mapRectToScene(keepOut);
+        }
+    }
+    int labels = 0;
     for (const Wire &wire : project.wires()) {
         const auto *item = dynamic_cast<WireItem *>(sceneItem(scene, wire.id));
         if (!item->currentLabel()->isVisible())
             continue;
-        ++shown;
+        ++labels;
         const QRectF label = item->currentLabel()->sceneBoundingRect();
         for (const QRectF &rect : std::as_const(keepClear))
             QVERIFY2(!label.intersects(rect), qPrintable(wire.id));
         keepClear << label;
     }
-    QCOMPARE(shown, int(kLampWires.size()));
+    QCOMPARE(labels, shown);
+
+    const QString tag = QString::fromLatin1(QTest::currentDataTag());
+    closeUp(1.8, QPointF(175, 130));
+    QVERIFY(saveScreenshot(*window, "f08", QStringLiteral("labels-%1").arg(tag)));
+    closeUp(3, QPointF(70, 120));
+    QVERIFY(saveScreenshot(*window, "f08", QStringLiteral("labels-%1-closeup").arg(tag)));
+    Theme::apply(Theme::Mode::Light);
+    QCoreApplication::processEvents(); // the palette reaches widgets through posted events
+    closeUp(1.8, QPointF(175, 130));
+    QVERIFY(saveScreenshot(*window, "f08", QStringLiteral("labels-%1-light").arg(tag)));
+    closeUp(3, QPointF(70, 120));
+    QVERIFY(saveScreenshot(*window, "f08", QStringLiteral("labels-%1-light-closeup").arg(tag)));
+}
+
+// With every spot on and beside its route taken by labels, a wire's label still covers none.
+void TestSimulating::wireLabelStepsOutOfCoveredRoute()
+{
+    WireItem wire(QStringLiteral("w"));
+    wire.setWire(QPolygonF({ QPointF(0, 0), QPointF(0, 40), QPointF(30, 40) }), Conductor::L, 1.5);
+    wire.setCurrentText(QStringLiteral("0.04 A"));
+    const QRectF taken(-30, -20, 90, 90);
+    const QRectF placed = wire.placeCurrentLabel({ taken }, {});
+    QVERIFY(!placed.intersects(taken));
+    QCOMPARE(wire.currentLabel()->sceneBoundingRect(), placed);
 }
 
 void TestSimulating::deviceLabelKeepsHandleRatingAndTerminalsClear()
@@ -795,6 +858,7 @@ void TestSimulating::labelsFollowLanguage()
     QCOMPARE(deviceItem("d1")->currentRect().center(), deviceLabel);
     QCOMPARE(wireItem(lampL)->currentLabel()->pos(), wireLabel);
     closeUp(3, QPointF(70, 120));
+    QCoreApplication::processEvents(); // the toolbar's relayout for the new texts is posted
     QVERIFY(saveScreenshot(*window, "f08", "labels-ru"));
 
     clickMenuBarItem(*window, languageMenu);
@@ -807,6 +871,7 @@ void TestSimulating::labelsFollowLanguage()
     QCOMPARE(deviceItem("d1")->currentRect().center(), deviceLabel);
     QCOMPARE(wireItem(lampL)->currentLabel()->pos(), wireLabel);
     closeUp(3, QPointF(70, 120));
+    QCoreApplication::processEvents(); // the toolbar's relayout for the new texts is posted
     QVERIFY(saveScreenshot(*window, "f08", "labels-kk"));
 }
 

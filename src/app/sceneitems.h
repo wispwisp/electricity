@@ -195,10 +195,12 @@ public:
     void setCurrentText(const QString &text); // "" hides the label
     [[nodiscard]] QString currentText() const;
     [[nodiscard]] CurrentLabelItem *currentLabel() const;
-    // Puts the label on the spot along the route that covers least of the rects in avoid; of equal
-    // spots, on the longest segment first and nearest its middle, so after setWire() on the middle
-    // of the longest segment. Returns the label's scene rect.
-    QRectF placeCurrentLabel(const QList<QRectF> &avoid);
+    // Puts the label on or beside the route where it covers least of labels, then least of
+    // obstacles; of equal spots, on the route before beside it, on the longest segment first and
+    // nearest its middle, so after setWire() on the middle of the longest segment. When every such
+    // spot covers a label, it steps out beside the longest segment's middle until it covers none.
+    // Returns the label's scene rect.
+    QRectF placeCurrentLabel(const QList<QRectF> &labels, const QList<QRectF> &obstacles);
 
     [[nodiscard]] QRectF boundingRect() const override;
     // the route stroked at least 6 wide, for clicking

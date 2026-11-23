@@ -950,11 +950,12 @@ void EditorScene::syncLive()
 
 void EditorScene::placeCurrentLabels()
 {
-    QList<QRectF> taken = routeObstacles();
+    const QList<QRectF> obstacles = routeObstacles();
+    QList<QRectF> labels;
     for (const Wire &wire : m_project.wires()) {
         WireItem *item = m_wires.value(wire.id);
         if (item && !item->currentText().isEmpty())
-            taken << item->placeCurrentLabel(taken);
+            labels << item->placeCurrentLabel(labels, obstacles);
     }
 }
 

@@ -115,8 +115,8 @@ private:
     // Shows the simulation's switch settings and results: each device's handle up or down, each
     // load's button and glow, and the current labels where current flows.
     void syncLive();
-    // Each shown wire label, in wire order, clear of what wires go around and of the labels before
-    // it where its route allows.
+    // Each shown wire label, in wire order, on or beside its route, never over a label before it,
+    // and clear of what wires go around where the route allows.
     void placeCurrentLabels();
     // The terminal's position and the side its wires leave from.
     [[nodiscard]] RouteEnd routeEnd(const QString &terminalId) const;
