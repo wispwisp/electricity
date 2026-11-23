@@ -32,6 +32,9 @@
 #include <QToolButton>
 #include <QUndoStack>
 
+#include <ranges>
+#include <utility>
+
 namespace {
 constexpr QSize kDefaultSize(1280, 800);
 constexpr QSize kFrameAllowance(20, 60);
@@ -372,11 +375,11 @@ void MainWindow::onEvent(const SimulationEvent &event)
 void MainWindow::showIdleText()
 {
     QString text = tr("Ready");
-    for (auto it = m_conditions.crbegin(); it != m_conditions.crend(); ++it) {
-        const QString id = it->id;
+    for (const auto &condition : std::views::reverse(std::as_const(m_conditions))) {
+        const QString id = condition.id;
         if (id == SupplyBreakerId || m_project->device(id) || m_project->wire(id)
             || m_project->load(id)) {
-            text = eventText(*m_project, *it);
+            text = eventText(*m_project, condition);
             break;
         }
     }

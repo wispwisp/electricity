@@ -964,7 +964,8 @@ void TestCatalog::loadsProtection()
     const CatalogLoad load = loadCatalog(sources);
     QVERIFY2(load.errors.isEmpty(), qPrintable(load.errors.join(u'\n')));
     const std::optional<ProtectionSpec> &spec = load.catalog.deviceType(u"breaker")->protection;
-    QVERIFY(spec);
+    if (!spec)
+        QFAIL("no protection spec");
     QCOMPARE(spec->timeConstant, 73.0);
     QCOMPARE(spec->tripFactor, std::optional<double>(1.3));
     QCOMPARE(spec->curves, (QMap<QString, InstantTripBand>{ { "C", { 5, 10 } } }));
@@ -983,13 +984,15 @@ void TestCatalog::protectionMatchesSpec()
                                                  { "D", { 10, 20 } } };
     for (QStringView id : { u"breaker", u"rcbo" }) {
         const std::optional<ProtectionSpec> &spec = catalog.deviceType(id)->protection;
-        QVERIFY(spec);
+        if (!spec)
+            QFAIL("no protection spec");
         QCOMPARE(spec->timeConstant, 73.0);
         QCOMPARE(spec->tripFactor, std::optional<double>(1.3));
         QCOMPARE(spec->curves, curves);
     }
     const std::optional<ProtectionSpec> &rcd = catalog.deviceType(u"rcd")->protection;
-    QVERIFY(rcd);
+    if (!rcd)
+        QFAIL("no protection spec");
     QCOMPARE(rcd->timeConstant, 73.0);
     QVERIFY(!rcd->tripFactor);
     QVERIFY(rcd->curves.isEmpty());
