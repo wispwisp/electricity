@@ -203,6 +203,7 @@ thermal threshold is 1.3·32 ≈ 41.6 A). Screenshots per case.
 **Goal:** New / Open / Save / Save As, recent files, unsaved-changes prompt
 ([0010](adr/0010-project-file-format.md)).
 
+- Quality gates first: on `main`, `scripts/quality_gates.sh` runs clang-tidy only on uncommitted files (`git merge-base HEAD main` is `HEAD` there), while CI checks every file, so committed code passes locally and fails CI (F09 hit 10 such errors). Make the local run check what CI checks, e.g. the files changed since `origin/main`, or every file ([0018](adr/0018-testing-and-quality-gates.md)).
 - Loading: add a load/replace call to `Project` that sets the device-id counter past every `d<n>` in the file, so ids are never reused ([0024](adr/0024-placed-devices-and-designations.md)).
 - Loading: refuse a wire length ≤ 0 (`Project::addWire` accepts it today, and the simulation's `1/R` would turn the whole solve into NaN).
 - `Project::placement()` accepts only parameters that exactly match the type's allowed keys, so a parameter added to the catalog later (F12, F16) needs a per-version migration that fills it in for older files.
