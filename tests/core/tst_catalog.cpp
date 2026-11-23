@@ -119,7 +119,6 @@ QByteArray appendCopy(const QByteArray &json, const QString &key)
     });
 }
 
-// Edits the first product of the first series.
 // Puts a protection object on the fixture's breaker type.
 QByteArray withProtection(const QByteArray &json, const QJsonObject &protection)
 {
@@ -172,6 +171,7 @@ QJsonObject rating(double section, double ampacity)
     return QJsonObject{ { "section", section }, { "ampacity", ampacity } };
 }
 
+// Edits the first product of the first series.
 QByteArray patchedProduct(const QByteArray &json, const std::function<void(QJsonObject &)> &edit)
 {
     return patchedFirst(json, u"series"_s, [&](QJsonObject &series) {

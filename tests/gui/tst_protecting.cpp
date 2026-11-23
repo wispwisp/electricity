@@ -1113,7 +1113,11 @@ void TestProtecting::roadmapScenario()
     QVERIFY(simulation.isOn(u"d4"));
     chooseFault(QStringLiteral("l3"), "shortCircuitAction");
     QCOMPARE(simulation.tripCause(u"d4"), TripCause::ShortCircuit);
-    // Not 370 A: the kettle and the microwave are on, and their current sags the supply.
+    // Not 370 A: the kettle and the microwave are on, and their current sags the supply. By hand
+    // (Ruling R13): 0.4094 Ω from the source to QF3's top and back from the N bar, in series with
+    // the short branch (QF3, 2 × 15 m of 2.5 mm², the fault: 0.212 Ω) ∥ the kitchen branch (the
+    // jumper to QF4, QF4, 2 × 15 m of 2.5 mm², the kettle ∥ the microwave: 16.743 Ω) → 371.7 A in
+    // total, 367.1 A in the short branch.
     QCOMPARE(message(), QStringLiteral("QF3 tripped: short circuit, 367 A on C16"));
     QVERIFY(saveScreenshot(*window, "f09", "scenario-2-short"));
 
@@ -1126,7 +1130,9 @@ void TestProtecting::roadmapScenario()
     QCOMPARE(simulation.tripCause(u"d4"), TripCause::None);
     chooseFault(QStringLiteral("l9"), "leakageAction");
     QCOMPARE(simulation.tripCause(u"d2"), TripCause::Leakage);
-    // Not 230 mA: the same sag lowers the kettle's voltage to 223 V.
+    // Not 230 mA: the same sag lowers the kettle's voltage. By hand: the kitchen's 13.41 A drops
+    // V(l5:L) to 230 − 13.41 · 0.5117 ≈ 223.1 V (0.5117 Ω from the source to l5:L), so the leakage
+    // is about 223 mA.
     QCOMPARE(message(), QStringLiteral("QD1 tripped: leakage 223 mA, trips at 30 mA"));
     QVERIFY(saveScreenshot(*window, "f09", "scenario-3-leakage"));
 

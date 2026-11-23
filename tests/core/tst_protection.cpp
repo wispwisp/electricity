@@ -884,7 +884,7 @@ void TestProtection::thermalTripTimeFollowsTau()
     QCOMPARE(list[0].cause, TripCause::Overload);
     QVERIFY(near(list[0].current, current));
     QCOMPARE(list[0].limit, 10.0);
-    // about 48.2 s from cold
+    // about 47.83 s from cold
     QVERIFY(nearTripTime(list[0].time, current, 13.0 * 13.0));
 }
 
@@ -933,7 +933,7 @@ void TestProtection::hotBreakerTripsSooner()
     m_simulation->setOn(u"l1"_s, true);
     const double current = cooktopCurrent(4600);
     const double limit = 13.0 * 13.0;
-    const double cold = secondsToHeat(BreakerTau, current, limit); // about 48.2 s
+    const double cold = secondsToHeat(BreakerTau, current, limit); // about 47.83 s
     m_simulation->step(50);
     QCOMPARE(m_simulation->tripCause(u"d1"), TripCause::Overload);
 
