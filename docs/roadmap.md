@@ -20,7 +20,7 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
 | F05 | Panel editor: enclosure, rails, placing devices | ☑ |
 | F06 | Wiring | ☑ |
 | F07 | Loads | ☑ |
-| F08 | Live simulation: supply, switching, currents | ◐ |
+| F08 | Live simulation: supply, switching, currents | ☑ |
 | F09 | Protection and faults | ☐ |
 | F10 | Project files | ☐ |
 | F11 | Tutorial: single-phase apartment panel | ☐ |
@@ -205,6 +205,7 @@ thermal threshold is 1.3·32 ≈ 41.6 A). Screenshots per case.
 ([0010](adr/0010-project-file-format.md)).
 
 - Loading: add a load/replace call to `Project` that sets the device-id counter past every `d<n>` in the file, so ids are never reused ([0024](adr/0024-placed-devices-and-designations.md)).
+- Loading: refuse a wire length ≤ 0 (`Project::addWire` accepts it today, and the simulation's `1/R` would turn the whole solve into NaN).
 - `Project::placement()` accepts only parameters that exactly match the type's allowed keys, so a parameter added to the catalog later (F12, F16) needs a per-version migration that fills it in for older files.
 - Save each device's handle position from the simulation state ([0010](adr/0010-project-file-format.md)); decide whether load on/off is saved.
 - Loads: save `loads` with type, position, power, socket and place; set the load id counter past every `l<n>` in the file; migrate power when a load type's default changes.

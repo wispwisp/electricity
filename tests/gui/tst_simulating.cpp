@@ -111,6 +111,7 @@ private slots:
     void labelsFollowLanguage();
     void labelsInLightTheme();
     void shortShowsWholeAmperes();
+    void roadmapScenario();
 
 private:
     [[nodiscard]] LoadItem *loadItem(const QString &id) const;
@@ -939,6 +940,78 @@ void TestSimulating::shortShowsWholeAmperes()
     QCOMPARE(deviceItem("d3")->currentText(), QStringLiteral("557 A"));
     QCOMPARE(wireItem(shortEnds)->currentText(), QStringLiteral("557 A"));
     QVERIFY(saveScreenshot(*window, "f08", "labels-short"));
+}
+
+void TestSimulating::roadmapScenario()
+{
+    addTutorialLoads(window->project());
+    zoomOut();
+    const Simulation &simulation = window->simulation();
+    const auto clickButton = [this](const QString &id) {
+        QTest::mouseClick(canvas->viewport(), Qt::LeftButton, {}, onButton(id));
+    };
+    const auto switchLanguage = [this](const char *action) {
+        auto *languageMenu = named<QMenu>("languageMenu");
+        clickMenuBarItem(*window, languageMenu);
+        clickMenuItem(languageMenu, named<QAction>(action));
+    };
+
+    for (const char *id : { "d1", "d2", "d3" })
+        clickHandle(id);
+    for (const char *id : { "d1", "d2", "d3" }) {
+        checkOn(id);
+        // only the solver's Gmin leakage flows, far below what a label shows
+        QVERIFY2(!showsCurrent(simulation.deviceCurrent(QString::fromLatin1(id))), id);
+        QCOMPARE(deviceItem(id)->currentText(), QString());
+    }
+    QVERIFY(saveScreenshot(*window, "f08", "scenario-1-breakers"));
+
+    clickButton("l1");
+    QVERIFY(qAbs(simulation.deviceCurrent(u"d3") - 0.043472) < 0.0001);
+    QVERIFY(simulation.isEnergized(u"l1"));
+    QVERIFY(loadItem("l1")->isRunning());
+    for (const char *id : { "d1", "d2", "d3" })
+        QCOMPARE(deviceItem(id)->currentText(), QStringLiteral("0.04 A"));
+    for (const WireEnds &ends : kLampWires)
+        QCOMPARE(wireItem(ends)->currentText(), QStringLiteral("0.04 A"));
+    for (const WireEnds &ends : kIdleWires)
+        QCOMPARE(wireItem(ends)->currentText(), QString());
+    QVERIFY(saveScreenshot(*window, "f08", "scenario-2-lamp"));
+
+    clickHandle("d3");
+    checkOff("d3");
+    QVERIFY(!simulation.isEnergized(u"l1"));
+    QVERIFY(!loadItem("l1")->isRunning());
+    QCOMPARE(deviceItem("d3")->currentText(), QString());
+    for (const WireEnds &ends : { WireEnds{ "d3:2", "l1:L" }, WireEnds{ "nbar:2", "l1:N" } })
+        QCOMPARE(wireItem(ends)->currentText(), QString());
+    QVERIFY(saveScreenshot(*window, "f08", "scenario-3-off"));
+
+    clickHandle("d5");
+    clickButton("l9");
+    clickButton("l10");
+    QVERIFY(qAbs(simulation.deviceCurrent(u"d5") - 13.409) < 0.005);
+    QVERIFY(loadItem("l9")->isRunning());
+    QVERIFY(loadItem("l10")->isRunning());
+    QCOMPARE(deviceItem("d5")->currentText(), QStringLiteral("13.4 A"));
+    QVERIFY(saveScreenshot(*window, "f08", "scenario-4-kitchen"));
+
+    mouseDrag(canvas->viewport(), onPicture("l9"), viewportPoint(canvas, QPointF(500, 300)));
+    QVERIFY(window->project().load(u"l9")->socket.isEmpty());
+    QVERIFY(!loadItem("l9")->isRunning());
+    QVERIFY(loadItem("l10")->isRunning());
+    QVERIFY(qAbs(simulation.deviceCurrent(u"d5") - 5.1449) < 0.005);
+    QCOMPARE(deviceItem("d5")->currentText(), QStringLiteral("5.14 A"));
+    QVERIFY(saveScreenshot(*window, "f08", "scenario-5-unplugged"));
+
+    switchLanguage("languageAction_ru");
+    QCOMPARE(deviceItem("d5")->currentText(), QStringLiteral("5,14 А"));
+    QCoreApplication::processEvents(); // the toolbar's relayout for the new texts is posted
+    QVERIFY(saveScreenshot(*window, "f08", "scenario-ru"));
+    switchLanguage("languageAction_kk");
+    QCOMPARE(deviceItem("d5")->currentText(), QStringLiteral("5,14 А"));
+    QCoreApplication::processEvents(); // the toolbar's relayout for the new texts is posted
+    QVERIFY(saveScreenshot(*window, "f08", "scenario-kk"));
 }
 
 QTEST_MAIN(TestSimulating)
