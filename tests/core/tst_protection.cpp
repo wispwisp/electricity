@@ -78,6 +78,7 @@ private slots:
     void earthFaultWithoutPeLeavesTheCaseLive();
     void unprotectedLeakageIsDangerous();
     void protectedLeakageIsNotDangerous();
+    void faultKindChangeWhileDangerousReemits();
     void testButtonTripsOnlyWithPower();
     void tripsAndFaultsSurviveRemoveAndRestore();
     void projectEditsKeepTripsAndFaults();
@@ -619,6 +620,38 @@ void TestProtection::protectedLeakageIsNotDangerous()
     const QList<SimulationEvent> list = events(occurred);
     QCOMPARE(list.size(), 1);
     QCOMPARE(list[0].kind, SimulationEvent::Kind::Tripped);
+}
+
+void TestProtection::faultKindChangeWhileDangerousReemits()
+{
+    addBaseCircuit(); // C10 only, PE not wired
+    m_simulation->setOn(u"d1"_s, true);
+    QSignalSpy occurred(m_simulation.get(), &Simulation::occurred);
+    QVERIFY(m_simulation->setFault(u"l1"_s, Fault::Leakage));
+    QList<SimulationEvent> list = events(occurred);
+    QCOMPARE(list.size(), 1);
+    QCOMPARE(list[0].kind, SimulationEvent::Kind::Dangerous);
+    QVERIFY(list[0].current > 0);
+
+    // the case sits at V(l1:L) through the fault, as the PE goes nowhere
+    occurred.clear();
+    QVERIFY(m_simulation->setFault(u"l1"_s, Fault::EarthFault));
+    QVERIFY(m_simulation->isDangerous(u"l1"));
+    list = events(occurred);
+    QCOMPARE(list.size(), 1);
+    QCOMPARE(list[0].kind, SimulationEvent::Kind::Dangerous);
+    QCOMPARE(list[0].id, u"l1"_s);
+    QCOMPARE(list[0].current, 0.0);
+    QCOMPARE(list[0].voltage, m_simulation->touchVoltage(u"l1"));
+
+    occurred.clear();
+    QVERIFY(m_simulation->setFault(u"l1"_s, Fault::Leakage));
+    list = events(occurred);
+    QCOMPARE(list.size(), 1);
+    QCOMPARE(list[0].kind, SimulationEvent::Kind::Dangerous);
+    QCOMPARE(list[0].id, u"l1"_s);
+    QCOMPARE(list[0].voltage, m_simulation->touchVoltage(u"l1"));
+    QCOMPARE(list[0].current, m_simulation->touchVoltage(u"l1") / PersonOhms);
 }
 
 void TestProtection::testButtonTripsOnlyWithPower()

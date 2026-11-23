@@ -5,9 +5,9 @@
 
 #include <QHash>
 #include <QList>
+#include <QMap>
 #include <QObject>
 #include <QString>
-#include <QStringList>
 
 #include <cstdint>
 
@@ -114,6 +114,6 @@ private:
     QHash<QString, double> m_deviceCurrents;
     QHash<QString, LoadResult> m_loads;
     QHash<QString, double> m_touchVoltages;
-    QStringList m_dangerous;         // loads, after the latest solve
-    QList<SimulationEvent> m_events; // waiting for the end of the solve
+    QMap<QString, Fault> m_dangerous; // loads and their faults, after the latest solve
+    QList<SimulationEvent> m_events;  // waiting for the end of the solve
 };

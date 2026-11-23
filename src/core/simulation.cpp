@@ -365,7 +365,7 @@ void Simulation::storeResults()
 
     // Danger is judged once the trips have settled, against the previous solve's.
     m_touchVoltages.clear();
-    QStringList dangerous;
+    QMap<QString, Fault> dangerous;
     for (const PlacedLoad &l : m_project.loads()) {
         const std::optional<QString> source = terminalSource(m_project, l);
         const Fault f = fault(l.id);
@@ -377,15 +377,16 @@ void Simulation::storeResults()
         m_touchVoltages.insert(l.id, touch);
         if (touch <= TouchVoltageLimit)
             continue;
-        dangerous << l.id;
-        if (!m_dangerous.contains(l.id))
+        dangerous.insert(l.id, f);
+        // None if it wasn't dangerous; a changed fault kind is a new danger to describe
+        if (m_dangerous.value(l.id) != f)
             m_events.append({ .kind = SimulationEvent::Kind::Dangerous,
                               .id = l.id,
                               .current = f == Fault::Leakage ? touch / LeakageResistance : 0,
                               .voltage = touch,
                               .time = m_elapsed });
     }
-    for (const QString &id : std::as_const(m_dangerous)) {
+    for (const QString &id : m_dangerous.keys()) {
         if (!dangerous.contains(id))
             m_events.append(
                     { .kind = SimulationEvent::Kind::Cleared, .id = id, .time = m_elapsed });
