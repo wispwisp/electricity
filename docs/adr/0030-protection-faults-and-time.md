@@ -31,6 +31,8 @@ This refines 0007, 0008, 0013, 0014 and 0029.
 - Earth fault is in the basic load menu, which refines 0014.
 - The status bar shows the newest active condition when no hint is showing,
   and "Ready" when there is none.
+- A `Cleared` event names the condition it ends (trip, heat or danger), and
+  the status bar keys active conditions by object and condition.
 - A bare L-N wire now trips a breaker or the stairwell breaker; F08's
   "hundreds of amperes" no longer holds.
 - Protection data is optional in the loader (so small test catalogs stay

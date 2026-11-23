@@ -36,6 +36,8 @@ struct SimulationEvent
 {
     enum class Kind : std::uint8_t { Tripped, Overloaded, Overheating, Dangerous, Cleared };
     Kind kind = Kind::Tripped;
+    // Cleared: the condition it ends, Tripped, Overloaded (a wire's or an RCD's heat) or Dangerous
+    Kind ends = Kind::Tripped;
     QString id;                        // a device, SupplyBreakerId, a wire or a load
     TripCause cause = TripCause::None; // Tripped
     double current = 0; // A: at the trip (residual for Leakage), in the wire or RCD, or through

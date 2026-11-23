@@ -76,6 +76,8 @@ private slots:
     void overloadTripsAtSixtyTimes();
     void wireTurnsOrangeThenRed();
     void overloadedRcdGlows();
+    void rcdTripMessageOutlastsItsOverload();
+    void rcdOverloadMessageOutlastsItsTrip();
     void quietTimerDoesNoSolves();
     void tripDuringDragKeepsTheDrag();
     void roadmapScenario();
@@ -114,6 +116,9 @@ private:
     // Through the model: d6, a 1P C32 at (0, 7) fed from d5:1 by 0.3 m of 6 mm², and l11, a 9 kW
     // cooktop wired to d6 and the bars by 15 m of 1.5 mm².
     void addCooktopCircuit();
+    // Paused, addCooktopCircuit(), then QF1, QD1, QF4, QF5, the cooktop, the kettle and the
+    // microwave switched on by clicks: QD1 carries 46.5 A, over its In of 40 A.
+    void overloadQd1();
     template<typename T>
     T *named(const char *name) const
     {
@@ -284,6 +289,15 @@ void TestProtecting::addCooktopCircuit()
         wire.length = ends.length;
         QVERIFY2(!project.addWire(wire).isEmpty(), ends.from);
     }
+}
+
+void TestProtecting::overloadQd1()
+{
+    clickToolButton("pauseAction");
+    addCooktopCircuit();
+    switchOn({ QStringLiteral("d1"), QStringLiteral("d2"), QStringLiteral("d5"),
+               QStringLiteral("d6"), QStringLiteral("l11"), QStringLiteral("l9"),
+               QStringLiteral("l10") });
 }
 
 void TestProtecting::initTestCase()
@@ -897,6 +911,49 @@ void TestProtecting::overloadedRcdGlows()
     QVERIFY2(text.startsWith(QStringLiteral("QD1 overloaded:")), qPrintable(text));
     QVERIFY(simulation.isOn(u"d1"));
     QCOMPARE(simulation.tripCause(u"d1"), TripCause::None);
+}
+
+void TestProtecting::rcdTripMessageOutlastsItsOverload()
+{
+    overloadQd1();
+    Simulation &simulation = window->simulation();
+    simulation.step(600);
+    QVERIFY(simulation.isOverloaded(u"d2"));
+    QTest::mouseClick(canvas->viewport(), Qt::LeftButton, {}, onTestButton("d2"));
+    QCOMPARE(simulation.tripCause(u"d2"), TripCause::Test);
+    simulation.step(600); // tripped, it carries nothing and cools
+
+    QVERIFY(!simulation.isOverloaded(u"d2"));
+    QCOMPARE(simulation.tripCause(u"d2"), TripCause::Test);
+    QVERIFY(deviceItem(QStringLiteral("d2"))->isTripped());
+    QCOMPARE(message(), QStringLiteral("QD1 tripped: test button"));
+    QVERIFY(saveScreenshot(*window, "f09", "rcd-tripped-cooled"));
+}
+
+void TestProtecting::rcdOverloadMessageOutlastsItsTrip()
+{
+    overloadQd1();
+    Simulation &simulation = window->simulation();
+    // By hand: 0.41025 Ω from the source to QF4's top and back from the N bar, in series with
+    // the kitchen (QF4, 2 × 15 m of 2.5 mm², the kettle ∥ the microwave: 16.742 Ω) ∥ the cooktop
+    // line (the jumper, QF5, 2 × 15 m of 1.5 mm², 9 kW: 6.2297 Ω) → 46.46 A through QD1, 33.86 A
+    // through the cooktop wires. QD1 is overloaded after 73 · ln(I² / (I² − 40²)) = 98.7 s, the
+    // cooktop wires after 45.4 s and overheating after 130.2 s, so QD1's message is the newest
+    // after the second step.
+    simulation.step(60);
+    simulation.step(50);
+    QVERIFY(simulation.isOverloaded(u"d2"));
+    const QString overloaded = QStringLiteral(
+            "QD1 overloaded: 46.5 A on 40 A, an RCD doesn't protect against overload");
+    QCOMPARE(message(), overloaded);
+    QTest::mouseClick(canvas->viewport(), Qt::LeftButton, {}, onTestButton("d2"));
+    QCOMPARE(message(), QStringLiteral("QD1 tripped: test button"));
+    clickHandle("d2"); // still hot
+
+    QVERIFY(simulation.isOn(u"d2"));
+    QVERIFY(simulation.isOverloaded(u"d2"));
+    QCOMPARE(message(), overloaded);
+    QVERIFY(saveScreenshot(*window, "f09", "rcd-reset-hot"));
 }
 
 void TestProtecting::quietTimerDoesNoSolves()

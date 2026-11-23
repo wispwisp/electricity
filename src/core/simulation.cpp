@@ -385,7 +385,10 @@ bool Simulation::clearTrip(const QString &id)
 {
     if (!m_trips.remove(id))
         return false;
-    m_events.append({ .kind = SimulationEvent::Kind::Cleared, .id = id, .time = m_elapsed });
+    m_events.append({ .kind = SimulationEvent::Kind::Cleared,
+                      .ends = SimulationEvent::Kind::Tripped,
+                      .id = id,
+                      .time = m_elapsed });
     return true;
 }
 
@@ -444,8 +447,10 @@ void Simulation::storeResults()
     }
     for (const QString &id : m_dangerous.keys()) {
         if (!dangerous.contains(id))
-            m_events.append(
-                    { .kind = SimulationEvent::Kind::Cleared, .id = id, .time = m_elapsed });
+            m_events.append({ .kind = SimulationEvent::Kind::Cleared,
+                              .ends = SimulationEvent::Kind::Dangerous,
+                              .id = id,
+                              .time = m_elapsed });
     }
     m_dangerous = dangerous;
 }
@@ -535,6 +540,7 @@ void Simulation::advance(double seconds)
             m_overloaded.remove(d.id);
         m_events.append({ .kind = overloaded ? SimulationEvent::Kind::Overloaded
                                              : SimulationEvent::Kind::Cleared,
+                          .ends = SimulationEvent::Kind::Overloaded,
                           .id = d.id,
                           .current = current,
                           .limit = rated,
@@ -553,6 +559,7 @@ void Simulation::advance(double seconds)
                 : (state == WireHeat::Overloaded ? SimulationEvent::Kind::Overloaded
                                                  : SimulationEvent::Kind::Overheating);
         m_events.append({ .kind = kind,
+                          .ends = SimulationEvent::Kind::Overloaded,
                           .id = w.id,
                           .current = current,
                           .limit = ampacity,

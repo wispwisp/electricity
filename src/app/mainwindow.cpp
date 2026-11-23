@@ -40,6 +40,15 @@ constexpr int kPropertiesWidth = 230;
 constexpr int kHintTimeout = 5000; // ms
 constexpr int kTickInterval = 50;  // ms of real time between simulation steps (ADR 0008)
 constexpr int kStartSpeed = 10;    // every launch, not saved
+
+// The condition an event starts or ends: Tripped, Overloaded (any heat) or Dangerous.
+SimulationEvent::Kind condition(const SimulationEvent &event)
+{
+    using Kind = SimulationEvent::Kind;
+    if (event.kind == Kind::Cleared)
+        return event.ends;
+    return event.kind == Kind::Overheating ? Kind::Overloaded : event.kind;
+}
 } // namespace
 
 bool startsMaximized(const QSize &availableScreenSize)
@@ -347,10 +356,13 @@ void MainWindow::retranslateUi()
     showIdleText();
 }
 
-// A condition per object; a new one replaces the object's old one and is the newest.
+// A condition per object and kind (trip, heat, danger), as an RCD can be tripped and overloaded at
+// once; a new one replaces the object's old one of that kind and is the newest.
 void MainWindow::onEvent(const SimulationEvent &event)
 {
-    m_conditions.removeIf([&event](const SimulationEvent &c) { return c.id == event.id; });
+    m_conditions.removeIf([&event](const SimulationEvent &c) {
+        return c.id == event.id && condition(c) == condition(event);
+    });
     if (event.kind != SimulationEvent::Kind::Cleared)
         m_conditions.append(event);
     showIdleText();

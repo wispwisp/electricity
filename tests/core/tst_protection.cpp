@@ -121,6 +121,9 @@ private slots:
     void heatCoolsWithoutCurrent();
     void weakShortTripsOnHeatAsShortCircuit();
     void rcdOverloadNeverTrips();
+    void rcdCoolingEndsOnlyItsOverload();
+    void rcdResetWhileHotEndsOnlyItsTrip();
+    void wireAndDangerClearedNameTheirCondition();
     void oversizedBreakerLetsThinWireOverheat();
     void correctPairingsNeverWarnBeforeTheirBreakerTrips_data();
     void correctPairingsNeverWarnBeforeTheirBreakerTrips();
@@ -146,6 +149,9 @@ private:
     // and w3 l1:N → nbar:1 (length m, section mm²). Everything stays off.
     void addCooktopCircuit(int ratedCurrent, int power, double length = 15, double section = 1.5,
                            double feeder = 2.5);
+    // d1, an RCD of In 25 A at (0, 0), feeding a 7 kW cooktop l1 at (0, 270) through four 1 m
+    // wires of 6 mm²: about 28.9 A once both are on. Everything stays off.
+    void addRcdCooktopCircuit();
     [[nodiscard]] bool near(double actual, double expected) const;
     // A thermal trip time worked out by hand: with the solved current off by up to near()'s
     // Gmin bound, it lies between the times for the bound's two ends, besides 1e-6 s of rounding.
@@ -234,6 +240,16 @@ void TestProtection::addCooktopCircuit(int ratedCurrent, int power, double lengt
     addWire(u"d1:2"_s, u"l1:L"_s, length, section);
     addWire(u"l1:N"_s, u"nbar:1"_s, length, section);
     addWire(u"nbar:2"_s, u"supply:N"_s, 1, feeder);
+}
+
+void TestProtection::addRcdCooktopCircuit()
+{
+    addDevice("rcd-2p-40-30", 0, 0, 25);
+    addLoad("cooktop", QPointF(0, 270));
+    addWire(u"supply:L"_s, u"d1:1"_s, 1, 6);
+    addWire(u"supply:N"_s, u"d1:N1"_s, 1, 6);
+    addWire(u"d1:2"_s, u"l1:L"_s, 1, 6);
+    addWire(u"l1:N"_s, u"d1:N2"_s, 1, 6);
 }
 
 // Gmin draws at most Gmin · 230 V from each terminal, so a solved current can be off the hand
@@ -1024,6 +1040,68 @@ void TestProtection::rcdOverloadNeverTrips()
     list = events(occurred, u"d1");
     QCOMPARE(list.size(), 1);
     QCOMPARE(list[0].kind, SimulationEvent::Kind::Cleared);
+}
+
+void TestProtection::rcdCoolingEndsOnlyItsOverload()
+{
+    addRcdCooktopCircuit();
+    m_simulation->setOn(u"d1"_s, true);
+    m_simulation->setOn(u"l1"_s, true);
+    m_simulation->step(3600);
+    QVERIFY(m_simulation->isOverloaded(u"d1"));
+    QVERIFY(m_simulation->pressTest(u"d1"_s));
+    QSignalSpy occurred(m_simulation.get(), &Simulation::occurred);
+    m_simulation->step(3600); // tripped, it carries nothing and cools
+
+    QVERIFY(!m_simulation->isOverloaded(u"d1"));
+    QCOMPARE(m_simulation->tripCause(u"d1"), TripCause::Test);
+    const QList<SimulationEvent> list = events(occurred, u"d1");
+    QCOMPARE(list.size(), 1);
+    QCOMPARE(list[0].kind, SimulationEvent::Kind::Cleared);
+    QCOMPARE(list[0].ends, SimulationEvent::Kind::Overloaded);
+}
+
+void TestProtection::rcdResetWhileHotEndsOnlyItsTrip()
+{
+    addRcdCooktopCircuit();
+    m_simulation->setOn(u"d1"_s, true);
+    m_simulation->setOn(u"l1"_s, true);
+    m_simulation->step(3600);
+    QVERIFY(m_simulation->pressTest(u"d1"_s));
+    QSignalSpy occurred(m_simulation.get(), &Simulation::occurred);
+    QVERIFY(m_simulation->setOn(u"d1"_s, true));
+
+    QVERIFY(m_simulation->isOn(u"d1"));
+    QVERIFY(m_simulation->isOverloaded(u"d1"));
+    const QList<SimulationEvent> list = events(occurred, u"d1");
+    QCOMPARE(list.size(), 1);
+    QCOMPARE(list[0].kind, SimulationEvent::Kind::Cleared);
+    QCOMPARE(list[0].ends, SimulationEvent::Kind::Tripped);
+}
+
+void TestProtection::wireAndDangerClearedNameTheirCondition()
+{
+    addCooktopCircuit(32, 9000, 15, 1.5, 10);
+    m_simulation->setOn(u"d1"_s, true);
+    m_simulation->setOn(u"l1"_s, true);
+    m_simulation->step(200); // the load wires overheat after about 119.7 s
+    QCOMPARE(m_simulation->wireHeat(u"w2"), WireHeat::Overheating);
+    QVERIFY(m_simulation->setFault(u"l1"_s, Fault::Leakage)); // no RCD
+    QVERIFY(m_simulation->isDangerous(u"l1"));
+    QSignalSpy occurred(m_simulation.get(), &Simulation::occurred);
+    QVERIFY(m_simulation->setOn(u"d1"_s, false));
+    m_simulation->step(3600);
+
+    QVERIFY(!m_simulation->isDangerous(u"l1"));
+    QCOMPARE(m_simulation->wireHeat(u"w2"), WireHeat::Normal);
+    QList<SimulationEvent> list = events(occurred, u"l1");
+    QCOMPARE(list.size(), 1);
+    QCOMPARE(list[0].kind, SimulationEvent::Kind::Cleared);
+    QCOMPARE(list[0].ends, SimulationEvent::Kind::Dangerous);
+    list = events(occurred, u"w2");
+    QCOMPARE(list.size(), 1);
+    QCOMPARE(list[0].kind, SimulationEvent::Kind::Cleared);
+    QCOMPARE(list[0].ends, SimulationEvent::Kind::Overloaded);
 }
 
 void TestProtection::oversizedBreakerLetsThinWireOverheat()
