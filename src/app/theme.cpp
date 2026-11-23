@@ -107,6 +107,16 @@ QColor refusedColor()
     return { 220, 40, 40 };
 }
 
+QColor liveColor()
+{
+    return { 0x7c, 0xe0, 0x5a };
+}
+
+QColor lampGlowColor()
+{
+    return { 0xff, 0xd5, 0x4f };
+}
+
 QColor enclosureTextColor()
 {
     return { 214, 216, 220 };

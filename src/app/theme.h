@@ -22,6 +22,9 @@ Mode currentMode();
 // Editor colours, the same in both themes.
 QColor selectionColor();
 QColor refusedColor();
+// A running appliance's halo, and a lit lamp's glow.
+QColor liveColor();
+QColor lampGlowColor();
 // Designations on the enclosure's dark interior.
 QColor enclosureTextColor();
 // Wires, as on the supply picture (ADR 0013): the conductor colour, yellow stripes on PE, and a

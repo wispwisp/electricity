@@ -119,8 +119,17 @@ public:
     [[nodiscard]] bool isRefused() const;
     // the caption as painted, centred in the caption band and never wider than it
     [[nodiscard]] QRectF captionRect() const;
+    void setOn(bool on);
+    [[nodiscard]] bool isOn() const;
+    // item coordinates: the on/off button near the picture's bottom-right corner; empty for a
+    // socket
+    [[nodiscard]] QRectF buttonRect() const;
+    // a warm glow for a light, a green halo otherwise
+    void setRunning(bool running);
+    [[nodiscard]] bool isRunning() const;
 
-    // what it paints: the picture, the caption band, the empty places and the cords
+    // what it paints: the picture, the caption band, the empty places, the cords and, for a
+    // switchable load, the glow
     [[nodiscard]] QRectF boundingRect() const override;
     // the picture and the caption band, so that an empty plug place doesn't take clicks
     [[nodiscard]] QPainterPath shape() const override;
@@ -140,6 +149,10 @@ private:
     QList<QRectF> m_emptyPlaces;
     QList<QLineF> m_cords;
     bool m_refused = false;
+    bool m_switchable = false;
+    bool m_light = false;
+    bool m_on = false;
+    bool m_running = false;
 };
 
 // A wire along its route, which is in scene coordinates: a dark edge, the conductor colour and, on

@@ -439,6 +439,9 @@ void EditorScene::pressItem(QGraphicsSceneMouseEvent *event)
         Q_ASSERT(type); // the project only holds valid loads
         m_grabOffset
                 = event->scenePos() - QRectF(m_project.loadPosition(*load), type->size).center();
+        if (static_cast<const LoadItem *>(item)->buttonRect().contains(
+                    item->mapFromScene(event->scenePos())))
+            m_switchId = id;
     } else {
         return;
     }
@@ -916,6 +919,10 @@ void EditorScene::syncLive()
 {
     for (auto it = m_devices.cbegin(); it != m_devices.cend(); ++it)
         it.value()->setOn(m_simulation->isOn(it.key()));
+    for (auto it = m_loads.cbegin(); it != m_loads.cend(); ++it) {
+        it.value()->setOn(m_simulation->isOn(it.key()));
+        it.value()->setRunning(m_simulation->isEnergized(it.key()));
+    }
 }
 
 RouteEnd EditorScene::routeEnd(const QString &terminalId) const

@@ -15,6 +15,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <utility>
 
 namespace {
 constexpr qreal kSelectionWidth = 2;
@@ -29,6 +30,13 @@ constexpr qreal kWireLaneWidth = 4.5;
 constexpr qreal kWireHitMargin = 2.4; // the hit shape reaches 1.2 beyond the edge
 constexpr qreal kWireHitWidth = 6;
 constexpr qreal kEarthStripeLength = 2.2; // as on the supply picture
+constexpr qreal kButtonRadius = 4;
+constexpr qreal kButtonInset = 6; // from the picture's bottom-right corner to the centre
+constexpr qreal kButtonRingWidth = 0.6;
+constexpr qreal kGlowMargin = 4.5;
+constexpr int kGlowAlpha = 150;
+const QColor kButtonOnColor(0xe6, 0xe8, 0xeb);
+const QColor kButtonOffColor(0x2b, 0x2d, 0x31);
 constexpr qreal kPlaceOutlineWidth = 0.75;
 constexpr qreal kCordWidth = 1.2;
 const QColor kCordColor(0x1c, 0x1e, 0x21);
@@ -51,6 +59,22 @@ void drawOutline(QPainter *painter, const QRectF &rect, const QColor &color)
     painter->setBrush(Qt::NoBrush);
     const qreal inset = kSelectionWidth / 2;
     painter->drawRect(rect.adjusted(inset, inset, -inset, -inset));
+}
+
+// A power symbol: an arc open at the top with a line through the gap.
+void drawButton(QPainter *painter, const QRectF &rect, bool on)
+{
+    const QColor glyph = on ? kButtonOffColor : kButtonOnColor;
+    painter->setRenderHint(QPainter::Antialiasing);
+    painter->setPen(QPen(kButtonOnColor, kButtonRingWidth));
+    painter->setBrush(on ? kButtonOnColor : kButtonOffColor);
+    painter->drawEllipse(rect);
+    painter->setPen(QPen(glyph, kButtonRingWidth, Qt::SolidLine, Qt::RoundCap));
+    painter->setBrush(Qt::NoBrush);
+    const QRectF arc = QRectF(rect.center() - QPointF(2, 2), QSizeF(4, 4));
+    painter->drawArc(arc, 120 * 16, 300 * 16);
+    painter->drawLine(QPointF(rect.center().x(), rect.center().y() - 2.4),
+                      QPointF(rect.center().x(), rect.center().y() - 0.2));
 }
 
 // At full strength even on the translucent drag preview, so a refusal reads as red.
@@ -277,6 +301,8 @@ void LoadItem::setLoad(const PlacedLoad &load, const QString &caption,
     prepareGeometryChange();
     m_path = loadPicturePath(type->picture);
     m_size = type->size;
+    m_switchable = type->places.isEmpty();
+    m_light = type->light;
     m_band = type->caption.isEmpty()
             ? QRectF()
             : QRectF(0, m_size.height(), m_size.width(), LoadCaptionHeight);
@@ -312,9 +338,43 @@ bool LoadItem::isRefused() const
     return m_refused;
 }
 
+void LoadItem::setOn(bool on)
+{
+    if (std::exchange(m_on, on) != on)
+        update();
+}
+
+bool LoadItem::isOn() const
+{
+    return m_on;
+}
+
+QRectF LoadItem::buttonRect() const
+{
+    if (!m_switchable)
+        return {};
+    const QPointF centre(m_size.width() - kButtonInset, m_size.height() - kButtonInset);
+    return { centre - QPointF(kButtonRadius, kButtonRadius),
+             QSizeF(2 * kButtonRadius, 2 * kButtonRadius) };
+}
+
+void LoadItem::setRunning(bool running)
+{
+    if (std::exchange(m_running, running) != running)
+        update();
+}
+
+bool LoadItem::isRunning() const
+{
+    return m_running;
+}
+
 QRectF LoadItem::boundingRect() const
 {
     QRectF rect = QRectF(QPointF(0, 0), m_size) | m_band;
+    if (m_switchable)
+        rect |= QRectF(QPointF(0, 0), m_size)
+                        .adjusted(-kGlowMargin, -kGlowMargin, kGlowMargin, kGlowMargin);
     for (const QRectF &place : m_emptyPlaces)
         rect |= place;
     const qreal margin = (kCordWidth + kCordEdgeWidth) / 2;
@@ -335,6 +395,20 @@ QPainterPath LoadItem::shape() const
 void LoadItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWidget *)
 {
     const QRectF picture(QPointF(0, 0), m_size);
+    if (m_running) {
+        const QColor base = m_light ? Theme::lampGlowColor() : Theme::liveColor();
+        painter->setPen(Qt::NoPen);
+        // Nested rounded rectangles, each fainter and wider, fade out to the margin.
+        constexpr int steps = 6;
+        for (int i = 0; i < steps; ++i) {
+            const qreal grow = kGlowMargin * (steps - i) / steps;
+            QColor color = base;
+            color.setAlpha(kGlowAlpha / steps);
+            painter->setBrush(color);
+            painter->drawRoundedRect(picture.adjusted(-grow, -grow, grow, grow), grow + 1,
+                                     grow + 1);
+        }
+    }
     svgRenderer(m_path).render(painter, picture);
 
     if (!m_shownCaption.isEmpty()) {
@@ -359,6 +433,8 @@ void LoadItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWidge
     painter->setPen(QPen(kCordColor, kCordWidth, Qt::SolidLine, Qt::FlatCap));
     painter->drawLines(m_cords);
 
+    if (m_switchable)
+        drawButton(painter, buttonRect(), m_on);
     if (isSelected())
         drawOutline(painter, picture, Theme::selectionColor());
     if (m_refused)
