@@ -624,19 +624,31 @@ void TestProtecting::dangerMarkIsRed()
 
 void TestProtecting::faultActionsAreNotEdits()
 {
+    // A real edit first, so that undo and redo have something to do.
+    QTest::mouseClick(canvas->viewport(), Qt::LeftButton, {}, onPicture("l2"));
+    QTest::keyClick(canvas, Qt::Key_Delete);
+    QVERIFY(!window->project().load(u"l2"));
     const int edits = window->undoStack().count();
+    QVERIFY(edits > 0);
+
     for (const char *id : { "d1", "d2", "d4" })
         clickHandle(QString::fromLatin1(id));
     chooseFault(QStringLiteral("l3"), "shortCircuitAction");
     QCOMPARE(window->simulation().tripCause(u"d4"), TripCause::ShortCircuit);
     QCOMPARE(window->undoStack().count(), edits);
 
+    const auto expectUnchanged = [this] {
+        QCOMPARE(window->simulation().fault(u"l3"), Fault::ShortCircuit);
+        QCOMPARE(window->simulation().tripCause(u"d4"), TripCause::ShortCircuit);
+        QVERIFY(window->simulation().isOn(u"d1"));
+        QVERIFY(window->simulation().isOn(u"d2"));
+    };
     window->undoStack().undo();
+    QVERIFY(window->project().load(u"l2"));
+    expectUnchanged();
     window->undoStack().redo();
-    QCOMPARE(window->simulation().fault(u"l3"), Fault::ShortCircuit);
-    QCOMPARE(window->simulation().tripCause(u"d4"), TripCause::ShortCircuit);
-    QVERIFY(window->simulation().isOn(u"d1"));
-    QVERIFY(window->simulation().isOn(u"d2"));
+    QVERIFY(!window->project().load(u"l2"));
+    expectUnchanged();
 }
 
 void TestProtecting::faultSurvivesDeleteAndUndo()
