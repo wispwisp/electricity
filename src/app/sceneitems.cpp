@@ -34,7 +34,7 @@ constexpr qreal kButtonRadius = 4;
 constexpr qreal kButtonInset = 6; // from the picture's bottom-right corner to the centre
 constexpr qreal kButtonRingWidth = 0.6;
 constexpr qreal kGlowMargin = 4.5;
-constexpr int kGlowAlpha = 150;
+constexpr int kGlowAlpha = 70; // per ring, so the innermost ones add up to nearly solid
 const QColor kButtonOnColor(0xe6, 0xe8, 0xeb);
 const QColor kButtonOffColor(0x2b, 0x2d, 0x31);
 constexpr qreal kPlaceOutlineWidth = 0.75;
@@ -398,15 +398,18 @@ void LoadItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWidge
     if (m_running) {
         const QColor base = m_light ? Theme::lampGlowColor() : Theme::liveColor();
         painter->setPen(Qt::NoPen);
-        // Nested rounded rectangles, each fainter and wider, fade out to the margin.
+        // Nested rings around the picture, each fainter and wider, so that the strongest colour is
+        // at the picture's edge and nothing tints the picture itself.
         constexpr int steps = 6;
+        QPainterPath inside;
+        inside.addRect(picture);
         for (int i = 0; i < steps; ++i) {
             const qreal grow = kGlowMargin * (steps - i) / steps;
+            QPainterPath ring;
+            ring.addRoundedRect(picture.adjusted(-grow, -grow, grow, grow), grow, grow);
             QColor color = base;
-            color.setAlpha(kGlowAlpha / steps);
-            painter->setBrush(color);
-            painter->drawRoundedRect(picture.adjusted(-grow, -grow, grow, grow), grow + 1,
-                                     grow + 1);
+            color.setAlpha(kGlowAlpha);
+            painter->fillPath(ring.subtracted(inside), color);
         }
     }
     svgRenderer(m_path).render(painter, picture);
