@@ -14,6 +14,18 @@ checked every file. Design:
 
 This refines 0010 and 0018.
 
+- The file's top level has `format` ("electricity-panel"), `version` (1),
+  `supply` (`{type}`), `enclosures` (a list of exactly one `{type}`),
+  `devices`, `loads` and `wires`. A device has `id`, `type`, `poles`,
+  `parameters`, `row` and `module`. A load has `id`, `type`, `x`, `y` and
+  `power`, plus `socket` and `place` while plugged in. A wire has `id`,
+  `from`, `to`, `section`, `conductor` ("L", "N" or "PE") and `length`. All of
+  these keys are required (`devices`, `loads` and `wires` may be empty lists),
+  except `on`, `socket` and `place`. `version`, `row`, `module`, `power` and
+  `place` are JSON integers without a fraction. `"on": true` is written only
+  on devices and non-socket loads that are on. Lists keep the model's order.
+  The model refuses a wire length outside (0, 500] m, in files and in the
+  editor.
 - Version 1 of the file is written indented, UTF-8, atomically. ADR 0010's
   `view` block is dropped (opening fits the panel to the window), and
   `enclosures` stays a list holding exactly one entry. Unknown fields are
@@ -22,8 +34,8 @@ This refines 0010 and 0018.
   the same catalog through the model's own add calls, so every editor rule
   applies to the file, then `Project::replace` gives its contents to the live
   project in one step.
-- Ids are `d<n>` for devices, `w<n>` for wires and `l<n>` for loads, and
-  restart per file. Counters go past the highest id in the file.
+- Ids are `d<n>` for devices, `w<n>` for wires and `l<n>` for loads, with
+  n ≥ 1, and restart per file. Counters go past the highest id in the file.
 - Plugged loads are added after the unplugged ones and inserted at their file
   positions, so an appliance may come before its socket and load names keep
   their order.
@@ -43,11 +55,12 @@ This refines 0010 and 0018.
   `QFileSystemModel` and related contexts) are registered in
   `src/app/qtstrings.cpp` and translated to ru and kk, as ADR 0012 does for
   Qt's standard strings.
-- Gate 4 of `scripts/quality_gates.sh` checks every file in CI. Elsewhere,
-  with an `origin/main`, it checks the `.cpp` files under `src/` and `tests/`
-  changed since the merge-base with `origin/main` (unpushed, uncommitted and
-  untracked) plus the `.cpp` beside each changed `.h`, and prints the list.
-  Every file took 13 minutes here (50 files, 6 jobs).
+- Gate 4 of `scripts/quality_gates.sh` checks every file in CI, and also
+  locally when there is no `origin/main`. Otherwise it checks the `.cpp`
+  files under `src/` and `tests/` changed since the merge-base with
+  `origin/main` (unpushed, uncommitted and untracked) plus the `.cpp` beside
+  each changed `.h`, and prints the list. Every file took 13 minutes here
+  (50 files, 6 jobs).
 
 ## Rejected alternatives
 
