@@ -23,15 +23,18 @@
 #include <QAction>
 #include <QApplication>
 #include <QDeadlineTimer>
+#include <QDialogButtonBox>
 #include <QDir>
 #include <QFile>
 #include <QFileDialog>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QLabel>
 #include <QLineEdit>
 #include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QPushButton>
 #include <QScopeGuard>
 #include <QSettings>
 #include <QStandardPaths>
@@ -181,6 +184,9 @@ private slots:
     void openRecentOpensTheFile();
     void missingRecentFileIsRemoved();
     void damagedRecentFileStays();
+    void fileTextsFollowLanguage();
+    void fileDialogIsTranslated_data();
+    void fileDialogIsTranslated();
 
 private:
     // An edit that leaves the window modified: the last tutorial device is removed.
@@ -192,6 +198,8 @@ private:
     [[nodiscard]] QString tempPath(const QString &name) const;
     // Opens File > Open Recent and clicks the entry at index; the submenu stays open if keepOpen.
     bool clickRecent(int index, bool keepOpen = false);
+    // Switches the language through the Language menu.
+    void clickLanguage(const char *action);
     // The text of each Open Recent entry.
     [[nodiscard]] QStringList recentTexts() const;
     [[nodiscard]] DeviceItem *deviceItem(const QString &id) const;
@@ -259,6 +267,18 @@ bool TestFiles::clickRecent(int index, bool keepOpen)
     if (!keepOpen)
         clickMenuItem(recent, recent->actions().at(index));
     return true;
+}
+
+void TestFiles::clickLanguage(const char *action)
+{
+    auto *menu = named<QMenu>("languageMenu");
+    auto *item = named<QAction>(action);
+    QVERIFY2(menu && item, action);
+    QMenuBar *bar = window->menuBar();
+    QTest::mouseMove(bar, bar->actionGeometry(menu->menuAction()).center());
+    clickMenuBarItem(*window, menu);
+    clickMenuItem(menu, item);
+    QVERIFY2(item->isChecked(), action);
 }
 
 QStringList TestFiles::recentTexts() const
@@ -1036,6 +1056,63 @@ void TestFiles::damagedRecentFileStays()
     QVERIFY(shown);
     QCOMPARE(text, QStringLiteral("d.panel is not an Electricity panel file, or it is damaged."));
     QCOMPARE(recentTexts(), (QStringList{ "d.panel" }));
+}
+
+void TestFiles::fileTextsFollowLanguage()
+{
+    clickLanguage("languageAction_ru");
+    QCOMPARE(named<QMenu>("fileMenu")->title(), QStringLiteral("Файл"));
+    QCOMPARE(window->windowTitle(), QStringLiteral("Без имени[*] — Electricity"));
+    editProject();
+    QString text;
+    QVERIFY(answerQuestion("saveChangesCancel", [&] { window->close(); }, &text));
+    QCOMPARE(text, QStringLiteral("Сохранить изменения в новом проекте?"));
+}
+
+void TestFiles::fileDialogIsTranslated_data()
+{
+    QTest::addColumn<QByteArray>("action");
+    QTest::newRow("ru") << QByteArray("languageAction_ru");
+    QTest::newRow("kk") << QByteArray("languageAction_kk");
+}
+
+// Qt's own dialog, whose strings the app translates itself.
+void TestFiles::fileDialogIsTranslated()
+{
+    QFETCH(QByteArray, action);
+    clickLanguage(action.constData());
+
+    QStringList labels;
+    QString open;
+    QString cancel;
+    bool screenshot = false;
+    const bool shown = onModal<QFileDialog>(
+            [&](QFileDialog &dialog) {
+                QVERIFY(QTest::qWaitForWindowActive(&dialog));
+                for (const char *name : { "lookInLabel", "fileNameLabel", "fileTypeLabel" }) {
+                    auto *label = dialog.findChild<QLabel *>(QString::fromLatin1(name));
+                    QVERIFY2(label, name);
+                    labels << label->text();
+                }
+                auto *box = dialog.findChild<QDialogButtonBox *>(QStringLiteral("buttonBox"));
+                QVERIFY(box && box->button(QDialogButtonBox::Open)
+                        && box->button(QDialogButtonBox::Cancel));
+                open = box->button(QDialogButtonBox::Open)->text();
+                cancel = box->button(QDialogButtonBox::Cancel)->text();
+                const QString step
+                        = QStringLiteral("dialog-") + QString::fromLatin1(QTest::currentDataTag());
+                screenshot = saveScreenshot(dialog, QStringLiteral("f10"), step);
+                QTest::keyClick(&dialog, Qt::Key_Escape);
+            },
+            [&] { clickFileAction("openAction"); });
+    QVERIFY(shown);
+    QCOMPARE(labels.size(), 3);
+    QCOMPARE_NE(labels.at(0), QStringLiteral("&Look in:"));
+    QCOMPARE_NE(labels.at(1), QStringLiteral("File &name:"));
+    QCOMPARE_NE(labels.at(2), QStringLiteral("Files of &type:"));
+    QCOMPARE_NE(open, QStringLiteral("&Open"));
+    QCOMPARE_NE(cancel, QStringLiteral("Cancel"));
+    QVERIFY(screenshot);
 }
 
 QTEST_MAIN(TestFiles)

@@ -713,13 +713,435 @@
     </message>
 </context>
 <context>
+    <name>QAbstractFileIconProvider</name>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="83"/>
+        <source>Drive</source>
+        <translation>Диск</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="84"/>
+        <source>Unknown</source>
+        <translation>Белгісіз</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="114"/>
+        <source>Folder</source>
+        <comment>All other platforms</comment>
+        <translation>Қалта</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="115"/>
+        <source>Shortcut</source>
+        <comment>All other platforms</comment>
+        <translation>Жарлық</translation>
+    </message>
+</context>
+<context>
     <name>QFileDialog</name>
     <message>
         <location filename="../src/app/mainwindow.cpp" line="535"/>
+        <location filename="../src/app/qtstrings.cpp" line="58"/>
         <source>%1 already exists.
 Do you want to replace it?</source>
         <translation>%1 бұрыннан бар.
 Оны ауыстыру керек пе?</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="22"/>
+        <source>&amp;Look in:</source>
+        <translation>&amp;Қалта:</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="23"/>
+        <source>Back</source>
+        <translation>Артқа</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="24"/>
+        <source>Go back</source>
+        <translation>Артқа өту</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="25"/>
+        <source>Alt+Left</source>
+        <translation>Alt+Left</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="26"/>
+        <source>Forward</source>
+        <translation>Алға</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="27"/>
+        <source>Go forward</source>
+        <translation>Алға өту</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="28"/>
+        <source>Alt+Right</source>
+        <translation>Alt+Right</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="29"/>
+        <source>Parent Directory</source>
+        <translation>Жоғарғы қалта</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="30"/>
+        <source>Go to the parent directory</source>
+        <translation>Жоғарғы қалтаға өту</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="31"/>
+        <source>Alt+Up</source>
+        <translation>Alt+Up</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="32"/>
+        <source>Create New Folder</source>
+        <translation>Қалта жасау</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="33"/>
+        <source>Create a New Folder</source>
+        <translation>Жаңа қалта жасау</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="34"/>
+        <source>List View</source>
+        <translation>Тізім</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="35"/>
+        <source>Change to list view mode</source>
+        <translation>Тізім көрінісіне ауысу</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="36"/>
+        <source>Detail View</source>
+        <translation>Толық көрініс</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="37"/>
+        <source>Change to detail view mode</source>
+        <translation>Толық көрініске ауысу</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="38"/>
+        <source>Sidebar</source>
+        <translation>Бүйірлік панель</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="39"/>
+        <source>List of places and bookmarks</source>
+        <translation>Орындар мен бетбелгілер</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="40"/>
+        <source>Files</source>
+        <translation>Файлдар</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="41"/>
+        <source>Files of &amp;type:</source>
+        <translation>Файл &amp;түрі:</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="42"/>
+        <source>Find Directory</source>
+        <translation>Қалтаны таңдау</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="43"/>
+        <source>Open</source>
+        <translation>Ашу</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="44"/>
+        <source>Save As</source>
+        <translation>Басқаша сақтау</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="45"/>
+        <source>Directory:</source>
+        <translation>Қалта:</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="46"/>
+        <source>File &amp;name:</source>
+        <translation>&amp;Файл атауы:</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="47"/>
+        <source>&amp;Open</source>
+        <translation>&amp;Ашу</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="48"/>
+        <source>&amp;Choose</source>
+        <translation>&amp;Таңдау</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="49"/>
+        <source>&amp;Save</source>
+        <translation>&amp;Сақтау</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="50"/>
+        <source>Show </source>
+        <translation>Баған: </translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="51"/>
+        <source>&amp;Rename</source>
+        <translation>&amp;Атын өзгерту</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="52"/>
+        <source>&amp;Delete</source>
+        <translation>&amp;Жою</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="53"/>
+        <source>Show &amp;hidden files</source>
+        <translation>Жасырын файлдарды &amp;көрсету</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="54"/>
+        <source>&amp;New Folder</source>
+        <translation>Жаңа &amp;қалта</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="55"/>
+        <source>All files (*)</source>
+        <translation>Барлық файлдар (*)</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="56"/>
+        <source>Directories</source>
+        <translation>Қалталар</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="61"/>
+        <source>%1
+Directory not found.
+Please verify the correct directory name was given.</source>
+        <translation>%1
+Қалта табылмады.
+Оның атауы дұрыс жазылғанын тексеріңіз.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="65"/>
+        <source>%1
+File not found.
+Please verify the correct file name was given.</source>
+        <translation>%1
+Файл табылмады.
+Оның атауы дұрыс жазылғанын тексеріңіз.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="69"/>
+        <source>New Folder</source>
+        <translation>Жаңа қалта</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="70"/>
+        <source>Delete</source>
+        <translation>Жою</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="71"/>
+        <source>&apos;%1&apos; is write protected.
+Do you want to delete it anyway?</source>
+        <translation>«%1» жазудан қорғалған.
+Бәрібір жойылсын ба?</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="75"/>
+        <source>Are you sure you want to delete &apos;%1&apos;?</source>
+        <translation>«%1» шынымен жойылсын ба?</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="76"/>
+        <source>Could not delete directory.</source>
+        <translation>Қалта жойылмады.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="77"/>
+        <source>Recent Places</source>
+        <translation>Соңғы қалталар</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="78"/>
+        <source>Remove</source>
+        <translation>Алып тастау</translation>
+    </message>
+</context>
+<context>
+    <name>QFileSystemModel</name>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="79"/>
+        <source>Name</source>
+        <translation>Атауы</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="80"/>
+        <source>Size</source>
+        <translation>Өлшемі</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="81"/>
+        <source>Date Modified</source>
+        <translation>Өзгертілген күні</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="82"/>
+        <source>Computer</source>
+        <translation>Компьютер</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="112"/>
+        <source>Kind</source>
+        <comment>Match OS X Finder</comment>
+        <translation>Түрі</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="113"/>
+        <source>Type</source>
+        <comment>All other platforms</comment>
+        <translation>Түрі</translation>
+    </message>
+</context>
+<context>
+    <name>QLineEdit</name>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="85"/>
+        <source>&amp;Undo</source>
+        <translation>&amp;Болдырмау</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="86"/>
+        <source>&amp;Redo</source>
+        <translation>Қайта&amp;лау</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="87"/>
+        <source>Cu&amp;t</source>
+        <translation>Қиып &amp;алу</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="88"/>
+        <source>&amp;Copy</source>
+        <translation>&amp;Көшіру</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="89"/>
+        <source>&amp;Paste</source>
+        <translation>&amp;Қою</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="90"/>
+        <source>Delete</source>
+        <translation>Жою</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="91"/>
+        <source>Select All</source>
+        <translation>Барлығын бөлектеу</translation>
+    </message>
+</context>
+<context>
+    <name>QPlatformTheme</name>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="92"/>
+        <source>OK</source>
+        <translation>OK</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="93"/>
+        <source>Save</source>
+        <translation>Сақтау</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="94"/>
+        <source>Save All</source>
+        <translation>Барлығын сақтау</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="95"/>
+        <source>Open</source>
+        <translation>Ашу</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="96"/>
+        <source>&amp;Yes</source>
+        <translation>&amp;Иә</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="97"/>
+        <source>Yes to &amp;All</source>
+        <translation>&amp;Барлығына иә</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="98"/>
+        <source>&amp;No</source>
+        <translation>&amp;Жоқ</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="99"/>
+        <source>N&amp;o to All</source>
+        <translation>Барлығына ж&amp;оқ</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="100"/>
+        <source>Abort</source>
+        <translation>Тоқтату</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="101"/>
+        <source>Retry</source>
+        <translation>Қайталау</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="102"/>
+        <source>Ignore</source>
+        <translation>Өткізіп жіберу</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="103"/>
+        <source>Close</source>
+        <translation>Жабу</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="104"/>
+        <source>Cancel</source>
+        <translation>Бас тарту</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="105"/>
+        <source>Discard</source>
+        <translation>Сақтамау</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="106"/>
+        <source>Help</source>
+        <translation>Анықтама</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="107"/>
+        <source>Apply</source>
+        <translation>Қолдану</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="108"/>
+        <source>Reset</source>
+        <translation>Қалпына келтіру</translation>
+    </message>
+    <message>
+        <location filename="../src/app/qtstrings.cpp" line="109"/>
+        <source>Restore Defaults</source>
+        <translation>Әдепкі мәндерге қайтару</translation>
     </message>
 </context>
 </TS>

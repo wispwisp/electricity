@@ -4,7 +4,7 @@ add_library(electricity_lib STATIC mainwindow.cpp mainwindow.h theme.cpp theme.h
     languagedialog.cpp languagedialog.h svgpixmap.cpp svgpixmap.h palettewidget.cpp palettewidget.h
     editcommands.cpp editcommands.h sceneitems.cpp sceneitems.h editorscene.cpp editorscene.h
     canvasview.cpp canvasview.h propertiespanel.cpp propertiespanel.h sectiontext.cpp sectiontext.h
-    currenttext.cpp currenttext.h eventtext.cpp eventtext.h)
+    currenttext.cpp currenttext.h eventtext.cpp eventtext.h qtstrings.cpp)
 target_link_libraries(electricity_lib PUBLIC panelcore Qt6::Widgets Qt6::Svg)
 qt_add_resources(electricity_lib "fonts" PREFIX "/fonts"
     BASE "${PROJECT_SOURCE_DIR}/resources/fonts"
