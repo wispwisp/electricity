@@ -15,10 +15,18 @@ echo "== 3/6 clang-format"
 git ls-files -co --exclude-standard '*.cpp' '*.h' | xargs clang-format --dry-run --Werror
 
 echo "== 4/6 clang-tidy"
-# GitHub Actions sets CI=true, and there every file is checked.
-if [ "${CI:-}" != true ] && git rev-parse --verify --quiet main >/dev/null; then
-    changed=$( (git diff --name-only --diff-filter=d "$(git merge-base HEAD main)"
+# GitHub Actions sets CI=true, and there every file is checked. Locally only
+# the files a push would bring to CI are: changed since origin/main, plus the
+# .cpp beside each changed header.
+if [ "${CI:-}" != true ] && git rev-parse --verify --quiet origin/main >/dev/null; then
+    changed=$( (git diff --name-only --diff-filter=d "$(git merge-base HEAD origin/main)"
                 git ls-files --others --exclude-standard) | sort -u)
+    for header in $(echo "$changed" | grep -E '\.h$' || true); do
+        if [ -f "${header%.h}.cpp" ]; then
+            changed="$changed"$'\n'"${header%.h}.cpp"
+        fi
+    done
+    changed=$(echo "$changed" | sort -u)
 else
     changed=$(git ls-files)
 fi
@@ -26,6 +34,7 @@ files=$(echo "$changed" | grep -E '^(src|tests)/.*\.cpp$' || true)
 if [ -z "$files" ]; then
     echo "no changed .cpp files, skipping"
 else
+    echo "$files"
     echo "$files" | xargs clang-tidy -p build --quiet
 fi
 

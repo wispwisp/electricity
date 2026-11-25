@@ -22,7 +22,7 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
 | F07 | Loads | ☑ |
 | F08 | Live simulation: supply, switching, currents | ☑ |
 | F09 | Protection and faults | ☑ |
-| F10 | Project files | ☐ |
+| F10 | Project files | ◐ |
 | F11 | Tutorial: single-phase apartment panel | ☐ |
 | F12 | Properties and engineering details | ☐ |
 | F13 | Parts list | ☐ |
@@ -228,6 +228,7 @@ step ([0017](adr/0017-tutorial-engine.md)).
 - Allow filter: handle clicks and load buttons also go through the filter.
 - Allow filter: load drops and moves in `EditorScene` and load edits in `PropertiesPanel` also go through the filter.
 - Allow filter: the load menu's fault actions, the RCD test button and a click on the tripped supply block also go through the filter.
+- Allow filter: File → New, Open…, Open Recent and Quit during the tutorial also go through the filter.
 
 **Scenario test:** walk the whole tutorial by real clicks and drags, asserting
 each step's completion; screenshot every step in Russian; spot-check
