@@ -507,9 +507,14 @@ void MainWindow::openFile(const QString &path)
     takeOver(opened, result.on, path);
 }
 
-// The old conditions go before the new contents arrive, whose solve may trip a device at once.
+// The old conditions go before the new contents arrive, whose solve may trip a device at once. The
+// scene keeps items whose ids come back, and a wire start whose terminal does, so the selection and
+// a wire in progress go first too.
 void MainWindow::takeOver(const Project &source, const QStringList &on, const QString &path)
 {
+    m_scene->clearSelection();
+    if (!m_scene->wireStart().isEmpty())
+        m_scene->escapeWireTool(); // the tool stays on
     simulation().reset(on);
     m_conditions.clear();
     m_project->replace(source);

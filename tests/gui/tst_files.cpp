@@ -173,6 +173,7 @@ private slots:
     void openedFileTripsAtOnce();
     void failedSaveKeepsUntitled();
     void newDropsOldConditionsAndUndo();
+    void newAndOpenDropSelectionAndWire();
     void quitClosesWindow();
     void dialogsStartInLastFolder();
     void editMarksWindowModified();
@@ -777,6 +778,44 @@ void TestFiles::newDropsOldConditionsAndUndo()
     QCOMPARE(window->simulation().tripCause(u"d4"), TripCause::None);
     QCOMPARE(window->simulation().fault(u"l3"), Fault::None);
     QCOMPARE(bar->currentMessage(), QStringLiteral("Ready"));
+}
+
+// Also where the new contents have an object or a terminal of the same id.
+void TestFiles::newAndOpenDropSelectionAndWire()
+{
+    const QString path = tempPath(QStringLiteral("same.panel"));
+    QVERIFY(chooseFile("saveAsAction", path));
+    QWidget *wireButton
+            = named<QToolBar>("editToolBar")->widgetForAction(named<QAction>("wireAction"));
+    QVERIFY(wireButton);
+    const auto clickAt = [this](QPointF scenePos) {
+        QTest::mouseClick(canvas->viewport(), Qt::LeftButton, {}, viewportPoint(canvas, scenePos));
+    };
+
+    const QRectF d1 = scene->slotRect(0, 0, 2);
+    clickAt(d1.center() + QPointF(0, d1.height() * 0.15)); // beside the handle
+    QCOMPARE(scene->selectedDeviceId(), QStringLiteral("d1"));
+    QTest::mouseClick(wireButton, Qt::LeftButton);
+    clickAt(scene->terminalPos(QStringLiteral("d3:2")));
+    QCOMPARE(scene->wireStart(), QStringLiteral("d3:2"));
+    QCOMPARE(scene->selectedDeviceId(), QStringLiteral("d1"));
+    QVERIFY(chooseFile("openAction", path));
+    QVERIFY(scene->selectedItems().isEmpty());
+    QCOMPARE(scene->wireStart(), QString());
+    QVERIFY(saveScreenshot(*window, QStringLiteral("f10"), QStringLiteral("opened-unselected")));
+
+    // The enclosure and its N bar are in a new project too.
+    if (scene->isWireMode())
+        QTest::mouseClick(wireButton, Qt::LeftButton);
+    clickAt(scene->slotRect(0, 8, 1).center());
+    QVERIFY(scene->isEnclosureSelected());
+    QTest::mouseClick(wireButton, Qt::LeftButton);
+    clickAt(scene->terminalPos(QStringLiteral("nbar:2")));
+    QCOMPARE(scene->wireStart(), QStringLiteral("nbar:2"));
+    QVERIFY(scene->isEnclosureSelected());
+    clickFileAction("newAction");
+    QVERIFY(scene->selectedItems().isEmpty());
+    QCOMPARE(scene->wireStart(), QString());
 }
 
 void TestFiles::quitClosesWindow()
