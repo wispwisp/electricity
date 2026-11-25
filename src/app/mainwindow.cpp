@@ -20,6 +20,7 @@
 #include <QAction>
 #include <QActionGroup>
 #include <QComboBox>
+#include <QCoreApplication>
 #include <QDockWidget>
 #include <QEvent>
 #include <QFileDialog>
@@ -475,8 +476,26 @@ bool MainWindow::save()
 
 bool MainWindow::saveAs()
 {
-    const QString path = chooseFile(true);
-    return !path.isEmpty() && saveTo(path);
+    QString path = chooseFile(true);
+    if (path.isEmpty())
+        return false;
+    // The dialog adds the suffix only to a name without a dot, so not to "ул. Абая 10"; then the
+    // question whether to replace the file is ours, in the words of Qt's dialog.
+    if (!path.endsWith(QStringLiteral(".panel"), Qt::CaseInsensitive)) {
+        path += QStringLiteral(".panel");
+        if (QFileInfo::exists(path)) {
+            QMessageBox box(QMessageBox::Warning, QStringLiteral("Electricity"),
+                            QCoreApplication::translate(
+                                    "QFileDialog", "%1 already exists.\nDo you want to replace it?")
+                                    .arg(QFileInfo(path).fileName()),
+                            QMessageBox::Yes | QMessageBox::No, this);
+            box.setObjectName(QStringLiteral("replaceBox"));
+            box.setDefaultButton(QMessageBox::No);
+            if (box.exec() != QMessageBox::Yes)
+                return false;
+        }
+    }
+    return saveTo(path);
 }
 
 bool MainWindow::saveTo(const QString &path)

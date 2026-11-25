@@ -142,6 +142,8 @@ private slots:
     void newStartsEmpty();
     void openRestoresDesignAndSwitches();
     void saveAsAddsSuffixBeforeAskingToReplace();
+    void saveAsAddsSuffixToNameWithDot();
+    void saveAsAsksBeforeReplacingDottedName();
     void cyrillicFileName();
     void openRefusesDamagedAndNewerFiles();
     void openedFileTripsAtOnce();
@@ -445,6 +447,60 @@ void TestFiles::saveAsAddsSuffixBeforeAskingToReplace()
     QCOMPARE(question, QStringLiteral("a.panel already exists.\nDo you want to replace it?"));
     QCOMPARE(readAll(path), before);
     QVERIFY(!QFile::exists(tempPath(QStringLiteral("a"))));
+    QCOMPARE(window->filePath(), path);
+}
+
+// Qt's dialog adds the default suffix only to names without a dot; addresses often have one.
+void TestFiles::saveAsAddsSuffixToNameWithDot()
+{
+    const QString path = tempPath(QStringLiteral("ул. Абая 10.panel"));
+    QVERIFY(chooseFile("saveAsAction", tempPath(QStringLiteral("ул. Абая 10"))));
+    QVERIFY(QFile::exists(path));
+    QVERIFY(!QFile::exists(tempPath(QStringLiteral("ул. Абая 10"))));
+    Project saved(window->project().catalog());
+    QCOMPARE(openProject(path, saved).status, OpenResult::Status::Opened);
+    compareDesigns(saved, window->project());
+    QCOMPARE(window->windowTitle(), QStringLiteral("ул. Абая 10.panel[*] — Electricity"));
+    QCOMPARE(window->filePath(), path);
+}
+
+void TestFiles::saveAsAsksBeforeReplacingDottedName()
+{
+    const QString path = tempPath(QStringLiteral("flat.v2.panel"));
+    const QByteArray before = "someone else's panel";
+    QVERIFY(writeAll(path, before));
+    // Save As typing the name without .panel, answering the question with the button.
+    const auto saveAs = [this](QMessageBox::StandardButton answer, QString &name, QString &title,
+                               QString &text) {
+        return onModal<QMessageBox>(
+                [&](QMessageBox &box) {
+                    name = box.objectName();
+                    title = box.windowTitle();
+                    text = box.text();
+                    QTest::mouseClick(box.button(answer), Qt::LeftButton);
+                },
+                [&] { QVERIFY(chooseFile("saveAsAction", tempPath(QStringLiteral("flat.v2")))); });
+    };
+
+    QString name;
+    QString title;
+    QString text;
+    QVERIFY(saveAs(QMessageBox::No, name, title, text));
+    QCOMPARE(name, QStringLiteral("replaceBox"));
+    QCOMPARE(title, QStringLiteral("Electricity"));
+    QVERIFY2(text.contains(QStringLiteral("flat.v2.panel")), qPrintable(text));
+    QCOMPARE(readAll(path), before);
+    QVERIFY(!QFile::exists(tempPath(QStringLiteral("flat.v2"))));
+    QCOMPARE(window->windowTitle(), QStringLiteral("Untitled[*] — Electricity"));
+    QCOMPARE(window->filePath(), QString());
+
+    QVERIFY(saveAs(QMessageBox::Yes, name, title, text));
+    QCOMPARE(name, QStringLiteral("replaceBox"));
+    Project saved(window->project().catalog());
+    QCOMPARE(openProject(path, saved).status, OpenResult::Status::Opened);
+    compareDesigns(saved, window->project());
+    QVERIFY(!QFile::exists(tempPath(QStringLiteral("flat.v2"))));
+    QCOMPARE(window->windowTitle(), QStringLiteral("flat.v2.panel[*] — Electricity"));
     QCOMPARE(window->filePath(), path);
 }
 

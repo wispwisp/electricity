@@ -54,7 +54,9 @@ This refines 0010 and 0018.
 - File dialogs are the system's own. Qt's own dialog strings (`QFileDialog`,
   `QFileSystemModel` and related contexts) are registered in
   `src/app/qtstrings.cpp` and translated to ru and kk, as ADR 0012 does for
-  Qt's standard strings.
+  Qt's standard strings. Qt's dialog adds the `.panel` default suffix only to
+  names without a dot, so the app appends `.panel` after the dialog to a name
+  with a dot ("ул. Абая 10") and asks itself before replacing that file.
 - Gate 4 of `scripts/quality_gates.sh` checks every file in CI, and also
   locally when there is no `origin/main`. Otherwise it checks the `.cpp`
   files under `src/` and `tests/` changed since the merge-base with
