@@ -282,6 +282,8 @@ WireCheck Project::wireCheck(const Wire &wire) const
         return WireCheck::SameTerminal;
     if (std::ranges::find(WireSections, wire.section) == WireSections.end())
         return WireCheck::InvalidSection;
+    if (!(wire.length > 0 && wire.length <= MaxWireLength))
+        return WireCheck::InvalidLength;
     const auto others = [&](const QString &terminal) {
         return std::ranges::count_if(m_wires, [&](const Wire &w) {
             return w.id != wire.id && (w.from == terminal || w.to == terminal);
@@ -447,6 +449,20 @@ bool Project::updateWire(const Wire &wire)
     *it = wire;
     emit changed();
     return true;
+}
+
+void Project::replace(const Project &source)
+{
+    Q_ASSERT(&m_catalog == &source.m_catalog);
+    m_enclosure = source.m_enclosure;
+    m_devices = source.m_devices;
+    m_wires = source.m_wires;
+    m_loads = source.m_loads;
+    m_nextId = source.m_nextId;
+    m_nextWireId = source.m_nextWireId;
+    m_nextLoadId = source.m_nextLoadId;
+    emit changed();
+    emit enclosureChanged();
 }
 
 QStringList Project::cableWires(const QString &from, const QString &to) const

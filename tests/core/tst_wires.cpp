@@ -5,6 +5,8 @@
 #include <QSignalSpy>
 #include <QtTest>
 
+#include <limits>
+
 using namespace Qt::StringLiterals;
 
 namespace {
@@ -36,6 +38,8 @@ private slots:
     void restoresGivenIdAtIndex();
     void refusedWires_data();
     void refusedWires();
+    void wireLengthRange_data();
+    void wireLengthRange();
     void updateWireChangesSection();
     void removingDeviceRemovesItsWires();
     void poleChangeRefusedWhenItOrphansWires();
@@ -181,6 +185,38 @@ void TestWires::refusedWires()
     QVERIFY(m_project->addWire(candidate).isEmpty());
     QCOMPARE(m_project->wires(), before);
     QCOMPARE(changed.size(), 0);
+}
+
+void TestWires::wireLengthRange_data()
+{
+    QTest::addColumn<double>("length");
+    QTest::addColumn<WireCheck>("expected");
+    QTest::newRow("zero") << 0.0 << WireCheck::InvalidLength;
+    QTest::newRow("negative") << -1.0 << WireCheck::InvalidLength;
+    QTest::newRow("past the maximum") << 500.5 << WireCheck::InvalidLength;
+    QTest::newRow("not a number") << std::numeric_limits<double>::quiet_NaN()
+                                  << WireCheck::InvalidLength;
+    QTest::newRow("maximum") << 500.0 << WireCheck::Ok;
+    QTest::newRow("short") << 0.3 << WireCheck::Ok;
+}
+
+void TestWires::wireLengthRange()
+{
+    QFETCH(double, length);
+    QFETCH(WireCheck, expected);
+
+    Wire candidate = wire(u"supply:L"_s, u"d1:1"_s);
+    candidate.length = length;
+    QCOMPARE(m_project->wireCheck(candidate), expected);
+    const QString id = m_project->addWire(candidate);
+    QCOMPARE(id.isEmpty(), expected != WireCheck::Ok);
+
+    // an update to the same length is refused the same way
+    const QString existing = m_project->addWire(wire(u"d1:2"_s, u"d2:1"_s));
+    QVERIFY(!existing.isEmpty());
+    Wire updated = *m_project->wire(existing);
+    updated.length = length;
+    QCOMPARE(m_project->updateWire(updated), expected == WireCheck::Ok);
 }
 
 void TestWires::updateWireChangesSection()

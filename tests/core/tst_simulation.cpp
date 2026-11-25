@@ -60,6 +60,8 @@ private slots:
     void shortIsLimitedBySupplyAndWires();
     void energizedNeedsMoreThanHalfTheVoltage();
     void settingsSurviveEdits();
+    void resetForgetsLiveState();
+    void switchedOnListsWhatIsOn();
     void solvesOncePerChange();
     void largePanelSolvesQuickly();
 
@@ -475,6 +477,60 @@ void TestSimulation::settingsSurviveEdits()
 
     QVERIFY(!m_simulation->setOn(u"d99"_s, true));
     QVERIFY(!m_simulation->isOn(u"d99"));
+}
+
+void TestSimulation::resetForgetsLiveState()
+{
+    addBaseCircuit();
+    addDevice("breaker-1p-c10", 0, 2);
+    addLoad("ceiling-lamp", QPointF(200, 270));
+    addWire(u"supply:L"_s, u"d2:1"_s, 1, 2.5);
+    addWire(u"d2:2"_s, u"l2:L"_s, 15, 1.5);
+    addWire(u"l2:N"_s, u"nbar:3"_s, 15, 1.5);
+    for (const char *id : { "d1", "d2", "l1", "l2" })
+        QVERIFY(m_simulation->setOn(QString::fromLatin1(id), true));
+    // l1 stays a danger and d2 trips, while d1 heats up
+    QVERIFY(m_simulation->setFault(u"l1"_s, Fault::Leakage));
+    QVERIFY(m_simulation->isDangerous(u"l1"));
+    QVERIFY(m_simulation->setFault(u"l2"_s, Fault::ShortCircuit));
+    QCOMPARE(m_simulation->tripCause(u"d2"), TripCause::ShortCircuit);
+    m_simulation->step(30);
+
+    Project copy(embeddedCatalog());
+    copy.replace(*m_project);
+    QSignalSpy occurred(m_simulation.get(), &Simulation::occurred);
+    m_simulation->reset({ u"d2"_s });
+    m_project->replace(copy);
+
+    QVERIFY(!m_simulation->isOn(u"d1"));
+    QVERIFY(m_simulation->isOn(u"d2"));
+    for (const PlacedDevice &d : m_project->devices()) {
+        QCOMPARE(m_simulation->tripCause(d.id), TripCause::None);
+        QCOMPARE(m_simulation->heatLevel(d.id), 0.0);
+    }
+    for (const PlacedLoad &l : m_project->loads())
+        QCOMPARE(m_simulation->fault(l.id), Fault::None);
+    QCOMPARE(m_simulation->elapsed(), 0.0);
+    for (const auto &args : occurred)
+        QVERIFY(args.at(0).value<SimulationEvent>().kind != SimulationEvent::Kind::Cleared);
+}
+
+void TestSimulation::switchedOnListsWhatIsOn()
+{
+    addBaseCircuit();
+    addDevice("breaker-1p-c10", 0, 2);
+    addLoad("socket", QPointF(100, 270));
+    QVERIFY(m_simulation->switchedOn().isEmpty());
+
+    QVERIFY(m_simulation->setOn(u"l1"_s, true));
+    QVERIFY(m_simulation->setOn(u"d2"_s, true));
+    QVERIFY(m_simulation->setOn(u"d1"_s, true));
+    QCOMPARE(m_simulation->switchedOn(), (QStringList{ u"d1"_s, u"d2"_s, u"l1"_s }));
+
+    // a short circuit trips d1
+    QVERIFY(m_simulation->setFault(u"l1"_s, Fault::ShortCircuit));
+    QCOMPARE(m_simulation->tripCause(u"d1"), TripCause::ShortCircuit);
+    QCOMPARE(m_simulation->switchedOn(), (QStringList{ u"d2"_s, u"l1"_s }));
 }
 
 void TestSimulation::solvesOncePerChange()

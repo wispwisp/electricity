@@ -9,6 +9,7 @@
 #include <QObject>
 #include <QSet>
 #include <QString>
+#include <QStringList>
 
 #include <cstdint>
 
@@ -58,6 +59,11 @@ public:
     explicit Simulation(const Project &project, QObject *parent = nullptr);
     // a device's handle is up, or a load is switched on; false if never switched on or tripped
     [[nodiscard]] bool isOn(QStringView id) const;
+    // the devices and non-socket loads that are on, in devices() then loads() order
+    [[nodiscard]] QStringList switchedOn() const;
+    // forgets all live state and time, then stores exactly these ids as on, unchecked. Doesn't
+    // solve: call it right before Project::replace(), whose changed() does.
+    void reset(const QStringList &on);
     // a device or a non-socket load of the project; false (nothing stored) otherwise. Setting the
     // value it already has stores it and doesn't solve, unless the device is tripped: that clears
     // the trip and solves.

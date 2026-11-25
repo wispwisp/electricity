@@ -44,6 +44,8 @@ private slots:
     void enclosureRules();
     void settingTheCurrentEnclosureEmitsNothing();
     void removeUnknownIsRefused();
+    void replaceTakesEverything();
+    void replaceWithNewProjectRestartsIds();
 };
 
 void TestProject::startsWithDefaultEnclosure()
@@ -340,3 +342,47 @@ void TestProject::removeUnknownIsRefused()
 
 QTEST_APPLESS_MAIN(TestProject)
 #include "tst_project.moc"
+
+void TestProject::replaceTakesEverything()
+{
+    Project source(embeddedCatalog());
+    QVERIFY(source.setEnclosure(u"enclosure-24"_s));
+    PlacedDevice d7 = preset("breaker-1p-c10", 0, 0);
+    d7.id = u"d7"_s;
+    QCOMPARE(source.addDevice(d7), u"d7"_s);
+    Wire w4{ u"w4"_s, u"supply:L"_s, u"d7:1"_s, 2.5, Conductor::L };
+    QCOMPARE(source.addWire(w4), u"w4"_s);
+    PlacedLoad l3 = loadFromType(*embeddedCatalog().loadType(u"ceiling-lamp"_s), QPointF(0, 400));
+    l3.id = u"l3"_s;
+    QCOMPARE(source.addLoad(l3), u"l3"_s);
+
+    Project project(embeddedCatalog());
+    QVERIFY(!project.addDevice(preset("breaker-1p-c16", 0, 0)).isEmpty());
+    QSignalSpy changed(&project, &Project::changed);
+    QSignalSpy enclosureChanged(&project, &Project::enclosureChanged);
+    project.replace(source);
+
+    QCOMPARE(project.enclosure().id, source.enclosure().id);
+    QCOMPARE(project.devices(), source.devices());
+    QCOMPARE(project.wires(), source.wires());
+    QCOMPARE(project.loads(), source.loads());
+    QCOMPARE(changed.size(), 1);
+    QCOMPARE(enclosureChanged.size(), 1);
+    QCOMPARE(project.addDevice(preset("breaker-1p-c10", 0, 4)), u"d8"_s);
+}
+
+void TestProject::replaceWithNewProjectRestartsIds()
+{
+    Project project(embeddedCatalog());
+    for (int i = 0; i < 3; ++i)
+        QVERIFY(!project.addDevice(preset("breaker-1p-c10", 0, i * 2)).isEmpty());
+
+    project.replace(Project(embeddedCatalog()));
+
+    QVERIFY(project.devices().isEmpty());
+    QCOMPARE(project.enclosure().id, QString::fromLatin1(Project::DefaultEnclosureId));
+    QCOMPARE(project.addDevice(preset("breaker-1p-c10", 0, 0)), u"d1"_s);
+    QCOMPARE(project.addWire(Wire{ {}, u"supply:L"_s, u"d1:1"_s, 2.5, Conductor::L }), u"w1"_s);
+    PlacedLoad lamp = loadFromType(*embeddedCatalog().loadType(u"ceiling-lamp"_s), QPointF(0, 400));
+    QCOMPARE(project.addLoad(lamp), u"l1"_s);
+}

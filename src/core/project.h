@@ -60,7 +60,8 @@ enum class WireCheck : std::uint8_t {
     SameTerminal,
     TerminalFull,
     Duplicate,
-    InvalidSection
+    InvalidSection,
+    InvalidLength // not in (0, MaxWireLength]
 };
 
 [[nodiscard]] QString terminalId(const QString &objectId, const QString &terminal); // "d1:N1"
@@ -156,6 +157,10 @@ public:
     bool removeWire(QStringView id);
     // replaces the wire with the same id
     bool updateWire(const Wire &wire);
+
+    // takes the source's enclosure, devices, wires, loads and id counters; the source uses the
+    // same catalog. One changed(), then enclosureChanged(), always.
+    void replace(const Project &source);
 
     // ids of the stored wires in the cable of a wire between these ends, in wires() order; empty if
     // neither end is on a load

@@ -88,6 +88,35 @@ bool Simulation::isOn(QStringView id) const
     return m_on.value(id) && !m_trips.contains(id);
 }
 
+QStringList Simulation::switchedOn() const
+{
+    QStringList ids;
+    for (const PlacedDevice &d : m_project.devices()) {
+        if (isOn(d.id))
+            ids.append(d.id);
+    }
+    for (const PlacedLoad &l : m_project.loads()) {
+        if (isOn(l.id))
+            ids.append(l.id);
+    }
+    return ids;
+}
+
+void Simulation::reset(const QStringList &on)
+{
+    m_on.clear();
+    m_trips.clear();
+    m_faults.clear();
+    m_heat.clear();
+    m_wireHeat.clear();
+    m_overloaded.clear();
+    m_dangerous.clear();
+    m_events.clear();
+    m_elapsed = 0;
+    for (const QString &id : on)
+        m_on.insert(id, true);
+}
+
 bool Simulation::setOn(const QString &id, bool on)
 {
     const PlacedLoad *load = m_project.load(id);
