@@ -182,15 +182,21 @@ std::optional<Problem> readDesign(const QJsonObject &root, Project &project)
     return readWires(root, project);
 }
 
+bool isSocket(const Catalog &catalog, const QString &typeId)
+{
+    const LoadType *type = catalog.loadType(typeId);
+    return type && !type->places.isEmpty();
+}
+
 // Ids of the devices and non-socket loads that are on, in file order.
 QStringList onIds(const QJsonObject &root, const Project &project)
 {
     QStringList on;
     for (const QString &list : { u"devices"_s, u"loads"_s }) {
-        for (const QJsonValue &item : root[list].toArray()) {
+        for (const QJsonValue item : root[list].toArray()) {
             const QJsonObject o = item.toObject();
-            const LoadType *type = project.catalog().loadType(o[u"type"_s].toString());
-            const bool socket = list == u"loads" && type && !type->places.isEmpty();
+            const bool socket
+                    = list == u"loads" && isSocket(project.catalog(), o[u"type"_s].toString());
             if (o[u"on"_s].toBool() && !socket)
                 on.append(o[u"id"_s].toString());
         }
@@ -265,8 +271,7 @@ QByteArray writeProject(const Project &project, const QStringList &on)
             o["socket"] = l.socket;
             o["place"] = l.place;
         }
-        const LoadType *type = project.catalog().loadType(l.type);
-        if (on.contains(l.id) && !(type && !type->places.isEmpty()))
+        if (on.contains(l.id) && !isSocket(project.catalog(), l.type))
             o["on"] = true;
         loads.append(o);
     }

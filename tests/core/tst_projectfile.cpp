@@ -197,7 +197,7 @@ void TestProjectFile::refuses_data()
             = [](const QString &list, int index, const QString &key, const QJsonValue &value) {
                   return changed([&](QJsonObject &o) { setField(o, list, index, key, value); });
               };
-    const QJsonValue gone;
+    const QJsonValue gone(QJsonValue::Undefined);
 
     row("not JSON", "{", S::NotPanelFile, "format");
     row("array", "[]", S::NotPanelFile, "format");
