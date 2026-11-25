@@ -1126,8 +1126,8 @@ void TestFiles::roadmapScenario()
 
     const QString path = tempPath(QStringLiteral("roadmap.panel"));
     QVERIFY(chooseFile("saveAsAction", path));
-    Project saved(window->project().catalog());
-    QCOMPARE(openProject(path, saved).status, OpenResult::Status::Opened);
+    Project snapshot(window->project().catalog());
+    snapshot.replace(window->project());
     QVERIFY(saveScreenshot(*window, QStringLiteral("f10"), QStringLiteral("roadmap-2")));
 
     clickFileAction("newAction");
@@ -1136,14 +1136,19 @@ void TestFiles::roadmapScenario()
     QVERIFY(saveScreenshot(*window, QStringLiteral("f10"), QStringLiteral("roadmap-3")));
 
     QVERIFY(chooseFile("openAction", path));
-    compareDesigns(window->project(), saved);
+    compareDesigns(snapshot, window->project());
     QCOMPARE(window->simulation().switchedOn(), expectedOn);
     QVERIFY(!window->isWindowModified());
     QVERIFY(saveScreenshot(*window, QStringLiteral("f10"), QStringLiteral("roadmap-4")));
 
-    PlacedDevice moved = *window->project().device(u"d5");
-    moved.module += 1;
-    window->undoStack().push(new UpdateDeviceCommand(window->project(), moved));
+    const auto at = [this](int module) {
+        const QRectF slot = scene->slotRect(0, module, 1);
+        return viewportPoint(canvas, slot.center() + QPointF(0, slot.height() * 0.15));
+    };
+    const int module = window->project().device(u"d5")->module;
+    mouseDrag(canvas->viewport(), at(module),
+              at(module + 2)); // the view is zoomed out: one module is under the drag distance
+    QCOMPARE(window->project().device(u"d5")->module, module + 2);
     QVERIFY(window->isWindowModified());
     bool closed = true;
     bool asked = onModal<QMessageBox>(
@@ -1160,7 +1165,7 @@ void TestFiles::roadmapScenario()
     // Don't Save left the file as it was.
     Project reread(window->project().catalog());
     QCOMPARE(openProject(path, reread).status, OpenResult::Status::Opened);
-    compareDesigns(reread, saved);
+    compareDesigns(reread, snapshot);
 }
 
 QTEST_MAIN(TestFiles)
