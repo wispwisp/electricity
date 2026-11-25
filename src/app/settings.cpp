@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "app/settings.h"
 
+#include <QDir>
+#include <QFileInfo>
 #include <QSettings>
 #include <QStandardPaths>
 
@@ -47,12 +49,15 @@ void saveShowCurrents(bool shown)
     open().setValue(QStringLiteral("showCurrents"), shown);
 }
 
+// Given a folder that doesn't exist, the file dialog would open its parent with the folder's name
+// typed in as the file name.
 QString savedFileFolder()
 {
-    return open()
-            .value(QStringLiteral("fileFolder"),
-                   QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation))
-            .toString();
+    QString folder = open().value(QStringLiteral("fileFolder")).toString();
+    if (QFileInfo(folder).isDir())
+        return folder;
+    const QString documents = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+    return QFileInfo(documents).isDir() ? documents : QDir::homePath();
 }
 
 void saveFileFolder(const QString &folder)

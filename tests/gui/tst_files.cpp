@@ -27,6 +27,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileDialog>
+#include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QLabel>
@@ -381,8 +382,6 @@ void TestFiles::initTestCase()
     useTemporarySettings();
     // Qt's file dialog keeps its own state in the native settings, which stay out of the user's.
     QSettings::setPath(QSettings::NativeFormat, QSettings::UserScope, qtSettings.path());
-    // The dialogs start in Documents, which a fresh CI machine may lack; Qt would show its parent.
-    QVERIFY(QDir().mkpath(QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation)));
     Settings::saveLanguage(Language::English);
     setupApplication(*qApp);
 }
@@ -392,6 +391,7 @@ void TestFiles::init()
     Settings::saveRecentFiles({});
     folder = std::make_unique<QTemporaryDir>();
     QVERIFY(folder->isValid());
+    Settings::saveFileFolder(folder->path()); // the dialogs start here, whatever ran before
     window = std::make_unique<MainWindow>();
     window->show();
     window->activateWindow();
@@ -798,8 +798,30 @@ void TestFiles::dialogsStartInLastFolder()
                 [&] { clickFileAction(action); });
         return found ? shown : QStringLiteral("(no dialog)");
     };
+    // The folder and the file name the dialog starts with.
+    const auto shownStart = [this](const char *action) {
+        QStringList shown{ QStringLiteral("(no dialog)") };
+        onModal<QFileDialog>(
+                [&shown](QFileDialog &dialog) {
+                    QLineEdit *edit = fileNameField(dialog);
+                    shown = { dialog.directory().canonicalPath(),
+                              edit ? edit->text() : QStringLiteral("(no file name field)") };
+                    QTest::keyClick(&dialog, Qt::Key_Escape);
+                },
+                [&] { clickFileAction(action); });
+        return shown;
+    };
+    // With no folder stored, or one that is gone (deleted, or on a USB stick taken out), the
+    // dialogs start in Documents, or at home where there is none, and with no file name: given a
+    // missing folder, Qt opens its parent with the folder's name typed in as the file name.
     const QString documents = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
-    QCOMPARE(shownFolder("openAction"), QDir(documents).canonicalPath());
+    const QStringList fallback{
+        QDir(QFileInfo(documents).isDir() ? documents : QDir::homePath()).canonicalPath(), QString()
+    };
+    QCOMPARE(shownStart("openAction"), fallback);
+    Settings::saveFileFolder(tempPath(QStringLiteral("gone")));
+    QCOMPARE(shownStart("openAction"), fallback);
+    QCOMPARE(shownStart("saveAsAction"), fallback);
 
     QVERIFY(chooseFile("saveAsAction", tempPath(QStringLiteral("here.panel"))));
     const QString last = QDir(folder->path()).canonicalPath();

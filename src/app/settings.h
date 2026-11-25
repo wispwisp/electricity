@@ -20,7 +20,8 @@ void saveTheme(Theme::Mode mode);
 // True when unset.
 bool savedShowCurrents();
 void saveShowCurrents(bool shown);
-// The folder of the file opened or saved last; Documents when unset.
+// The folder of the file opened or saved last; when unset or no longer there, Documents, or home
+// without Documents.
 QString savedFileFolder();
 void saveFileFolder(const QString &folder);
 // Absolute paths, the newest first; empty when unset.
