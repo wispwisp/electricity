@@ -113,7 +113,7 @@ void TestEditing::menusAndActionsExist()
     QStringList titles;
     for (QAction *action : window->menuBar()->actions())
         titles << action->text();
-    QCOMPARE(titles, (QStringList{ "Edit", "View", "Settings", "Language" }));
+    QCOMPARE(titles, (QStringList{ "File", "Edit", "View", "Settings", "Language" }));
     QVERIFY(named<QMenu>("editMenu"));
     QVERIFY(named<QMenu>("viewMenu"));
     QVERIFY(named<QToolBar>("editToolBar"));

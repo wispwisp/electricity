@@ -59,7 +59,8 @@ void TestMainWindow::launchesMainWindow()
     window.show();
     QVERIFY(QTest::qWaitForWindowExposed(&window));
 
-    QCOMPARE(window.windowTitle(), QStringLiteral("Electricity"));
+    QCOMPARE(window.windowTitle(), QStringLiteral("Untitled[*] — Electricity"));
+    QVERIFY(!window.isWindowModified());
     QCOMPARE(window.size(), QSize(1280, 800));
     QVERIFY(!(window.windowState() & Qt::WindowMaximized));
 

@@ -14,6 +14,7 @@
 #include "app/theme.h"
 #include "core/catalog.h"
 #include "core/project.h"
+#include "core/projectfile.h"
 #include "core/simulation.h"
 
 #include <QAction>
@@ -21,9 +22,12 @@
 #include <QComboBox>
 #include <QDockWidget>
 #include <QEvent>
+#include <QFileDialog>
+#include <QFileInfo>
 #include <QLabel>
 #include <QMenu>
 #include <QMenuBar>
+#include <QMessageBox>
 #include <QScreen>
 #include <QStatusBar>
 #include <QStatusTipEvent>
@@ -65,7 +69,6 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
     setObjectName(QStringLiteral("mainWindow"));
-    setWindowTitle(QStringLiteral("Electricity"));
 
     m_project = new Project(embeddedCatalog(), this);
     m_undoStack = new QUndoStack(this);
@@ -193,6 +196,33 @@ MainWindow::MainWindow(QWidget *parent)
         Settings::saveShowCurrents(shown);
     });
 
+    m_fileMenu = menuBar()->addMenu(QString());
+    m_fileMenu->setObjectName(QStringLiteral("fileMenu"));
+    // Shortcuts are set explicitly, as Windows has no standard Save As or Quit key.
+    const auto addFileAction = [this](const QString &name, const QKeySequence &shortcut) {
+        auto *action = m_fileMenu->addAction(QString());
+        action->setObjectName(name);
+        action->setShortcut(shortcut);
+        return action;
+    };
+    m_newAction = addFileAction(QStringLiteral("newAction"), QKeySequence(Qt::CTRL | Qt::Key_N));
+    connect(m_newAction, &QAction::triggered, this, &MainWindow::newProject);
+    m_openAction = addFileAction(QStringLiteral("openAction"), QKeySequence(Qt::CTRL | Qt::Key_O));
+    connect(m_openAction, &QAction::triggered, this, [this] {
+        const QString path = chooseFile(false);
+        if (!path.isEmpty())
+            openFile(path);
+    });
+    m_fileMenu->addSeparator();
+    m_saveAction = addFileAction(QStringLiteral("saveAction"), QKeySequence(Qt::CTRL | Qt::Key_S));
+    connect(m_saveAction, &QAction::triggered, this, &MainWindow::save);
+    m_saveAsAction = addFileAction(QStringLiteral("saveAsAction"),
+                                   QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_S));
+    connect(m_saveAsAction, &QAction::triggered, this, &MainWindow::saveAs);
+    m_fileMenu->addSeparator();
+    m_quitAction = addFileAction(QStringLiteral("quitAction"), QKeySequence(Qt::CTRL | Qt::Key_Q));
+    connect(m_quitAction, &QAction::triggered, this, &QWidget::close);
+
     m_editMenu = menuBar()->addMenu(QString());
     m_editMenu->setObjectName(QStringLiteral("editMenu"));
     m_editMenu->addAction(m_undoAction);
@@ -313,6 +343,11 @@ Simulation &MainWindow::simulation()
     return m_scene->simulation();
 }
 
+QString MainWindow::filePath() const
+{
+    return m_filePath;
+}
+
 bool MainWindow::event(QEvent *event)
 {
     // Menu items without a status tip would otherwise clear the status message.
@@ -331,6 +366,13 @@ void MainWindow::changeEvent(QEvent *event)
 
 void MainWindow::retranslateUi()
 {
+    m_fileMenu->setTitle(tr("File"));
+    m_newAction->setText(tr("New"));
+    m_openAction->setText(tr("Open…"));
+    m_saveAction->setText(tr("Save"));
+    m_saveAsAction->setText(tr("Save As…"));
+    m_quitAction->setText(tr("Quit"));
+    updateTitle();
     m_editMenu->setTitle(tr("Edit"));
     m_editToolBar->setWindowTitle(tr("Edit"));
     m_undoAction->setText(tr("Undo"));
@@ -385,4 +427,106 @@ void MainWindow::showIdleText()
     }
     m_idleText = text;
     statusBar()->showMessage(text);
+}
+
+void MainWindow::newProject()
+{
+    takeOver(Project(m_project->catalog()), {}, QString());
+}
+
+// A file that can't be opened leaves the window's project as it was.
+void MainWindow::openFile(const QString &path)
+{
+    Project opened(m_project->catalog());
+    const OpenResult result = openProject(path, opened);
+    const QString name = QFileInfo(path).fileName();
+    switch (result.status) {
+    case OpenResult::Status::Opened:
+        break;
+    case OpenResult::Status::NewerVersion:
+        showFileError(tr("%1 was saved by a newer version of Electricity. Update the app to open "
+                         "it.")
+                              .arg(name));
+        return;
+    case OpenResult::Status::NotPanelFile:
+    case OpenResult::Status::Refused:
+        showFileError(tr("%1 is not an Electricity panel file, or it is damaged.").arg(name));
+        return;
+    }
+    Settings::saveFileFolder(QFileInfo(path).absolutePath());
+    takeOver(opened, result.on, path);
+}
+
+// The old conditions go before the new contents arrive, whose solve may trip a device at once.
+void MainWindow::takeOver(const Project &source, const QStringList &on, const QString &path)
+{
+    simulation().reset(on);
+    m_conditions.clear();
+    m_project->replace(source);
+    m_undoStack->clear();
+    setFilePath(path);
+    showIdleText();
+}
+
+bool MainWindow::save()
+{
+    return m_filePath.isEmpty() ? saveAs() : saveTo(m_filePath);
+}
+
+bool MainWindow::saveAs()
+{
+    const QString path = chooseFile(true);
+    return !path.isEmpty() && saveTo(path);
+}
+
+bool MainWindow::saveTo(const QString &path)
+{
+    QString error;
+    if (!saveProject(path, *m_project, simulation().switchedOn(), error)) {
+        showFileError(tr("Can't save %1: %2").arg(QFileInfo(path).fileName(), error));
+        return false;
+    }
+    m_undoStack->setClean();
+    Settings::saveFileFolder(QFileInfo(path).absolutePath());
+    setFilePath(path);
+    return true;
+}
+
+void MainWindow::setFilePath(const QString &path)
+{
+    m_filePath = path;
+    updateTitle();
+}
+
+void MainWindow::updateTitle()
+{
+    const QString name = m_filePath.isEmpty() ? tr("Untitled") : QFileInfo(m_filePath).fileName();
+    setWindowTitle(name + QStringLiteral("[*] — Electricity"));
+}
+
+// The system's dialog where there is one; with the default suffix the dialog itself adds .panel
+// before it asks whether to replace a file.
+QString MainWindow::chooseFile(bool save)
+{
+    QFileDialog dialog(this, save ? tr("Save As") : tr("Open"), Settings::savedFileFolder(),
+                       tr("Panel projects (*.panel)"));
+    if (save) {
+        dialog.setObjectName(QStringLiteral("saveDialog"));
+        dialog.setAcceptMode(QFileDialog::AcceptSave);
+        dialog.setDefaultSuffix(QStringLiteral("panel"));
+    } else {
+        dialog.setObjectName(QStringLiteral("openDialog"));
+        dialog.setFileMode(QFileDialog::ExistingFile);
+    }
+    if (dialog.exec() != QDialog::Accepted)
+        return {};
+    return dialog.selectedFiles().value(0);
+}
+
+void MainWindow::showFileError(const QString &text)
+{
+    QMessageBox box(QMessageBox::Warning, QStringLiteral("Electricity"), text, QMessageBox::Ok,
+                    this);
+    box.setObjectName(QStringLiteral("fileErrorBox"));
+    box.exec();
 }

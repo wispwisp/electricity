@@ -4,6 +4,8 @@
 #include "app/language.h"
 #include "app/theme.h"
 
+#include <QString>
+
 #include <optional>
 
 namespace Settings {
@@ -17,5 +19,8 @@ void saveTheme(Theme::Mode mode);
 // True when unset.
 bool savedShowCurrents();
 void saveShowCurrents(bool shown);
+// The folder of the file opened or saved last; Documents when unset.
+QString savedFileFolder();
+void saveFileFolder(const QString &folder);
 
 } // namespace Settings

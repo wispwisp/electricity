@@ -306,57 +306,57 @@
         <translation>%1 мА</translation>
     </message>
     <message>
-        <location filename="../src/app/eventtext.cpp" line="70"/>
+        <location filename="../src/app/eventtext.cpp" line="78"/>
         <source>Stairwell breaker</source>
         <translation>Қабат қалқанының автоматы</translation>
     </message>
     <message>
-        <location filename="../src/app/eventtext.cpp" line="73"/>
+        <location filename="../src/app/eventtext.cpp" line="81"/>
         <source>%1 tripped: leakage %2, trips at %3</source>
         <translation>%1: ток ағуынан ажыратылды, %2, шегі %3</translation>
     </message>
     <message>
-        <location filename="../src/app/eventtext.cpp" line="76"/>
+        <location filename="../src/app/eventtext.cpp" line="84"/>
         <source>%1 tripped: test button</source>
         <translation>%1: «Тест» батырмасынан ажыратылды</translation>
     </message>
     <message>
-        <location filename="../src/app/eventtext.cpp" line="85"/>
+        <location filename="../src/app/eventtext.cpp" line="93"/>
         <source>%1 tripped: short circuit, %2 on %3</source>
         <translation>%1: қысқа тұйықталудан ажыратылды, %2, номиналы %3</translation>
     </message>
     <message>
-        <location filename="../src/app/eventtext.cpp" line="86"/>
+        <location filename="../src/app/eventtext.cpp" line="94"/>
         <source>%1 tripped: overload, %2 on %3</source>
         <translation>%1: асқын жүктемеден ажыратылды, %2, номиналы %3</translation>
     </message>
     <message>
-        <location filename="../src/app/eventtext.cpp" line="96"/>
+        <location filename="../src/app/eventtext.cpp" line="104"/>
         <source>Wire %1 overheating: %2 on %3, allowed %4</source>
         <translation>%1 сымы қызып барады: %2, қимасы %3, рұқсат етілгені %4</translation>
     </message>
     <message>
-        <location filename="../src/app/eventtext.cpp" line="98"/>
+        <location filename="../src/app/eventtext.cpp" line="106"/>
         <source>Wire %1 overloaded: %2 on %3, allowed %4</source>
         <translation>%1 сымы асқын жүктелген: %2, қимасы %3, рұқсат етілгені %4</translation>
     </message>
     <message>
-        <location filename="../src/app/eventtext.cpp" line="110"/>
+        <location filename="../src/app/eventtext.cpp" line="118"/>
         <source>%1: %2 through a person, no RCD turned it off</source>
         <translation>%1: адам арқылы %2 өтіп жатыр, ешбір УЗО ажыратпады</translation>
     </message>
     <message>
-        <location filename="../src/app/eventtext.cpp" line="112"/>
+        <location filename="../src/app/eventtext.cpp" line="120"/>
         <source>%1: its case is live, %2</source>
         <translation>%1: корпуста %2 кернеу бар</translation>
     </message>
     <message>
-        <location filename="../src/app/eventtext.cpp" line="113"/>
+        <location filename="../src/app/eventtext.cpp" line="121"/>
         <source>%1 V</source>
         <translation>%1 В</translation>
     </message>
     <message>
-        <location filename="../src/app/eventtext.cpp" line="128"/>
+        <location filename="../src/app/eventtext.cpp" line="136"/>
         <source>%1 overloaded: %2 on %3, an RCD doesn&apos;t protect against overload</source>
         <translation>%1: асқын жүктеме %2, номиналы %3, УЗО асқын жүктемеден қорғамайды</translation>
     </message>
@@ -364,105 +364,170 @@
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="322"/>
-        <location filename="../src/app/mainwindow.cpp" line="323"/>
+        <location filename="../src/app/mainwindow.cpp" line="369"/>
+        <source>File</source>
+        <translation>Файл</translation>
+    </message>
+    <message>
+        <location filename="../src/app/mainwindow.cpp" line="370"/>
+        <source>New</source>
+        <translation>Жаңа</translation>
+    </message>
+    <message>
+        <location filename="../src/app/mainwindow.cpp" line="371"/>
+        <source>Open…</source>
+        <translation>Ашу…</translation>
+    </message>
+    <message>
+        <location filename="../src/app/mainwindow.cpp" line="372"/>
+        <source>Save</source>
+        <translation>Сақтау</translation>
+    </message>
+    <message>
+        <location filename="../src/app/mainwindow.cpp" line="373"/>
+        <source>Save As…</source>
+        <translation>Басқаша сақтау…</translation>
+    </message>
+    <message>
+        <location filename="../src/app/mainwindow.cpp" line="374"/>
+        <source>Quit</source>
+        <translation>Шығу</translation>
+    </message>
+    <message>
+        <location filename="../src/app/mainwindow.cpp" line="376"/>
+        <location filename="../src/app/mainwindow.cpp" line="377"/>
         <source>Edit</source>
         <translation>Өңдеу</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="324"/>
+        <location filename="../src/app/mainwindow.cpp" line="378"/>
         <source>Undo</source>
         <translation>Болдырмау</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="325"/>
+        <location filename="../src/app/mainwindow.cpp" line="379"/>
         <source>Redo</source>
         <translation>Қайталау</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="326"/>
+        <location filename="../src/app/mainwindow.cpp" line="380"/>
         <source>Wire</source>
         <translation>Сым</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="327"/>
+        <location filename="../src/app/mainwindow.cpp" line="381"/>
         <source>Draw wires: click one terminal, then another.</source>
         <translation>Сымдар: бір клемманы, содан кейін екіншісін басыңыз.</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="328"/>
+        <location filename="../src/app/mainwindow.cpp" line="382"/>
         <source>Section of new wires</source>
         <translation>Жаңа сымдардың қимасы</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="333"/>
+        <location filename="../src/app/mainwindow.cpp" line="387"/>
         <source>Time</source>
         <translation>Уақыт</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="334"/>
+        <location filename="../src/app/mainwindow.cpp" line="388"/>
         <source>Pause</source>
         <translation>Үзіліс</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="335"/>
+        <location filename="../src/app/mainwindow.cpp" line="389"/>
         <source>Delete</source>
         <translation>Жою</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="336"/>
+        <location filename="../src/app/mainwindow.cpp" line="390"/>
         <source>View</source>
         <translation>Көрініс</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="337"/>
+        <location filename="../src/app/mainwindow.cpp" line="391"/>
         <source>Fit to window</source>
         <translation>Терезе өлшеміне сыйғызу</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="338"/>
+        <location filename="../src/app/mainwindow.cpp" line="392"/>
         <source>Show currents</source>
         <translation>Токтарды көрсету</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="339"/>
+        <location filename="../src/app/mainwindow.cpp" line="393"/>
         <source>Settings</source>
         <translation>Баптаулар</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="340"/>
+        <location filename="../src/app/mainwindow.cpp" line="394"/>
         <source>Theme</source>
         <translation>Тақырып</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="341"/>
+        <location filename="../src/app/mainwindow.cpp" line="395"/>
         <source>Dark</source>
         <translation>Қараңғы</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="342"/>
+        <location filename="../src/app/mainwindow.cpp" line="396"/>
         <source>Light</source>
         <translation>Ашық</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="343"/>
+        <location filename="../src/app/mainwindow.cpp" line="397"/>
         <source>Language</source>
         <translation>Тіл</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="344"/>
+        <location filename="../src/app/mainwindow.cpp" line="398"/>
         <source>Components</source>
         <translation>Компоненттер</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="345"/>
+        <location filename="../src/app/mainwindow.cpp" line="399"/>
         <source>Properties</source>
         <translation>Қасиеттер</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="362"/>
+        <location filename="../src/app/mainwindow.cpp" line="419"/>
         <source>Ready</source>
         <translation>Дайын</translation>
+    </message>
+    <message>
+        <location filename="../src/app/mainwindow.cpp" line="447"/>
+        <source>%1 was saved by a newer version of Electricity. Update the app to open it.</source>
+        <translation>%1 Electricity бағдарламасының жаңарақ нұсқасында сақталған. Оны ашу үшін бағдарламаны жаңартыңыз.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/mainwindow.cpp" line="453"/>
+        <source>%1 is not an Electricity panel file, or it is damaged.</source>
+        <translation>%1 — Electricity қалқанының файлы емес немесе ол бүлінген.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/mainwindow.cpp" line="486"/>
+        <source>Can&apos;t save %1: %2</source>
+        <translation>%1 сақталмады: %2</translation>
+    </message>
+    <message>
+        <location filename="../src/app/mainwindow.cpp" line="503"/>
+        <source>Untitled</source>
+        <translation>Атаусыз</translation>
+    </message>
+    <message>
+        <location filename="../src/app/mainwindow.cpp" line="511"/>
+        <source>Save As</source>
+        <translation>Басқаша сақтау</translation>
+    </message>
+    <message>
+        <location filename="../src/app/mainwindow.cpp" line="511"/>
+        <source>Open</source>
+        <translation>Ашу</translation>
+    </message>
+    <message>
+        <location filename="../src/app/mainwindow.cpp" line="512"/>
+        <source>Panel projects (*.panel)</source>
+        <translation>Қалқан жобалары (*.panel)</translation>
     </message>
 </context>
 <context>

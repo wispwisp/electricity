@@ -2,6 +2,7 @@
 #include "app/settings.h"
 
 #include <QSettings>
+#include <QStandardPaths>
 
 namespace Settings {
 
@@ -44,6 +45,19 @@ bool savedShowCurrents()
 void saveShowCurrents(bool shown)
 {
     open().setValue(QStringLiteral("showCurrents"), shown);
+}
+
+QString savedFileFolder()
+{
+    return open()
+            .value(QStringLiteral("fileFolder"),
+                   QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation))
+            .toString();
+}
+
+void saveFileFolder(const QString &folder)
+{
+    open().setValue(QStringLiteral("fileFolder"), folder);
 }
 
 } // namespace Settings
