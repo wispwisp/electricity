@@ -37,6 +37,7 @@
 #include <QPushButton>
 #include <QScopeGuard>
 #include <QSettings>
+#include <QSpinBox>
 #include <QStandardPaths>
 #include <QStatusBar>
 #include <QSvgRenderer>
@@ -180,6 +181,9 @@ private slots:
     void saveFromQuestionSavesThenContinues();
     void failedOpenAfterDontSaveKeepsEdits();
     void failedSaveCancelsClose();
+    void saveWritesTypedValue();
+    void closeAsksAboutTypedValue();
+    void newByKeyAsksAboutTypedValue();
     void recentListsOpenedAndSavedFiles();
     void openRecentOpensTheFile();
     void missingRecentFileIsRemoved();
@@ -210,6 +214,9 @@ private:
     void clickHandle(const QString &id);
     void clickButton(const QString &id);
     void clickPause();
+    // Selects Lamp 1 and types text into its Power field, without Enter; the field, or nullptr if
+    // that doesn't happen.
+    QSpinBox *typePower(const QString &text);
     // The tutorial loads in a zoomed-out view, with QF1, QD1, QF2 and Lamp 1 switched on by clicks.
     void lightLamp1();
     template<typename T>
@@ -335,6 +342,26 @@ void TestFiles::clickPause()
     QVERIFY(action);
     QTest::mouseClick(named<QToolBar>("editToolBar")->widgetForAction(action), Qt::LeftButton);
     QVERIFY(action->isChecked());
+}
+
+QSpinBox *TestFiles::typePower(const QString &text)
+{
+    // A closed dialog leaves the window inactive offscreen, where a click doesn't activate it.
+    window->activateWindow();
+    LoadItem *lamp = loadItem(QStringLiteral("l1"));
+    if (!QTest::qWaitForWindowActive(window.get()) || !lamp)
+        return nullptr;
+    scene->clearSelection();
+    lamp->setSelected(true);
+    auto *power = named<QSpinBox>("powerSpin");
+    if (!power || !power->isVisible())
+        return nullptr;
+    QTest::mouseClick(power, Qt::LeftButton, {}, QPoint(power->width() / 4, power->height() / 2));
+    if (!power->hasFocus())
+        return nullptr;
+    QTest::keyClick(power, Qt::Key_A, Qt::ControlModifier);
+    QTest::keyClicks(power, text);
+    return power;
 }
 
 void TestFiles::lightLamp1()
@@ -955,6 +982,48 @@ void TestFiles::failedSaveCancelsClose()
     QVERIFY2(text.startsWith(QStringLiteral("Can't save p.panel: ")), qPrintable(text));
     QVERIFY(!closed);
     QVERIFY(window->isVisible());
+    QVERIFY(window->isWindowModified());
+}
+
+// A value typed in the properties panel reaches the model only on Enter or when the field loses
+// the focus, which a shortcut doesn't take.
+void TestFiles::saveWritesTypedValue()
+{
+    addTutorialLoads(window->project());
+    const QString path = tempPath(QStringLiteral("typed.panel"));
+    QVERIFY(chooseFile("saveAsAction", path));
+    QSpinBox *power = typePower(QStringLiteral("150"));
+    QVERIFY(power);
+    QCOMPARE(window->project().load(u"l1")->power, 10);
+
+    QTest::keyClick(power, Qt::Key_S, Qt::ControlModifier);
+    Project saved(window->project().catalog());
+    QCOMPARE(openProject(path, saved).status, OpenResult::Status::Opened);
+    QCOMPARE(saved.load(u"l1")->power, 150);
+    QCOMPARE(window->project().load(u"l1")->power, 150);
+    QVERIFY(!window->isWindowModified());
+}
+
+void TestFiles::closeAsksAboutTypedValue()
+{
+    addTutorialLoads(window->project());
+    QVERIFY(typePower(QStringLiteral("150")));
+    bool closed = true;
+    QVERIFY(answerQuestion("saveChangesCancel", [&] { closed = window->close(); }));
+    QVERIFY(!closed);
+    QCOMPARE(window->project().load(u"l1")->power, 150);
+    QVERIFY(window->isWindowModified());
+}
+
+void TestFiles::newByKeyAsksAboutTypedValue()
+{
+    addTutorialLoads(window->project());
+    QSpinBox *power = typePower(QStringLiteral("150"));
+    QVERIFY(power);
+    QVERIFY(answerQuestion("saveChangesCancel",
+                           [&] { QTest::keyClick(power, Qt::Key_N, Qt::ControlModifier); }));
+    QCOMPARE(window->project().devices().size(), 5);
+    QCOMPARE(window->project().load(u"l1")->power, 150);
     QVERIFY(window->isWindowModified());
 }
 

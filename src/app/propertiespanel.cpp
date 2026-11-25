@@ -185,14 +185,19 @@ PropertiesPanel::PropertiesPanel(Project &project, QUndoStack &undoStack, Editor
     // A value still being typed is sent to its object before the panel shows another one. Not on
     // Project::changed: that also comes from inside an undo, where a push would break the stack.
     connect(&m_scene, &QGraphicsScene::selectionChanged, this, [this] {
-        m_power->interpretText();
-        m_length->interpretText();
+        sendTypedValues();
         refresh();
     });
     connect(&m_project, &Project::changed, this, &PropertiesPanel::refresh);
     m_power->installEventFilter(this);
     m_length->installEventFilter(this);
     retranslate();
+}
+
+void PropertiesPanel::sendTypedValues()
+{
+    m_power->interpretText();
+    m_length->interpretText();
 }
 
 void PropertiesPanel::changeEvent(QEvent *event)

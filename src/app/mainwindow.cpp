@@ -111,12 +111,12 @@ MainWindow::MainWindow(QWidget *parent)
 
     m_propertiesDock = new QDockWidget(this);
     m_propertiesDock->setObjectName(QStringLiteral("propertiesDock"));
-    auto *properties = new PropertiesPanel(*m_project, *m_undoStack, *m_scene, m_propertiesDock);
-    m_propertiesDock->setWidget(properties);
+    m_properties = new PropertiesPanel(*m_project, *m_undoStack, *m_scene, m_propertiesDock);
+    m_propertiesDock->setWidget(m_properties);
     m_propertiesDock->setFeatures(QDockWidget::DockWidgetMovable);
     addDockWidget(Qt::RightDockWidgetArea, m_propertiesDock);
     resizeDocks({ m_propertiesDock }, { kPropertiesWidth }, Qt::Horizontal);
-    connect(properties, &PropertiesPanel::hint, bar,
+    connect(m_properties, &PropertiesPanel::hint, bar,
             [bar](const QString &text) { bar->showMessage(text, kHintTimeout); });
 
     m_undoAction = new QAction(this);
@@ -452,6 +452,8 @@ void MainWindow::showIdleText()
 
 bool MainWindow::maybeSave()
 {
+    // A shortcut leaves the focus in the field where a value may still be typed; it counts.
+    m_properties->sendTypedValues();
     if (m_undoStack->isClean())
         return true;
     const QString text = m_filePath.isEmpty()
@@ -547,6 +549,7 @@ bool MainWindow::saveAs()
 
 bool MainWindow::saveTo(const QString &path)
 {
+    m_properties->sendTypedValues(); // see maybeSave()
     QString error;
     if (!saveProject(path, *m_project, simulation().switchedOn(), error)) {
         showFileError(tr("Can't save %1: %2").arg(QFileInfo(path).fileName(), error));

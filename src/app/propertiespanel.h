@@ -25,6 +25,8 @@ class PropertiesPanel : public QWidget
 public:
     PropertiesPanel(Project &project, QUndoStack &undoStack, EditorScene &scene,
                     QWidget *parent = nullptr);
+    // Sends a value still being typed in Power or Length to its object, as Enter would.
+    void sendTypedValues();
 
 signals:
     void hint(const QString &text);

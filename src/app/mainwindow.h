@@ -9,6 +9,7 @@
 
 class EditorScene;
 class Project;
+class PropertiesPanel;
 class QAction;
 class QComboBox;
 class QDockWidget;
@@ -66,6 +67,7 @@ private:
     EditorScene *m_scene = nullptr;
     QDockWidget *m_dock = nullptr;
     QDockWidget *m_propertiesDock = nullptr;
+    PropertiesPanel *m_properties = nullptr;
     QMenu *m_fileMenu = nullptr;
     QAction *m_newAction = nullptr;
     QAction *m_openAction = nullptr;
