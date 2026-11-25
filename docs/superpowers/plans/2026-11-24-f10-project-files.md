@@ -91,7 +91,7 @@
 - [ ] **Step 2: Verify.**
   Run the gate-4 block alone: `bash -c "$(sed -n '/== 4\/6/,/== 5\/6/p' scripts/quality_gates.sh | sed '$d')"`.
   Expected:
-  - the list holds the `.cpp` files changed in `git diff --stat origin/main` (19 commits ahead today);
+  - the list holds the `.cpp` files changed in `git diff --stat origin/main`;
   - touching `src/core/version.h` alone adds `src/core/version.cpp`;
   - clang-tidy exits 0.
 - [ ] **Step 3: Write ADR 0031**, "Project files", with the template's sections. It refines 0010 and 0018, and records:
@@ -311,10 +311,11 @@
       - Open each: `fileErrorBox` shows the damaged message or the newer-version message, with the file name.
       - After OK, devices, wires and title are unchanged. Screenshot of the box: `f10-damaged`.
     - `newDropsOldConditionsAndUndo`:
-      - Make an undoable edit. Add the tutorial loads, switch QF1, QD1 and QF3 on, and `setFault("l3", Fault::ShortCircuit)`, so the status bar shows QF3's trip.
+      - Make an undoable edit and Save As a temp file, so the undo action is enabled but nothing is unsaved (Task 6's question must not appear here). Add the tutorial loads, switch QF1, QD1 and QF3 on, and `setFault("l3", Fault::ShortCircuit)`, so the status bar shows QF3's trip.
       - New: the status bar reads "Ready" and the undo action is disabled.
       - Add the tutorial devices again: `isOn("d1")` is false.
     - `quitClosesWindow`: triggering `quitAction` with no edits closes the window (`isVisible()` false).
+    - `dialogsStartInLastFolder`: with fresh settings, the open dialog (caught with `onModal<QFileDialog>`) shows `directory()` = Documents. After saving into `<tmp>`, both dialogs show `<tmp>`.
 - [ ] **Step 2: Run them and the two edited old tests; they fail.**
   Run: `cmake --build build && ctest --test-dir build -R "tst_files|tst_mainwindow|tst_editing" --output-on-failure`
   Expected: build errors for `filePath`, or FAIL on the missing menu and title.
@@ -379,7 +380,6 @@
   - `openRecentOpensTheFile`: save, New, then click the entry (`openSubmenu` + `clickMenuItem`). The model equals the saved one. Screenshot `f10-recent` with the submenu open.
   - `missingRecentFileIsRemoved`: save, delete the file on disk, and click its entry. `fileErrorBox` shows "Can't find x.panel; it was moved or deleted." The entry is gone, and the project is unchanged.
   - `damagedRecentFileStays`: overwrite a recent file with `"{"` and click it. The damaged message shows, and the entry stays.
-  - `dialogsStartInLastFolder`: with fresh settings, the open dialog (caught with `onModal<QFileDialog>`) shows `directory()` = Documents. After saving into `<tmp>`, both dialogs show `<tmp>`.
 - [ ] **Step 2: Run them; they fail.**
 - [ ] **Step 3: Implement.** Then run `update_translations` and enter the "Can't find" and "Open Recent" rows.
 - [ ] **Step 4: Run them; they pass,** together with the whole suite.
