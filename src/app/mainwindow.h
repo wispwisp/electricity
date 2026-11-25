@@ -35,12 +35,15 @@ public:
 
 protected:
     bool event(QEvent *event) override;
+    void closeEvent(QCloseEvent *event) override;
     void changeEvent(QEvent *event) override;
 
 private:
     void retranslateUi();
     void onEvent(const SimulationEvent &event);
     void showIdleText();
+    // False if the user cancelled, or chose Save and it did not happen.
+    bool maybeSave();
     void newProject();
     void openFile(const QString &path);
     // The window's project takes the source's contents with these switches on, a fresh simulation

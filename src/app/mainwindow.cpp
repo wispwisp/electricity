@@ -19,6 +19,7 @@
 
 #include <QAction>
 #include <QActionGroup>
+#include <QCloseEvent>
 #include <QComboBox>
 #include <QCoreApplication>
 #include <QDockWidget>
@@ -29,6 +30,7 @@
 #include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>
+#include <QPushButton>
 #include <QScreen>
 #include <QStatusBar>
 #include <QStatusTipEvent>
@@ -120,6 +122,8 @@ MainWindow::MainWindow(QWidget *parent)
     m_undoAction->setIcon(svgIcon(QStringLiteral(":/svg/ui/undo.svg"), 24));
     m_undoAction->setShortcut(QKeySequence::Undo);
     m_undoAction->setEnabled(false);
+    connect(m_undoStack, &QUndoStack::cleanChanged, this,
+            [this](bool clean) { setWindowModified(!clean); });
     connect(m_undoAction, &QAction::triggered, m_undoStack, &QUndoStack::undo);
     connect(m_undoStack, &QUndoStack::canUndoChanged, m_undoAction, &QAction::setEnabled);
     m_redoAction = new QAction(this);
@@ -210,6 +214,8 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_newAction, &QAction::triggered, this, &MainWindow::newProject);
     m_openAction = addFileAction(QStringLiteral("openAction"), QKeySequence(Qt::CTRL | Qt::Key_O));
     connect(m_openAction, &QAction::triggered, this, [this] {
+        if (!maybeSave())
+            return;
         const QString path = chooseFile(false);
         if (!path.isEmpty())
             openFile(path);
@@ -358,6 +364,14 @@ bool MainWindow::event(QEvent *event)
     return QMainWindow::event(event);
 }
 
+void MainWindow::closeEvent(QCloseEvent *event)
+{
+    if (maybeSave())
+        event->accept();
+    else
+        event->ignore();
+}
+
 void MainWindow::changeEvent(QEvent *event)
 {
     if (event->type() == QEvent::LanguageChange)
@@ -430,8 +444,34 @@ void MainWindow::showIdleText()
     statusBar()->showMessage(text);
 }
 
+bool MainWindow::maybeSave()
+{
+    if (m_undoStack->isClean())
+        return true;
+    const QString text = m_filePath.isEmpty()
+            ? tr("Save changes to the new project?")
+            : tr("Save changes to %1?").arg(QFileInfo(m_filePath).fileName());
+    QMessageBox box(QMessageBox::Question, QStringLiteral("Electricity"), text,
+                    QMessageBox::NoButton, this);
+    box.setObjectName(QStringLiteral("saveChangesBox"));
+    QAbstractButton *saveButton = box.addButton(tr("Save"), QMessageBox::AcceptRole);
+    saveButton->setObjectName(QStringLiteral("saveChangesSave"));
+    QAbstractButton *discardButton = box.addButton(tr("Don't Save"), QMessageBox::DestructiveRole);
+    discardButton->setObjectName(QStringLiteral("saveChangesDiscard"));
+    QAbstractButton *cancelButton = box.addButton(tr("Cancel"), QMessageBox::RejectRole);
+    cancelButton->setObjectName(QStringLiteral("saveChangesCancel"));
+    box.setDefaultButton(qobject_cast<QPushButton *>(saveButton));
+    box.setEscapeButton(cancelButton);
+    box.exec();
+    if (box.clickedButton() == saveButton)
+        return save();
+    return box.clickedButton() == discardButton;
+}
+
 void MainWindow::newProject()
 {
+    if (!maybeSave())
+        return;
     takeOver(Project(m_project->catalog()), {}, QString());
 }
 

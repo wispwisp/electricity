@@ -53,15 +53,19 @@ constexpr int kModalTimeout = 5000; // ms
 // Runs trigger, and callback on the first modal T that shows meanwhile (checked every 10 ms).
 // Returns whether one showed. A modal the callback leaves open is closed; if none shows within
 // kModalTimeout, whatever modal is open is closed instead, so a failed check cannot hang the test.
+// With a name, only a modal of that object name counts, so that nested calls for different boxes
+// don't take each other's.
 template<typename T>
-bool onModal(const std::function<void(T &)> &callback, const std::function<void()> &trigger)
+bool onModal(const std::function<void(T &)> &callback, const std::function<void()> &trigger,
+             const char *name = nullptr)
 {
     bool found = false;
     QTimer timer;
     const QDeadlineTimer deadline(kModalTimeout);
     QObject::connect(&timer, &QTimer::timeout, &timer, [&] {
         QWidget *modal = QApplication::activeModalWidget();
-        if (auto *dialog = qobject_cast<T *>(modal)) {
+        auto *dialog = qobject_cast<T *>(modal);
+        if (dialog && (!name || dialog->objectName() == QLatin1String(name))) {
             timer.stop();
             found = true;
             callback(*dialog);
@@ -76,6 +80,21 @@ bool onModal(const std::function<void(T &)> &callback, const std::function<void(
     timer.start(10);
     trigger();
     return found;
+}
+
+// Runs trigger, and clicks the button of that object name on the "Save changes?" question that
+// shows meanwhile; text, if given, gets the question's text. Returns whether it showed.
+bool answerQuestion(const char *button, const std::function<void()> &trigger,
+                    QString *text = nullptr)
+{
+    return onModal<QMessageBox>(
+            [&](QMessageBox &box) {
+                if (text)
+                    *text = box.text();
+                if (auto *b = box.findChild<QAbstractButton *>(QString::fromLatin1(button)))
+                    QTest::mouseClick(b, Qt::LeftButton);
+            },
+            trigger, "saveChangesBox");
 }
 
 // QTest::keyClicks handles ASCII; other characters go as key events carrying their text.
@@ -151,8 +170,17 @@ private slots:
     void newDropsOldConditionsAndUndo();
     void quitClosesWindow();
     void dialogsStartInLastFolder();
+    void editMarksWindowModified();
+    void switchingIsNotAChange();
+    void closeAsksAboutUnsavedChanges();
+    void saveFromQuestionOnUntitledOpensSaveAs();
+    void saveFromQuestionSavesThenContinues();
+    void failedOpenAfterDontSaveKeepsEdits();
+    void failedSaveCancelsClose();
 
 private:
+    // An edit that leaves the window modified: the last tutorial device is removed.
+    void editProject();
     // Opens the File menu and clicks the action.
     void clickFileAction(const char *name);
     // Clicks the action and types path into the file dialog it opens; whether the dialog showed.
@@ -179,6 +207,12 @@ private:
     std::unique_ptr<QTemporaryDir> folder; // a new one per test
     QTemporaryDir qtSettings;
 };
+
+void TestFiles::editProject()
+{
+    window->undoStack().push(new RemoveDeviceCommand(window->project(), QStringLiteral("d5")));
+    QVERIFY(window->isWindowModified());
+}
 
 void TestFiles::clickFileAction(const char *name)
 {
@@ -696,6 +730,177 @@ void TestFiles::dialogsStartInLastFolder()
                         sub + QStringLiteral("/there.panel")));
     QVERIFY(chooseFile("openAction", sub + QStringLiteral("/there.panel")));
     QCOMPARE(shownFolder("saveAsAction"), QDir(sub).canonicalPath());
+}
+
+void TestFiles::editMarksWindowModified()
+{
+    const QString qf = window->project().addDevice(
+            deviceFromPreset(preset(QStringLiteral("breaker-1p-c16")), 0, 8));
+    QVERIFY(!window->isWindowModified());
+    const auto at = [this](int module) {
+        return viewportPoint(canvas, scene->slotRect(0, module, 1).center());
+    };
+    mouseDrag(canvas->viewport(), at(8), at(9));
+    QCOMPARE(window->project().device(qf)->module, 9);
+    QVERIFY(window->isWindowModified());
+    QCOMPARE(window->windowTitle(), QStringLiteral("Untitled[*] — Electricity"));
+    named<QAction>("undoAction")->trigger();
+    QCOMPARE(window->project().device(qf)->module, 8);
+    QVERIFY(!window->isWindowModified());
+}
+
+void TestFiles::switchingIsNotAChange()
+{
+    const QString path = tempPath(QStringLiteral("switching.panel"));
+    QVERIFY(chooseFile("saveAsAction", path));
+    canvas->setTransform(QTransform::fromScale(0.6, 0.6));
+    canvas->centerOn(QPointF(140, 300));
+    clickHandle(QStringLiteral("d1"));
+    QVERIFY(window->simulation().isOn(u"d1"));
+    QVERIFY(!window->isWindowModified());
+
+    clickFileAction("saveAction");
+    Project saved(window->project().catalog());
+    const OpenResult result = openProject(path, saved);
+    QCOMPARE(result.status, OpenResult::Status::Opened);
+    QVERIFY(result.on.contains(QStringLiteral("d1")));
+
+    clickHandle(QStringLiteral("d1"));
+    QVERIFY(!window->simulation().isOn(u"d1"));
+    bool closed = false;
+    const bool asked = answerQuestion("saveChangesCancel", [&] { closed = window->close(); });
+    QVERIFY(!asked);
+    QVERIFY(closed);
+}
+
+void TestFiles::closeAsksAboutUnsavedChanges()
+{
+    editProject();
+    QString text;
+    QString name;
+    bool closed = true;
+    bool screenshot = false;
+    bool asked = onModal<QMessageBox>(
+            [&](QMessageBox &box) {
+                name = box.objectName();
+                text = box.text();
+                screenshot = saveScreenshot(box, QStringLiteral("f10"), QStringLiteral("question"));
+                QTest::mouseClick(
+                        box.findChild<QAbstractButton *>(QStringLiteral("saveChangesCancel")),
+                        Qt::LeftButton);
+            },
+            [&] { closed = window->close(); });
+    QVERIFY(asked);
+    QCOMPARE(name, QStringLiteral("saveChangesBox"));
+    QCOMPARE(text, QStringLiteral("Save changes to the new project?"));
+    QVERIFY(screenshot);
+    QVERIFY(!closed);
+    QVERIFY(window->isVisible());
+    QVERIFY(window->isWindowModified());
+
+    asked = answerQuestion("saveChangesDiscard", [&] { closed = window->close(); });
+    QVERIFY(asked);
+    QVERIFY(closed);
+    QVERIFY(!window->isVisible());
+}
+
+void TestFiles::saveFromQuestionOnUntitledOpensSaveAs()
+{
+    editProject();
+    const QList<PlacedDevice> devices = window->project().devices();
+    bool dialogShown = onModal<QFileDialog>(
+            [](QFileDialog &dialog) {
+                QVERIFY(QTest::qWaitForWindowActive(&dialog));
+                QTest::keyClick(&dialog, Qt::Key_Escape);
+            },
+            [&] {
+                QVERIFY(answerQuestion("saveChangesSave", [&] { clickFileAction("newAction"); }));
+            });
+    QVERIFY(dialogShown);
+    QCOMPARE(window->project().devices(), devices);
+    QVERIFY(window->isWindowModified());
+    QCOMPARE(window->filePath(), QString());
+}
+
+void TestFiles::saveFromQuestionSavesThenContinues()
+{
+    const QString path = tempPath(QStringLiteral("then.panel"));
+    QVERIFY(chooseFile("saveAsAction", path));
+    editProject();
+    const QList<PlacedDevice> edited = window->project().devices();
+    QVERIFY(answerQuestion("saveChangesSave", [&] { clickFileAction("newAction"); }));
+
+    Project saved(window->project().catalog());
+    QCOMPARE(openProject(path, saved).status, OpenResult::Status::Opened);
+    QCOMPARE(saved.devices(), edited);
+    QVERIFY(window->project().devices().isEmpty());
+    QCOMPARE(window->filePath(), QString());
+    QCOMPARE(window->windowTitle(), QStringLiteral("Untitled[*] — Electricity"));
+    QVERIFY(!window->isWindowModified());
+}
+
+void TestFiles::failedOpenAfterDontSaveKeepsEdits()
+{
+    const QString damaged = tempPath(QStringLiteral("bad.panel"));
+    QVERIFY(writeAll(damaged, "{"));
+    editProject();
+    const QList<PlacedDevice> edited = window->project().devices();
+
+    QString error;
+    const bool shown = onModal<QMessageBox>(
+            [&](QMessageBox &box) {
+                error = box.text();
+                QTest::mouseClick(box.button(QMessageBox::Ok), Qt::LeftButton);
+            },
+            [&] {
+                QVERIFY(answerQuestion("saveChangesDiscard",
+                                       [&] { QVERIFY(chooseFile("openAction", damaged)); }));
+            },
+            "fileErrorBox");
+    QVERIFY(shown);
+    QVERIFY(error.contains(QStringLiteral("bad.panel")));
+    QCOMPARE(window->project().devices(), edited);
+    QVERIFY(window->isWindowModified());
+    auto *undo = named<QAction>("undoAction");
+    QVERIFY(undo->isEnabled());
+    undo->trigger();
+    QCOMPARE(window->project().devices().size(), edited.size() + 1);
+    QVERIFY(!window->isWindowModified());
+}
+
+void TestFiles::failedSaveCancelsClose()
+{
+#ifdef Q_OS_WIN
+    QSKIP("Folder permissions are not POSIX on Windows");
+#endif
+    const QString readOnly = tempPath(QStringLiteral("ro"));
+    QVERIFY(QDir().mkpath(readOnly));
+    const QString path = readOnly + QStringLiteral("/p.panel");
+    QVERIFY(chooseFile("saveAsAction", path));
+    editProject();
+    QVERIFY(QFile::setPermissions(readOnly, QFile::ReadOwner | QFile::ExeOwner));
+    const auto restore = qScopeGuard([&readOnly] {
+        QFile::setPermissions(readOnly, QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner);
+    });
+    if (QFile probe(readOnly + QStringLiteral("/probe")); probe.open(QIODevice::WriteOnly)) {
+        probe.remove();
+        QSKIP("The folder stays writable (running as root)");
+    }
+
+    QString text;
+    bool closed = true;
+    const bool shown = onModal<QMessageBox>(
+            [&](QMessageBox &box) {
+                text = box.text();
+                QTest::mouseClick(box.button(QMessageBox::Ok), Qt::LeftButton);
+            },
+            [&] { QVERIFY(answerQuestion("saveChangesSave", [&] { closed = window->close(); })); },
+            "fileErrorBox");
+    QVERIFY(shown);
+    QVERIFY2(text.startsWith(QStringLiteral("Can't save p.panel: ")), qPrintable(text));
+    QVERIFY(!closed);
+    QVERIFY(window->isVisible());
+    QVERIFY(window->isWindowModified());
 }
 
 QTEST_MAIN(TestFiles)
