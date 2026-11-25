@@ -11,6 +11,7 @@
 #include <QTemporaryDir>
 #include <QtTest>
 
+#include <array>
 #include <functional>
 
 using namespace Qt::StringLiterals;
@@ -105,6 +106,7 @@ private slots:
     void saveFailsWithoutFolder();
     void saveFailureKeepsExistingFile();
     void openMissingFileIsNotPanelFile();
+    void opensVersion1Fixture();
 };
 
 // The appliance comes before its socket in loads().
@@ -366,6 +368,66 @@ void TestProjectFile::openMissingFileIsNotPanelFile()
     const OpenResult r = openProject(dir.filePath(u"none.panel"_s), project);
     QCOMPARE(r.status, OpenResult::Status::NotPanelFile);
     QVERIFY(!r.reason.isEmpty());
+}
+
+// The saved tutorial panel must open in every later version of the app (ADR 0010). Each new file
+// version adds its own fixture and a test like this one.
+void TestProjectFile::opensVersion1Fixture()
+{
+    Project project(embeddedCatalog());
+    const OpenResult r = openProject(TEST_DATA_DIR "/v1-tutorial.panel"_L1, project);
+    QCOMPARE(r.status, OpenResult::Status::Opened);
+    QCOMPARE(r.on, (QStringList{ u"d1"_s, u"d2"_s, u"d3"_s, u"l1"_s }));
+
+    const QList<PlacedDevice> &devices = project.devices();
+    QCOMPARE(devices.size(), 5);
+    QCOMPARE(devices[0].id, u"d1"_s);
+    QCOMPARE(devices[0].type, u"breaker"_s);
+    QCOMPARE(devices[0].poles, u"2P"_s);
+    QCOMPARE(devices[0].parameters, (QJsonObject{ { "curve", "C" }, { "ratedCurrent", 40 } }));
+    QCOMPARE(devices[0].row, 0);
+    QCOMPARE(devices[0].module, 0);
+    QCOMPARE(devices[1].id, u"d2"_s);
+    QCOMPARE(devices[1].type, u"rcd"_s);
+    QCOMPARE(devices[1].module, 2);
+    QCOMPARE(devices[2].id, u"d3"_s);
+    QCOMPARE(devices[2].parameters["curve"].toString(), u"C"_s);
+    QCOMPARE(devices[2].parameters["ratedCurrent"].toInt(), 10);
+    QCOMPARE(devices[2].module, 4);
+    for (int i = 3; i < 5; ++i) {
+        QCOMPARE(devices[i].parameters["ratedCurrent"].toInt(), 16);
+        QCOMPARE(devices[i].row, 0);
+        QCOMPARE(devices[i].module, i + 2);
+    }
+
+    const QList<PlacedLoad> &loads = project.loads();
+    QCOMPARE(loads.size(), 10);
+    QCOMPARE(project.loadNumber(u"l2"), 2);
+    struct Plugged
+    {
+        int index;
+        const char *type;
+        const char *socket;
+        int place;
+    };
+    const std::array<Plugged, 4> plugged{ { { 6, "tv", "l3", 1 },
+                                            { 7, "air-conditioner", "l4", 1 },
+                                            { 8, "kettle", "l5", 1 },
+                                            { 9, "microwave", "l5", 2 } } };
+    for (const auto &p : plugged) {
+        QCOMPARE(loads[p.index].id, u"l%1"_s.arg(p.index + 1));
+        QCOMPARE(loads[p.index].type, QString::fromLatin1(p.type));
+        QCOMPARE(loads[p.index].socket, QString::fromLatin1(p.socket));
+        QCOMPARE(loads[p.index].place, p.place);
+    }
+
+    const QList<Wire> &wires = project.wires();
+    QCOMPARE(wires.size(), 27);
+    QCOMPARE(wires[0].from, u"supply:L"_s);
+    QCOMPARE(wires[0].to, u"d1:1"_s);
+    QCOMPARE(wires[0].section, 10.0);
+    QCOMPARE(wires[0].conductor, Conductor::L);
+    QCOMPARE(wires[0].length, 0.3);
 }
 
 QTEST_APPLESS_MAIN(TestProjectFile)

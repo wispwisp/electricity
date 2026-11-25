@@ -1,0 +1,372 @@
+{
+    "devices": [
+        {
+            "id": "d1",
+            "module": 0,
+            "on": true,
+            "parameters": {
+                "curve": "C",
+                "ratedCurrent": 40
+            },
+            "poles": "2P",
+            "row": 0,
+            "type": "breaker"
+        },
+        {
+            "id": "d2",
+            "module": 2,
+            "on": true,
+            "parameters": {
+                "ratedCurrent": 40,
+                "rcdType": "A",
+                "residualCurrent": 30
+            },
+            "poles": "2P",
+            "row": 0,
+            "type": "rcd"
+        },
+        {
+            "id": "d3",
+            "module": 4,
+            "on": true,
+            "parameters": {
+                "curve": "C",
+                "ratedCurrent": 10
+            },
+            "poles": "1P",
+            "row": 0,
+            "type": "breaker"
+        },
+        {
+            "id": "d4",
+            "module": 5,
+            "parameters": {
+                "curve": "C",
+                "ratedCurrent": 16
+            },
+            "poles": "1P",
+            "row": 0,
+            "type": "breaker"
+        },
+        {
+            "id": "d5",
+            "module": 6,
+            "parameters": {
+                "curve": "C",
+                "ratedCurrent": 16
+            },
+            "poles": "1P",
+            "row": 0,
+            "type": "breaker"
+        }
+    ],
+    "enclosures": [
+        {
+            "type": "enclosure-12"
+        }
+    ],
+    "format": "electricity-panel",
+    "loads": [
+        {
+            "id": "l1",
+            "on": true,
+            "power": 10,
+            "type": "ceiling-lamp",
+            "x": 0,
+            "y": 270
+        },
+        {
+            "id": "l2",
+            "power": 10,
+            "type": "ceiling-lamp",
+            "x": 45,
+            "y": 270
+        },
+        {
+            "id": "l3",
+            "power": 0,
+            "type": "socket",
+            "x": 94.5,
+            "y": 270
+        },
+        {
+            "id": "l4",
+            "power": 0,
+            "type": "socket",
+            "x": 175.5,
+            "y": 270
+        },
+        {
+            "id": "l5",
+            "power": 0,
+            "type": "socket",
+            "x": 256.5,
+            "y": 270
+        },
+        {
+            "id": "l6",
+            "power": 0,
+            "type": "socket",
+            "x": 337.5,
+            "y": 270
+        },
+        {
+            "id": "l7",
+            "place": 1,
+            "power": 120,
+            "socket": "l3",
+            "type": "tv",
+            "x": 0,
+            "y": 0
+        },
+        {
+            "id": "l8",
+            "place": 1,
+            "power": 1000,
+            "socket": "l4",
+            "type": "air-conditioner",
+            "x": 0,
+            "y": 0
+        },
+        {
+            "id": "l9",
+            "place": 1,
+            "power": 2000,
+            "socket": "l5",
+            "type": "kettle",
+            "x": 0,
+            "y": 0
+        },
+        {
+            "id": "l10",
+            "place": 2,
+            "power": 1200,
+            "socket": "l5",
+            "type": "microwave",
+            "x": 0,
+            "y": 0
+        }
+    ],
+    "supply": {
+        "type": "supply-1p"
+    },
+    "version": 1,
+    "wires": [
+        {
+            "conductor": "L",
+            "from": "supply:L",
+            "id": "w1",
+            "length": 0.3,
+            "section": 10,
+            "to": "d1:1"
+        },
+        {
+            "conductor": "N",
+            "from": "supply:N",
+            "id": "w2",
+            "length": 0.3,
+            "section": 10,
+            "to": "d1:3"
+        },
+        {
+            "conductor": "L",
+            "from": "d1:2",
+            "id": "w3",
+            "length": 0.3,
+            "section": 10,
+            "to": "d2:1"
+        },
+        {
+            "conductor": "N",
+            "from": "d1:4",
+            "id": "w4",
+            "length": 0.3,
+            "section": 10,
+            "to": "d2:N1"
+        },
+        {
+            "conductor": "L",
+            "from": "d2:2",
+            "id": "w5",
+            "length": 0.3,
+            "section": 6,
+            "to": "d3:1"
+        },
+        {
+            "conductor": "L",
+            "from": "d3:1",
+            "id": "w6",
+            "length": 0.3,
+            "section": 6,
+            "to": "d4:1"
+        },
+        {
+            "conductor": "L",
+            "from": "d4:1",
+            "id": "w7",
+            "length": 0.3,
+            "section": 6,
+            "to": "d5:1"
+        },
+        {
+            "conductor": "N",
+            "from": "d2:N2",
+            "id": "w8",
+            "length": 0.3,
+            "section": 10,
+            "to": "nbar:1"
+        },
+        {
+            "conductor": "PE",
+            "from": "supply:PE",
+            "id": "w9",
+            "length": 0.3,
+            "section": 10,
+            "to": "pebar:1"
+        },
+        {
+            "conductor": "L",
+            "from": "d3:2",
+            "id": "w10",
+            "length": 15,
+            "section": 1.5,
+            "to": "l1:L"
+        },
+        {
+            "conductor": "N",
+            "from": "nbar:2",
+            "id": "w11",
+            "length": 15,
+            "section": 1.5,
+            "to": "l1:N"
+        },
+        {
+            "conductor": "PE",
+            "from": "pebar:2",
+            "id": "w12",
+            "length": 15,
+            "section": 1.5,
+            "to": "l1:PE"
+        },
+        {
+            "conductor": "L",
+            "from": "l1:L",
+            "id": "w13",
+            "length": 15,
+            "section": 1.5,
+            "to": "l2:L"
+        },
+        {
+            "conductor": "N",
+            "from": "l1:N",
+            "id": "w14",
+            "length": 15,
+            "section": 1.5,
+            "to": "l2:N"
+        },
+        {
+            "conductor": "PE",
+            "from": "l1:PE",
+            "id": "w15",
+            "length": 15,
+            "section": 1.5,
+            "to": "l2:PE"
+        },
+        {
+            "conductor": "L",
+            "from": "d4:2",
+            "id": "w16",
+            "length": 15,
+            "section": 2.5,
+            "to": "l3:L"
+        },
+        {
+            "conductor": "N",
+            "from": "nbar:3",
+            "id": "w17",
+            "length": 15,
+            "section": 2.5,
+            "to": "l3:N"
+        },
+        {
+            "conductor": "PE",
+            "from": "pebar:3",
+            "id": "w18",
+            "length": 15,
+            "section": 2.5,
+            "to": "l3:PE"
+        },
+        {
+            "conductor": "L",
+            "from": "l3:L",
+            "id": "w19",
+            "length": 15,
+            "section": 2.5,
+            "to": "l4:L"
+        },
+        {
+            "conductor": "N",
+            "from": "l3:N",
+            "id": "w20",
+            "length": 15,
+            "section": 2.5,
+            "to": "l4:N"
+        },
+        {
+            "conductor": "PE",
+            "from": "l3:PE",
+            "id": "w21",
+            "length": 15,
+            "section": 2.5,
+            "to": "l4:PE"
+        },
+        {
+            "conductor": "L",
+            "from": "d5:2",
+            "id": "w22",
+            "length": 15,
+            "section": 2.5,
+            "to": "l5:L"
+        },
+        {
+            "conductor": "N",
+            "from": "nbar:4",
+            "id": "w23",
+            "length": 15,
+            "section": 2.5,
+            "to": "l5:N"
+        },
+        {
+            "conductor": "PE",
+            "from": "pebar:4",
+            "id": "w24",
+            "length": 15,
+            "section": 2.5,
+            "to": "l5:PE"
+        },
+        {
+            "conductor": "L",
+            "from": "l5:L",
+            "id": "w25",
+            "length": 15,
+            "section": 2.5,
+            "to": "l6:L"
+        },
+        {
+            "conductor": "N",
+            "from": "l5:N",
+            "id": "w26",
+            "length": 15,
+            "section": 2.5,
+            "to": "l6:N"
+        },
+        {
+            "conductor": "PE",
+            "from": "l5:PE",
+            "id": "w27",
+            "length": 15,
+            "section": 2.5,
+            "to": "l6:PE"
+        }
+    ]
+}
