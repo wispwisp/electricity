@@ -1,0 +1,16 @@
+{
+  "format": "electricity-panel",
+  "version": 1,
+  "supply": { "type": "supply-1p" },
+  "enclosures": [ { "type": "enclosure-12" } ],
+  "devices": [
+    { "id": "d1", "type": "breaker", "poles": "1P", "parameters": { "curve": "C", "ratedCurrent": 16 }, "row": 0, "module": 0, "on": true }
+  ],
+  "loads": [
+    { "id": "l1", "type": "socket", "x": 0, "y": 300, "power": 0 },
+    { "id": "l2", "type": "kettle", "x": 0, "y": 0, "power": 2000, "socket": "l1", "place": 1 }
+  ],
+  "wires": [
+    { "id": "w1", "from": "d1:2", "to": "l1:L", "section": 2.5, "conductor": "L", "length": 15 }
+  ]
+}
