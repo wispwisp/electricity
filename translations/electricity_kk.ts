@@ -364,191 +364,201 @@
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="384"/>
+        <location filename="../src/app/mainwindow.cpp" line="389"/>
         <source>File</source>
         <translation>Файл</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="385"/>
+        <location filename="../src/app/mainwindow.cpp" line="390"/>
         <source>New</source>
         <translation>Жаңа</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="386"/>
+        <location filename="../src/app/mainwindow.cpp" line="391"/>
         <source>Open…</source>
         <translation>Ашу…</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="387"/>
-        <location filename="../src/app/mainwindow.cpp" line="457"/>
+        <location filename="../src/app/mainwindow.cpp" line="392"/>
+        <source>Open Recent</source>
+        <translation>Соңғы файлдар</translation>
+    </message>
+    <message>
+        <location filename="../src/app/mainwindow.cpp" line="393"/>
+        <location filename="../src/app/mainwindow.cpp" line="463"/>
         <source>Save</source>
         <translation>Сақтау</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="388"/>
+        <location filename="../src/app/mainwindow.cpp" line="394"/>
         <source>Save As…</source>
         <translation>Басқаша сақтау…</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="389"/>
+        <location filename="../src/app/mainwindow.cpp" line="395"/>
         <source>Quit</source>
         <translation>Шығу</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="391"/>
-        <location filename="../src/app/mainwindow.cpp" line="392"/>
+        <location filename="../src/app/mainwindow.cpp" line="397"/>
+        <location filename="../src/app/mainwindow.cpp" line="398"/>
         <source>Edit</source>
         <translation>Өңдеу</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="393"/>
+        <location filename="../src/app/mainwindow.cpp" line="399"/>
         <source>Undo</source>
         <translation>Болдырмау</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="394"/>
+        <location filename="../src/app/mainwindow.cpp" line="400"/>
         <source>Redo</source>
         <translation>Қайталау</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="395"/>
+        <location filename="../src/app/mainwindow.cpp" line="401"/>
         <source>Wire</source>
         <translation>Сым</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="396"/>
+        <location filename="../src/app/mainwindow.cpp" line="402"/>
         <source>Draw wires: click one terminal, then another.</source>
         <translation>Сымдар: бір клемманы, содан кейін екіншісін басыңыз.</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="397"/>
+        <location filename="../src/app/mainwindow.cpp" line="403"/>
         <source>Section of new wires</source>
         <translation>Жаңа сымдардың қимасы</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="402"/>
+        <location filename="../src/app/mainwindow.cpp" line="408"/>
         <source>Time</source>
         <translation>Уақыт</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="403"/>
+        <location filename="../src/app/mainwindow.cpp" line="409"/>
         <source>Pause</source>
         <translation>Үзіліс</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="404"/>
+        <location filename="../src/app/mainwindow.cpp" line="410"/>
         <source>Delete</source>
         <translation>Жою</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="405"/>
+        <location filename="../src/app/mainwindow.cpp" line="411"/>
         <source>View</source>
         <translation>Көрініс</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="406"/>
+        <location filename="../src/app/mainwindow.cpp" line="412"/>
         <source>Fit to window</source>
         <translation>Терезе өлшеміне сыйғызу</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="407"/>
+        <location filename="../src/app/mainwindow.cpp" line="413"/>
         <source>Show currents</source>
         <translation>Токтарды көрсету</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="408"/>
+        <location filename="../src/app/mainwindow.cpp" line="414"/>
         <source>Settings</source>
         <translation>Баптаулар</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="409"/>
+        <location filename="../src/app/mainwindow.cpp" line="415"/>
         <source>Theme</source>
         <translation>Тақырып</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="410"/>
+        <location filename="../src/app/mainwindow.cpp" line="416"/>
         <source>Dark</source>
         <translation>Қараңғы</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="411"/>
+        <location filename="../src/app/mainwindow.cpp" line="417"/>
         <source>Light</source>
         <translation>Ашық</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="412"/>
+        <location filename="../src/app/mainwindow.cpp" line="418"/>
         <source>Language</source>
         <translation>Тіл</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="413"/>
+        <location filename="../src/app/mainwindow.cpp" line="419"/>
         <source>Components</source>
         <translation>Компоненттер</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="414"/>
+        <location filename="../src/app/mainwindow.cpp" line="420"/>
         <source>Properties</source>
         <translation>Қасиеттер</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="434"/>
+        <location filename="../src/app/mainwindow.cpp" line="440"/>
         <source>Ready</source>
         <translation>Дайын</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="452"/>
+        <location filename="../src/app/mainwindow.cpp" line="458"/>
         <source>Save changes to the new project?</source>
         <translation>Жаңа жобадағы өзгерістерді сақтау керек пе?</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="453"/>
+        <location filename="../src/app/mainwindow.cpp" line="459"/>
         <source>Save changes to %1?</source>
         <translation>%1 файлындағы өзгерістерді сақтау керек пе?</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="459"/>
+        <location filename="../src/app/mainwindow.cpp" line="465"/>
         <source>Don&apos;t Save</source>
         <translation>Сақтамау</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="461"/>
+        <location filename="../src/app/mainwindow.cpp" line="467"/>
         <source>Cancel</source>
         <translation>Бас тарту</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="488"/>
+        <location filename="../src/app/mainwindow.cpp" line="494"/>
         <source>%1 was saved by a newer version of Electricity. Update the app to open it.</source>
         <translation>%1 Electricity бағдарламасының жаңарақ нұсқасында сақталған. Оны ашу үшін бағдарламаны жаңартыңыз.</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="494"/>
+        <location filename="../src/app/mainwindow.cpp" line="500"/>
         <source>%1 is not an Electricity panel file, or it is damaged.</source>
         <translation>%1 — Electricity қалқанының файлы емес немесе ол бүлінген.</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="545"/>
+        <location filename="../src/app/mainwindow.cpp" line="552"/>
         <source>Can&apos;t save %1: %2</source>
         <translation>%1 сақталмады: %2</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="562"/>
+        <location filename="../src/app/mainwindow.cpp" line="570"/>
         <source>Untitled</source>
         <translation>Атаусыз</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="570"/>
+        <location filename="../src/app/mainwindow.cpp" line="578"/>
         <source>Save As</source>
         <translation>Басқаша сақтау</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="570"/>
+        <location filename="../src/app/mainwindow.cpp" line="578"/>
         <source>Open</source>
         <translation>Ашу</translation>
     </message>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="571"/>
+        <location filename="../src/app/mainwindow.cpp" line="579"/>
         <source>Panel projects (*.panel)</source>
         <translation>Қалқан жобалары (*.panel)</translation>
+    </message>
+    <message>
+        <location filename="../src/app/mainwindow.cpp" line="622"/>
+        <source>Can&apos;t find %1; it was moved or deleted.</source>
+        <translation>%1 табылмады: файл жылжытылған немесе жойылған.</translation>
     </message>
 </context>
 <context>
@@ -705,7 +715,7 @@
 <context>
     <name>QFileDialog</name>
     <message>
-        <location filename="../src/app/mainwindow.cpp" line="528"/>
+        <location filename="../src/app/mainwindow.cpp" line="535"/>
         <source>%1 already exists.
 Do you want to replace it?</source>
         <translation>%1 бұрыннан бар.

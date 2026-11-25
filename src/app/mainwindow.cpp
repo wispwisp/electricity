@@ -22,6 +22,7 @@
 #include <QCloseEvent>
 #include <QComboBox>
 #include <QCoreApplication>
+#include <QDir>
 #include <QDockWidget>
 #include <QEvent>
 #include <QFileDialog>
@@ -50,6 +51,7 @@ constexpr int kPropertiesWidth = 230;
 constexpr int kHintTimeout = 5000; // ms
 constexpr int kTickInterval = 50;  // ms of real time between simulation steps (ADR 0008)
 constexpr int kStartSpeed = 10;    // every launch, not saved
+constexpr int kMaxRecentFiles = 8;
 
 // The condition an event starts or ends: Tripped, Overloaded (any heat) or Dangerous.
 SimulationEvent::Kind condition(const SimulationEvent &event)
@@ -220,6 +222,9 @@ MainWindow::MainWindow(QWidget *parent)
         if (!path.isEmpty())
             openFile(path);
     });
+    m_recentMenu = m_fileMenu->addMenu(QString());
+    m_recentMenu->setObjectName(QStringLiteral("recentMenu"));
+    rebuildRecentMenu();
     m_fileMenu->addSeparator();
     m_saveAction = addFileAction(QStringLiteral("saveAction"), QKeySequence(Qt::CTRL | Qt::Key_S));
     connect(m_saveAction, &QAction::triggered, this, &MainWindow::save);
@@ -384,6 +389,7 @@ void MainWindow::retranslateUi()
     m_fileMenu->setTitle(tr("File"));
     m_newAction->setText(tr("New"));
     m_openAction->setText(tr("Open…"));
+    m_recentMenu->setTitle(tr("Open Recent"));
     m_saveAction->setText(tr("Save"));
     m_saveAsAction->setText(tr("Save As…"));
     m_quitAction->setText(tr("Quit"));
@@ -495,6 +501,7 @@ void MainWindow::openFile(const QString &path)
         return;
     }
     Settings::saveFileFolder(QFileInfo(path).absolutePath());
+    addRecentFile(path);
     takeOver(opened, result.on, path);
 }
 
@@ -547,6 +554,7 @@ bool MainWindow::saveTo(const QString &path)
     }
     m_undoStack->setClean();
     Settings::saveFileFolder(QFileInfo(path).absolutePath());
+    addRecentFile(path);
     setFilePath(path);
     return true;
 }
@@ -588,4 +596,40 @@ void MainWindow::showFileError(const QString &text)
                     this);
     box.setObjectName(QStringLiteral("fileErrorBox"));
     box.exec();
+}
+
+void MainWindow::addRecentFile(const QString &path)
+{
+    const QString absolute = QFileInfo(path).absoluteFilePath();
+    QStringList files = Settings::savedRecentFiles();
+    files.removeAll(absolute);
+    files.prepend(absolute);
+    while (files.size() > kMaxRecentFiles)
+        files.removeLast();
+    Settings::saveRecentFiles(files);
+    rebuildRecentMenu();
+}
+
+void MainWindow::rebuildRecentMenu()
+{
+    m_recentMenu->clear();
+    const QStringList files = Settings::savedRecentFiles();
+    for (const QString &path : files) {
+        QAction *action = m_recentMenu->addAction(QFileInfo(path).fileName());
+        action->setStatusTip(QDir::toNativeSeparators(path));
+        connect(action, &QAction::triggered, this, [this, path] {
+            if (!QFileInfo::exists(path)) {
+                showFileError(tr("Can't find %1; it was moved or deleted.")
+                                      .arg(QFileInfo(path).fileName()));
+                QStringList left = Settings::savedRecentFiles();
+                left.removeAll(path);
+                Settings::saveRecentFiles(left);
+                rebuildRecentMenu();
+                return;
+            }
+            if (maybeSave())
+                openFile(path);
+        });
+    }
+    m_recentMenu->setEnabled(!files.isEmpty());
 }

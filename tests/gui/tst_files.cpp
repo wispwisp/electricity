@@ -177,6 +177,10 @@ private slots:
     void saveFromQuestionSavesThenContinues();
     void failedOpenAfterDontSaveKeepsEdits();
     void failedSaveCancelsClose();
+    void recentListsOpenedAndSavedFiles();
+    void openRecentOpensTheFile();
+    void missingRecentFileIsRemoved();
+    void damagedRecentFileStays();
 
 private:
     // An edit that leaves the window modified: the last tutorial device is removed.
@@ -186,6 +190,10 @@ private:
     // Clicks the action and types path into the file dialog it opens; whether the dialog showed.
     bool chooseFile(const char *action, const QString &path);
     [[nodiscard]] QString tempPath(const QString &name) const;
+    // Opens File > Open Recent and clicks the entry at index; the submenu stays open if keepOpen.
+    bool clickRecent(int index, bool keepOpen = false);
+    // The text of each Open Recent entry.
+    [[nodiscard]] QStringList recentTexts() const;
     [[nodiscard]] DeviceItem *deviceItem(const QString &id) const;
     [[nodiscard]] LoadItem *loadItem(const QString &id) const;
     // Bounds of an element of the device's picture, in item coordinates.
@@ -236,6 +244,29 @@ bool TestFiles::chooseFile(const char *action, const QString &path)
 QString TestFiles::tempPath(const QString &name) const
 {
     return folder->filePath(name);
+}
+
+bool TestFiles::clickRecent(int index, bool keepOpen)
+{
+    auto *menu = named<QMenu>("fileMenu");
+    auto *recent = named<QMenu>("recentMenu");
+    if (!menu || !recent)
+        return false;
+    QMenuBar *bar = window->menuBar();
+    QTest::mouseMove(bar, bar->actionGeometry(menu->menuAction()).center());
+    clickMenuBarItem(*window, menu);
+    openSubmenu(menu, recent);
+    if (!keepOpen)
+        clickMenuItem(recent, recent->actions().at(index));
+    return true;
+}
+
+QStringList TestFiles::recentTexts() const
+{
+    QStringList texts;
+    for (QAction *action : named<QMenu>("recentMenu")->actions())
+        texts << action->text();
+    return texts;
 }
 
 DeviceItem *TestFiles::deviceItem(const QString &id) const
@@ -310,6 +341,7 @@ void TestFiles::initTestCase()
 
 void TestFiles::init()
 {
+    Settings::saveRecentFiles({});
     folder = std::make_unique<QTemporaryDir>();
     QVERIFY(folder->isValid());
     window = std::make_unique<MainWindow>();
@@ -343,15 +375,17 @@ void TestFiles::fileMenuComesFirst()
     QVERIFY(menu);
     QCOMPARE(window->menuBar()->actions().constFirst(), menu->menuAction());
 
-    // The actions themselves, submenus aside.
     QStringList items;
     for (QAction *action : menu->actions()) {
-        if (!action->menu())
+        if (action->menu())
+            items << action->menu()->objectName();
+        else
             items << (action->isSeparator() ? QStringLiteral("-") : action->objectName());
     }
     QCOMPARE(items,
-             (QStringList{ "newAction", "openAction", "-", "saveAction", "saveAsAction", "-",
-                           "quitAction" }));
+             (QStringList{ "newAction", "openAction", "recentMenu", "-", "saveAction",
+                           "saveAsAction", "-", "quitAction" }));
+    QCOMPARE(named<QMenu>("recentMenu")->title(), QStringLiteral("Open Recent"));
     struct Item
     {
         const char *name;
@@ -901,6 +935,107 @@ void TestFiles::failedSaveCancelsClose()
     QVERIFY(!closed);
     QVERIFY(window->isVisible());
     QVERIFY(window->isWindowModified());
+}
+
+void TestFiles::recentListsOpenedAndSavedFiles()
+{
+    auto *recent = named<QMenu>("recentMenu");
+    QVERIFY(recent);
+    QVERIFY(!recent->isEnabled());
+    const QString a = tempPath(QStringLiteral("a.panel"));
+    const QString b = tempPath(QStringLiteral("b.panel"));
+    QVERIFY(chooseFile("saveAsAction", a));
+    QVERIFY(chooseFile("saveAsAction", b));
+    QVERIFY(chooseFile("openAction", a));
+    QVERIFY(recent->isEnabled());
+    QCOMPARE(recentTexts(), (QStringList{ "a.panel", "b.panel" }));
+    QCOMPARE(recent->actions().at(0)->statusTip(), QDir::toNativeSeparators(a));
+    QCOMPARE(recent->actions().at(1)->statusTip(), QDir::toNativeSeparators(b));
+
+    QStringList expected;
+    for (int i = 0; i < 9; ++i) {
+        const QString name = QStringLiteral("p%1.panel").arg(i);
+        QVERIFY(chooseFile("saveAsAction", tempPath(name)));
+        expected.prepend(name);
+    }
+    expected.removeLast();
+    QCOMPARE(recentTexts(), expected);
+    QCOMPARE(expected.size(), 8);
+
+    MainWindow another;
+    auto *anotherRecent = another.findChild<QMenu *>(QStringLiteral("recentMenu"));
+    QVERIFY(anotherRecent);
+    QStringList anotherTexts;
+    for (QAction *action : anotherRecent->actions())
+        anotherTexts << action->text();
+    QCOMPARE(anotherTexts, expected);
+
+    Settings::saveRecentFiles({});
+    MainWindow fresh;
+    auto *freshRecent = fresh.findChild<QMenu *>(QStringLiteral("recentMenu"));
+    QVERIFY(freshRecent);
+    QVERIFY(!freshRecent->isEnabled());
+}
+
+void TestFiles::openRecentOpensTheFile()
+{
+    lightLamp1();
+    const QString path = tempPath(QStringLiteral("tutorial.panel"));
+    QVERIFY(chooseFile("saveAsAction", path));
+    Project saved(window->project().catalog());
+    QCOMPARE(openProject(path, saved).status, OpenResult::Status::Opened);
+    clickFileAction("newAction");
+    QVERIFY(window->project().devices().isEmpty());
+
+    QVERIFY(clickRecent(0, true));
+    auto *recent = named<QMenu>("recentMenu");
+    // A menu is a window of its own, so the window's grab would not show it.
+    QVERIFY(saveScreenshot(*recent, QStringLiteral("f10"), QStringLiteral("recent")));
+    clickMenuItem(recent, recent->actions().at(0));
+    compareDesigns(window->project(), saved);
+    QCOMPARE(window->filePath(), path);
+    QVERIFY(window->simulation().isOn(u"d1"));
+}
+
+void TestFiles::missingRecentFileIsRemoved()
+{
+    const QString path = tempPath(QStringLiteral("x.panel"));
+    QVERIFY(chooseFile("saveAsAction", path));
+    QVERIFY(QFile::remove(path));
+    const QList<PlacedDevice> devices = window->project().devices();
+    QString name;
+    QString text;
+    const bool shown = onModal<QMessageBox>(
+            [&](QMessageBox &box) {
+                name = box.objectName();
+                text = box.text();
+                QTest::mouseClick(box.button(QMessageBox::Ok), Qt::LeftButton);
+            },
+            [&] { QVERIFY(clickRecent(0)); }, "fileErrorBox");
+    QVERIFY(shown);
+    QCOMPARE(text, QStringLiteral("Can't find x.panel; it was moved or deleted."));
+    QVERIFY(recentTexts().isEmpty());
+    QVERIFY(!named<QMenu>("recentMenu")->isEnabled());
+    QCOMPARE(window->project().devices(), devices);
+    QCOMPARE(window->filePath(), path);
+}
+
+void TestFiles::damagedRecentFileStays()
+{
+    const QString path = tempPath(QStringLiteral("d.panel"));
+    QVERIFY(chooseFile("saveAsAction", path));
+    clickFileAction("newAction");
+    QVERIFY(writeAll(path, "{"));
+    QString text;
+    const bool shown = onModal<QMessageBox>(
+            [&](QMessageBox &box) {
+                text = box.text();
+                QTest::mouseClick(box.button(QMessageBox::Ok), Qt::LeftButton);
+            },
+            [&] { QVERIFY(clickRecent(0)); }, "fileErrorBox");
+    QVERIFY(shown);
+    QCOMPARE(text, QStringLiteral("d.panel is not an Electricity panel file, or it is damaged."));
+    QCOMPARE(recentTexts(), (QStringList{ "d.panel" }));
 }
 
 QTEST_MAIN(TestFiles)

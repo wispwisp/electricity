@@ -57,6 +57,9 @@ private:
     // A file chosen in the open or save dialog; "" if cancelled.
     QString chooseFile(bool save);
     void showFileError(const QString &text);
+    // Moves the file to the top of the recent list.
+    void addRecentFile(const QString &path);
+    void rebuildRecentMenu();
 
     Project *m_project = nullptr;
     QUndoStack *m_undoStack = nullptr;
@@ -66,6 +69,7 @@ private:
     QMenu *m_fileMenu = nullptr;
     QAction *m_newAction = nullptr;
     QAction *m_openAction = nullptr;
+    QMenu *m_recentMenu = nullptr;
     QAction *m_saveAction = nullptr;
     QAction *m_saveAsAction = nullptr;
     QAction *m_quitAction = nullptr;

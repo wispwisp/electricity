@@ -5,6 +5,7 @@
 #include "app/theme.h"
 
 #include <QString>
+#include <QStringList>
 
 #include <optional>
 
@@ -22,5 +23,8 @@ void saveShowCurrents(bool shown);
 // The folder of the file opened or saved last; Documents when unset.
 QString savedFileFolder();
 void saveFileFolder(const QString &folder);
+// Absolute paths, the newest first; empty when unset.
+QStringList savedRecentFiles();
+void saveRecentFiles(const QStringList &files);
 
 } // namespace Settings

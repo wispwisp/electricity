@@ -60,4 +60,14 @@ void saveFileFolder(const QString &folder)
     open().setValue(QStringLiteral("fileFolder"), folder);
 }
 
+QStringList savedRecentFiles()
+{
+    return open().value(QStringLiteral("recentFiles")).toStringList();
+}
+
+void saveRecentFiles(const QStringList &files)
+{
+    open().setValue(QStringLiteral("recentFiles"), files);
+}
+
 } // namespace Settings
