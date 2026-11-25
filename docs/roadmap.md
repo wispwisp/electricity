@@ -22,7 +22,7 @@ Status legend: ☐ not started · ◐ in progress · ☑ done
 | F07 | Loads | ☑ |
 | F08 | Live simulation: supply, switching, currents | ☑ |
 | F09 | Protection and faults | ☑ |
-| F10 | Project files | ◐ |
+| F10 | Project files | ☑ |
 | F11 | Tutorial: single-phase apartment panel | ☐ |
 | F12 | Properties and engineering details | ☐ |
 | F13 | Parts list | ☐ |

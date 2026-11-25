@@ -187,6 +187,7 @@ private slots:
     void fileTextsFollowLanguage();
     void fileDialogIsTranslated_data();
     void fileDialogIsTranslated();
+    void roadmapScenario();
 
 private:
     // An edit that leaves the window modified: the last tutorial device is removed.
@@ -1113,6 +1114,53 @@ void TestFiles::fileDialogIsTranslated()
     QCOMPARE_NE(open, QStringLiteral("&Open"));
     QCOMPARE_NE(cancel, QStringLiteral("Cancel"));
     QVERIFY(screenshot);
+}
+
+void TestFiles::roadmapScenario()
+{
+    clickPause();
+    lightLamp1();
+    const QStringList expectedOn{ "d1", "d2", "d3", "l1" };
+    QCOMPARE(window->simulation().switchedOn(), expectedOn);
+    QVERIFY(saveScreenshot(*window, QStringLiteral("f10"), QStringLiteral("roadmap-1")));
+
+    const QString path = tempPath(QStringLiteral("roadmap.panel"));
+    QVERIFY(chooseFile("saveAsAction", path));
+    Project saved(window->project().catalog());
+    QCOMPARE(openProject(path, saved).status, OpenResult::Status::Opened);
+    QVERIFY(saveScreenshot(*window, QStringLiteral("f10"), QStringLiteral("roadmap-2")));
+
+    clickFileAction("newAction");
+    QVERIFY(window->project().devices().isEmpty());
+    QVERIFY(window->simulation().switchedOn().isEmpty());
+    QVERIFY(saveScreenshot(*window, QStringLiteral("f10"), QStringLiteral("roadmap-3")));
+
+    QVERIFY(chooseFile("openAction", path));
+    compareDesigns(window->project(), saved);
+    QCOMPARE(window->simulation().switchedOn(), expectedOn);
+    QVERIFY(!window->isWindowModified());
+    QVERIFY(saveScreenshot(*window, QStringLiteral("f10"), QStringLiteral("roadmap-4")));
+
+    PlacedDevice moved = *window->project().device(u"d5");
+    moved.module += 1;
+    window->undoStack().push(new UpdateDeviceCommand(window->project(), moved));
+    QVERIFY(window->isWindowModified());
+    bool closed = true;
+    bool asked = onModal<QMessageBox>(
+            [&](QMessageBox &box) {
+                QCOMPARE(box.objectName(), QStringLiteral("saveChangesBox"));
+                QVERIFY(saveScreenshot(box, QStringLiteral("f10"), QStringLiteral("roadmap-5")));
+                QTest::mouseClick(
+                        box.findChild<QAbstractButton *>(QStringLiteral("saveChangesDiscard")),
+                        Qt::LeftButton);
+            },
+            [&] { closed = window->close(); });
+    QVERIFY(asked);
+    QVERIFY(closed);
+    // Don't Save left the file as it was.
+    Project reread(window->project().catalog());
+    QCOMPARE(openProject(path, reread).status, OpenResult::Status::Opened);
+    compareDesigns(reread, saved);
 }
 
 QTEST_MAIN(TestFiles)

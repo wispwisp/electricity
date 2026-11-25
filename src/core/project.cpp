@@ -282,7 +282,7 @@ WireCheck Project::wireCheck(const Wire &wire) const
         return WireCheck::SameTerminal;
     if (std::ranges::find(WireSections, wire.section) == WireSections.end())
         return WireCheck::InvalidSection;
-    if (!(wire.length > 0 && wire.length <= MaxWireLength))
+    if (!(wire.length > 0) || wire.length > MaxWireLength) // not <= 0: a NaN is refused too
         return WireCheck::InvalidLength;
     const auto others = [&](const QString &terminal) {
         return std::ranges::count_if(m_wires, [&](const Wire &w) {
