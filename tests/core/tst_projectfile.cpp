@@ -246,6 +246,8 @@ void TestProjectFile::refuses_data()
                                   { "module", 4 } });
         }),
         S::Refused, "devices[1]");
+    row("unknown load type", field(u"loads"_s, 0, u"type"_s, u"fridge-xyz"_s), S::Refused,
+        "loads[0]");
     row("load id d9", field(u"loads"_s, 0, u"id"_s, u"d9"_s), S::Refused, "loads[0]");
     row("plug into non-socket", field(u"loads"_s, 1, u"socket"_s, u"d1"_s), S::Refused, "loads[1]");
     row("socket without place", field(u"loads"_s, 1, u"place"_s, gone), S::Refused, "loads[1]");

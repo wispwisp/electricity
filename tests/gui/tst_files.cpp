@@ -28,6 +28,7 @@
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QLabel>
@@ -170,6 +171,7 @@ private slots:
     void saveAsAsksBeforeReplacingDottedName();
     void cyrillicFileName();
     void openRefusesDamagedAndNewerFiles();
+    void openNeverLoadsHalfAPanel();
     void openedFileTripsAtOnce();
     void failedSaveKeepsUntitled();
     void newDropsOldConditionsAndUndo();
@@ -188,6 +190,7 @@ private slots:
     void newByKeyAsksAboutTypedValue();
     void recentListsOpenedAndSavedFiles();
     void openRecentOpensTheFile();
+    void openRecentAsksAboutUnsavedChanges();
     void missingRecentFileIsRemoved();
     void damagedRecentFileStays();
     void fileTextsFollowLanguage();
@@ -690,6 +693,41 @@ void TestFiles::openRefusesDamagedAndNewerFiles()
     }
 }
 
+// The model refuses the second device, which overlaps the first, after taking the first.
+void TestFiles::openNeverLoadsHalfAPanel()
+{
+    QJsonObject json = QJsonDocument::fromJson(writeProject(window->project(), {})).object();
+    QJsonArray items = json[QStringLiteral("devices")].toArray();
+    QJsonObject second = items[1].toObject();
+    second[QStringLiteral("module")] = items[0].toObject()[QStringLiteral("module")];
+    items[1] = second;
+    json[QStringLiteral("devices")] = items;
+    const QString path = tempPath(QStringLiteral("overlap.panel"));
+    QVERIFY(writeAll(path, QJsonDocument(json).toJson()));
+    Project check(window->project().catalog());
+    const OpenResult result = openProject(path, check);
+    QCOMPARE(result.status, OpenResult::Status::Refused);
+    QVERIFY2(result.reason.startsWith(QStringLiteral("devices[1]")), qPrintable(result.reason));
+    const QList<PlacedDevice> devices = window->project().devices();
+    const QList<Wire> wires = window->project().wires();
+    const QString title = window->windowTitle();
+
+    QString text;
+    const bool shown = onModal<QMessageBox>(
+            [&](QMessageBox &box) {
+                text = box.text();
+                QTest::mouseClick(box.button(QMessageBox::Ok), Qt::LeftButton);
+            },
+            [&] { QVERIFY(chooseFile("openAction", path)); }, "fileErrorBox");
+    QVERIFY(shown);
+    QCOMPARE(text,
+             QStringLiteral("overlap.panel is not an Electricity panel file, or it is damaged."));
+    QCOMPARE(window->project().devices(), devices);
+    QCOMPARE(window->project().wires(), wires);
+    QCOMPARE(window->windowTitle(), title);
+    QCOMPARE(window->filePath(), QString());
+}
+
 // A lamp whose neutral bypasses the RCD, saved on: as on a click, the RCD trips as soon as the file
 // opens, and the status bar says so.
 void TestFiles::openedFileTripsAtOnce()
@@ -1146,6 +1184,21 @@ void TestFiles::openRecentOpensTheFile()
     compareDesigns(window->project(), saved);
     QCOMPARE(window->filePath(), path);
     QVERIFY(window->simulation().isOn(u"d1"));
+}
+
+void TestFiles::openRecentAsksAboutUnsavedChanges()
+{
+    QVERIFY(chooseFile("saveAsAction", tempPath(QStringLiteral("recent.panel"))));
+    clickFileAction("newAction");
+    window->undoStack().push(new AddDeviceCommand(
+            window->project(), deviceFromPreset(preset(QStringLiteral("breaker-1p-c16")), 0, 0)));
+    const QList<PlacedDevice> edited = window->project().devices();
+    QVERIFY(window->isWindowModified());
+
+    QVERIFY(answerQuestion("saveChangesCancel", [&] { QVERIFY(clickRecent(0)); }));
+    QCOMPARE(window->project().devices(), edited);
+    QVERIFY(window->isWindowModified());
+    QCOMPARE(window->filePath(), QString());
 }
 
 void TestFiles::missingRecentFileIsRemoved()
